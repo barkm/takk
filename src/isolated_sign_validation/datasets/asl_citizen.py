@@ -11,7 +11,7 @@ import numpy as np
 import polars as pl
 from tqdm import tqdm
 
-from isolated_sign_validation.extraction import download_model, extract_landmarks
+from isolated_sign_validation.extraction import download_model, extract_landmarks, silence_native_logs
 from isolated_sign_validation.landmarks import write_store_resumable
 from isolated_sign_validation.parallel import parallel_map
 
@@ -30,7 +30,7 @@ def read_videos(raw_dir: Path) -> pl.DataFrame:
 def extract_clips(videos: Sequence[dict], raw_dir: Path) -> Iterator[tuple[dict, np.ndarray]]:
     """Extract (metadata, landmarks) for `videos` (rows of the split CSVs), in order."""
     paths = [raw_dir / "videos" / video["Video file"] for video in videos]
-    results = parallel_map(extract_landmarks, paths, max_workers=MAX_WORKERS)
+    results = parallel_map(extract_landmarks, paths, max_workers=MAX_WORKERS, initializer=silence_native_logs)
     for video, (landmarks, fps) in zip(videos, results):
         metadata = {
             "dataset": DATASET,

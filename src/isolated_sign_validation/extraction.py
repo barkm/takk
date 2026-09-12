@@ -3,6 +3,7 @@
 All video datasets go through this one setup, so their landmarks are consistent with each other.
 """
 
+import os
 import urllib.request
 from pathlib import Path
 
@@ -29,6 +30,14 @@ def download_model(path: Path = MODEL_PATH) -> None:
     if not path.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
         urllib.request.urlretrieve(MODEL_URL, path)
+
+
+def silence_native_logs() -> None:
+    """Discard this process's stderr, where MediaPipe's C++ code logs on every model load.
+
+    Meant as initializer for worker processes; exceptions in workers still reach the main process.
+    """
+    os.dup2(os.open(os.devnull, os.O_WRONLY), 2)
 
 
 def result_to_array(result) -> np.ndarray:
