@@ -11,7 +11,7 @@ Status of the work and the plan ahead. Update this file when a step is finished,
    - Clip viewer rendering sequences as animated GIFs (`scripts/view_clips.py`).
 
 2. **ASL Citizen data** — next
-   - Download (~46 GB zip) and inspect the contents: videos, metadata, official splits.
+   - Download (~46 GB zip) and inspect the contents: videos, metadata, official splits. — done (see findings)
    - Choose the landmark extractor: run MediaPipe (Tasks API) on a handful of videos, check the result in the viewer, and measure extraction speed.
    - Adapter extracting landmarks from the videos into the common layout, then the full extraction.
    - Exploration of the extracted data (sequence lengths, hand presence, handedness).
@@ -52,7 +52,8 @@ Later: sensitivity analysis and threshold selection; Swedish Sign Language signs
 
 ## Open decisions
 
-- **Landmark extractor:** MediaPipe Tasks API setup (a holistic landmarker if available, otherwise separate pose, hand and face landmarkers) and its settings.
+- **Landmark extractor:** candidate is MediaPipe's Tasks `HolisticLandmarker` (successor of the legacy Holistic; outputs face, pose and both hands), run in video mode. Settings (confidence thresholds) and speed still to be checked.
+- **Frame rate:** videos have different frame rates; store each clip's fps in the metadata so sequences can be resampled to a common rate?
 - **Held-out sign folds for ASL Citizen:** number of folds and signs per fold; decide after inspecting the data.
 
 ## Findings
@@ -68,6 +69,11 @@ Kaggle ASL Signs:
 
 ASL Citizen:
 - Single 45.9 GB zip from the Microsoft Download Center, no registration. Commercial use requires contacting ASL_Citizen@microsoft.com.
+- License (`use.txt`, Microsoft Research License Terms): non-commercial research only; the data and modifications of it (e.g. extracted landmarks) may not be distributed; personal data must be destroyed when the research is completed.
+- Layout: `ASL_Citizen/videos/*.mp4` (83,399 videos, ~50 GB) and `ASL_Citizen/splits/{train,val,test}.csv` with columns `Participant ID`, `Video file`, `Gloss`, `ASL-LEX Code`.
+- Official splits are signer-disjoint: 35 / 6 / 11 signers with 40,154 / 10,304 / 32,941 videos. All 2,731 glosses appear in every split; 21–45 videos per gloss (mean 31). Videos per signer are very uneven (2 to 3,004, median 1,496).
+- Glosses are cleaned labels (e.g. file `NOT MIND` → gloss `NOTMIND`, `SAIL` → `SAIL1`). 2,723 ASL-LEX codes; a few codes are shared by several glosses.
+- Videos (sample of 300): mostly H.264 640x480, some 960x540 and MPEG-4. Frame rate varies (mostly ~30 fps, also 25 and 15 fps). Mean length 2.7 s / 80 frames (33–366), so ~6.7M frames in total and a ~44 GB landmark store at float32.
 
 MediaPipe:
-- MediaPipe 1.0 has removed the legacy Holistic API that the Kaggle landmarks were extracted with. The Tasks API provides the landmark connection definitions (`FaceLandmarksConnections`, `HandLandmarksConnections`, `PoseLandmarksConnections`).
+- MediaPipe 1.0 has removed the legacy Holistic API that the Kaggle landmarks were extracted with. Its Tasks API has a `HolisticLandmarker` (model: `https://storage.googleapis.com/mediapipe-models/holistic_landmarker/holistic_landmarker/float16/latest/holistic_landmarker.task`) as well as separate face, hand and pose landmarkers. The Tasks API also provides the landmark connection definitions (`FaceLandmarksConnections`, `HandLandmarksConnections`, `PoseLandmarksConnections`).
