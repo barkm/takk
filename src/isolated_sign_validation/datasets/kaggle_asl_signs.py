@@ -3,10 +3,7 @@
 Run from the repo root: uv run python -m isolated_sign_validation.datasets.kaggle_asl_signs
 """
 
-import multiprocessing
 import os
-from collections.abc import Iterator
-from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -14,11 +11,11 @@ import polars as pl
 from tqdm import tqdm
 
 from isolated_sign_validation.landmarks import LANDMARK_SLICES, N_LANDMARKS, write_store
+from isolated_sign_validation.parallel import parallel_map
 
 DATASET = "kaggle_asl_signs"
 RAW_DIR = Path("data/raw/asl-signs")
 STORE_DIR = Path("data/processed") / DATASET
-BATCH_SIZE = 1024  # clips read in parallel at a time; bounds memory use
 
 
 def read_clip(path: Path) -> np.ndarray:
@@ -35,15 +32,6 @@ def read_clip(path: Path) -> np.ndarray:
     return landmarks
 
 
-def read_clips(paths: list[Path]) -> Iterator[np.ndarray]:
-    """Read clips in parallel, yielding them in the order of `paths`."""
-    os.environ["POLARS_MAX_THREADS"] = "1"  # for the workers: parallelism comes from processes
-    ctx = multiprocessing.get_context("spawn")  # polars is not fork-safe
-    with ProcessPoolExecutor(max_workers=os.cpu_count(), mp_context=ctx) as pool:
-        for i in range(0, len(paths), BATCH_SIZE):
-            yield from pool.map(read_clip, paths[i : i + BATCH_SIZE], chunksize=16)
-
-
 def convert(train: pl.DataFrame, raw_dir: Path, store_dir: Path) -> None:
     """Convert the clips listed in `train` (rows of Kaggle's train.csv) into a landmark store."""
     metadata = (
@@ -56,7 +44,8 @@ def convert(train: pl.DataFrame, raw_dir: Path, store_dir: Path) -> None:
         }
         for row in train.iter_rows(named=True)
     )
-    clips = zip(metadata, read_clips([raw_dir / p for p in train["path"]]))
+    os.environ["POLARS_MAX_THREADS"] = "1"  # for the workers: parallelism comes from processes
+    clips = zip(metadata, parallel_map(read_clip, [raw_dir / p for p in train["path"]], chunksize=16))
     write_store(store_dir, tqdm(clips, total=train.height, desc=DATASET, unit="clip"))
 
 
