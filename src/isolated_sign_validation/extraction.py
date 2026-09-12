@@ -31,8 +31,11 @@ def download_model(path: Path = MODEL_PATH) -> None:
         urllib.request.urlretrieve(MODEL_URL, path)
 
 
-def result_to_array(result: vision.HolisticLandmarkerResult) -> np.ndarray:
-    """Landmarks of one frame in the common layout, shape (N_LANDMARKS, 3); undetected parts are NaN."""
+def result_to_array(result) -> np.ndarray:
+    """Landmarks of one frame (a HolisticLandmarkerResult) in the common layout, shape (N_LANDMARKS, 3).
+
+    Undetected parts are NaN.
+    """
     landmarks = np.full((N_LANDMARKS, 3), np.nan, dtype=np.float32)
     for part, field in _RESULT_FIELDS.items():
         points = getattr(result, field)
@@ -51,6 +54,7 @@ def extract_landmarks(video: Path, model_path: Path = MODEL_PATH) -> tuple[np.nd
     options = vision.HolisticLandmarkerOptions(
         base_options=BaseOptions(model_asset_path=str(model_path)), running_mode=vision.RunningMode.VIDEO
     )
+    cv2.setNumThreads(1)  # extraction is parallelized over videos; avoid oversubscribing the CPUs
     capture = cv2.VideoCapture(str(video))
     fps = capture.get(cv2.CAP_PROP_FPS)
     frames, last_timestamp = [], -1
