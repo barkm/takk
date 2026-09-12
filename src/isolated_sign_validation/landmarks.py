@@ -5,8 +5,9 @@ Every dataset is converted into a landmark store: a directory with
 - ``landmarks.f32``: raw float32 array of shape (total_frames, N_LANDMARKS, 3) holding the
   x, y, z coordinates of all clips' frames back to back. Missing landmarks are NaN.
 - ``clips.parquet``: one row per clip with columns ``dataset``, ``clip_id``, ``sign``,
-  ``signer``, ``offset`` and ``n_frames``; the clip's frames are
+  ``signer``, ``fps``, ``offset`` and ``n_frames``; the clip's frames are
   ``landmarks[offset : offset + n_frames]``. ``signer`` is unique across datasets.
+  ``fps`` is the frame rate of the source video, null if unknown.
 
 Landmarks are the 543 MediaPipe Holistic landmarks, in the order given by LANDMARK_SLICES.
 """
@@ -24,7 +25,7 @@ LANDMARK_SLICES = {
     "right_hand": slice(522, 543),
 }
 N_LANDMARKS = 543
-METADATA_COLUMNS = ["dataset", "clip_id", "sign", "signer"]
+METADATA_COLUMNS = ["dataset", "clip_id", "sign", "signer", "fps"]
 
 # Face mesh indices of the lips (MediaPipe FaceLandmarksConnections.FACE_LANDMARKS_LIPS).
 _LIPS = [0, 13, 14, 17, 37, 39, 40, 61, 78, 80, 81, 82, 84, 87, 88, 91, 95, 146, 178, 181, 185, 191, 267, 269, 270, 291, 308, 310, 311, 312, 314, 317, 318, 321, 324, 375, 402, 405, 409, 415]  # fmt: skip
@@ -56,7 +57,7 @@ def write_store(path: Path, clips: Iterable[tuple[dict, np.ndarray]]) -> None:
             f.write(np.ascontiguousarray(landmarks, dtype=np.float32).tobytes())
             rows.append({**{c: metadata[c] for c in METADATA_COLUMNS}, "offset": offset, "n_frames": len(landmarks)})
             offset += len(landmarks)
-    pl.DataFrame(rows).write_parquet(path / "clips.parquet")
+    pl.DataFrame(rows, schema_overrides={"fps": pl.Float64}).write_parquet(path / "clips.parquet")
 
 
 class LandmarkStore:

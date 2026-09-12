@@ -52,6 +52,7 @@ def convert(train: pl.DataFrame, raw_dir: Path, store_dir: Path) -> None:
             "clip_id": str(row["sequence_id"]),
             "sign": row["sign"],
             "signer": f"{DATASET}:{row['participant_id']}",
+            "fps": None,  # not published for this dataset
         }
         for row in train.iter_rows(named=True)
     )
