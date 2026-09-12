@@ -5,7 +5,7 @@ Status of the work and the plan ahead. Update this file when a step is finished,
 ## Steps
 
 1. **Data exploration and pipeline (Kaggle ASL Signs)** — done
-   - Kaggle ASL Signs downloaded; exploration in `scripts/eda_asl_signs.py` (figures in `outputs/eda/`).
+   - Kaggle ASL Signs downloaded; exploration in `scripts/eda_asl_signs.py` (figures in `outputs/eda/`). The raw Kaggle files have since been deleted to free disk space; only the landmark store in `data/processed/kaggle_asl_signs/` is kept, so re-running the exploration script requires downloading again.
    - Common, dataset-agnostic landmark store (`landmarks.py`) and Kaggle adapter (`datasets/kaggle_asl_signs.py`). All 543 landmarks are stored; subsets are selected at load time.
    - Landmark groups relevant for signing (`LANDMARK_GROUPS`, ~100 landmarks: hands, upper body, face reference points, lips).
    - Clip viewer rendering sequences as animated GIFs (`scripts/view_clips.py`).
