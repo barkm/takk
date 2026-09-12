@@ -11,7 +11,7 @@ This system takes as input a sequence of human pose landmarks and a sign, and ou
 Key constraints:
 - **Open vocabulary.** The model must validate signs not seen during training, from few (possibly one) reference clips. Frame it as embedding + similarity verification, not closed-set classification.
 - **Dataset-agnostic data pipeline.** Each dataset (Kaggle ASL Signs, ASL Citizen, WLASL, ...) gets an adapter into a common landmark format. Nothing downstream may depend on a specific dataset.
-- **Consistent landmarks.** All video datasets must be extracted with one fixed MediaPipe setup (same version and settings) into the common landmark layout. ASL Citizen is the primary dataset; Kaggle ASL Signs (landmarks from the removed legacy MediaPipe Holistic) is only an optional extra.
+- **Consistent landmarks.** All video datasets must be extracted with one fixed MediaPipe setup (same version and settings) into the common landmark layout: `extraction.py`, the Tasks API HolisticLandmarker on the CPU. ASL Citizen is the primary dataset; Kaggle ASL Signs (landmarks from the removed legacy MediaPipe Holistic) is only an optional extra.
 - **No leakage in evaluation.** Hold out both signers and signs. A test signer or held-out sign must never appear in training.
 - **Optimize for model quality.** Deployment constraints (model size, latency) and threshold selection are out of scope for now.
 - **Use uv, never bare python/pip.** `uv add` for dependencies, `uv run` for scripts, `uvx` for one-off CLI tools.

@@ -43,6 +43,13 @@ wget -c -P data/raw https://download.microsoft.com/download/b/8/8/b88c0bae-e6c1-
 unzip -q data/raw/ASL_Citizen.zip -d data/raw/asl-citizen
 ```
 
+Then extract the landmarks into a landmark store in `data/processed/asl_citizen/` (~44 GB). This runs MediaPipe's HolisticLandmarker on the CPU and takes about half a day, so run it in `tmux` to survive a dropped SSH connection. If interrupted, run the same command again to resume:
+
+```sh
+tmux new -s extract
+uv run python -m isolated_sign_validation.datasets.asl_citizen
+```
+
 ### Downloading Kaggle ASL Signs
 
 1. Accept the competition rules on the [competition page](https://www.kaggle.com/competitions/asl-signs/data).
