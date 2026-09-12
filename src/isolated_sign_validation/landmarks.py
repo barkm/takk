@@ -26,6 +26,21 @@ LANDMARK_SLICES = {
 N_LANDMARKS = 543
 METADATA_COLUMNS = ["dataset", "clip_id", "sign", "signer"]
 
+# Face mesh indices of the lips (MediaPipe FaceLandmarksConnections.FACE_LANDMARKS_LIPS).
+_LIPS = [0, 13, 14, 17, 37, 39, 40, 61, 78, 80, 81, 82, 84, 87, 88, 91, 95, 146, 178, 181, 185, 191, 267, 269, 270, 291, 308, 310, 311, 312, 314, 317, 318, 321, 324, 375, 402, 405, 409, 415]  # fmt: skip
+# Face mesh indices of the nose tip, eye corners (right outer, right inner, left inner, left outer) and chin.
+_FACE_REFERENCE = [1, 33, 133, 362, 263, 152]
+
+# Subsets of the landmarks relevant for signing, as indices into the landmark axis.
+LANDMARK_GROUPS = {
+    "left_hand": np.arange(LANDMARK_SLICES["left_hand"].start, LANDMARK_SLICES["left_hand"].stop),
+    "right_hand": np.arange(LANDMARK_SLICES["right_hand"].start, LANDMARK_SLICES["right_hand"].stop),
+    # Pose shoulders, elbows, wrists and the pose model's coarse hand points (pose indices 11-22).
+    "upper_body": LANDMARK_SLICES["pose"].start + np.arange(11, 23),
+    "face_reference": LANDMARK_SLICES["face"].start + np.array(_FACE_REFERENCE),
+    "lips": LANDMARK_SLICES["face"].start + np.array(_LIPS),
+}
+
 
 def write_store(path: Path, clips: Iterable[tuple[dict, np.ndarray]]) -> None:
     """Write (metadata, landmarks) pairs to a landmark store at `path`.

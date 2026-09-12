@@ -1,7 +1,15 @@
 import numpy as np
 import pytest
 
-from isolated_sign_validation.landmarks import N_LANDMARKS, LandmarkStore, write_store
+from isolated_sign_validation.landmarks import LANDMARK_GROUPS, N_LANDMARKS, LandmarkStore, write_store
+
+
+def test_landmark_groups_are_disjoint_and_in_range():
+    sizes = {name: len(indices) for name, indices in LANDMARK_GROUPS.items()}
+    assert sizes == {"left_hand": 21, "right_hand": 21, "upper_body": 12, "face_reference": 6, "lips": 40}
+    indices = np.concatenate(list(LANDMARK_GROUPS.values()))
+    assert len(np.unique(indices)) == len(indices)
+    assert indices.min() >= 0 and indices.max() < N_LANDMARKS
 
 
 def make_clip(clip_id: str, n_frames: int, rng: np.random.Generator) -> tuple[dict, np.ndarray]:
