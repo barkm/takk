@@ -50,6 +50,13 @@ tmux new -s extract
 uv run python -m isolated_sign_validation.datasets.asl_citizen
 ```
 
+For a quick look at the data, extract only all videos of a few randomly chosen signs into a separate store (`data/processed/asl_citizen_10_signs/`, a few minutes) and inspect them with the clip viewer:
+
+```sh
+uv run python -m isolated_sign_validation.datasets.asl_citizen --signs 10
+uv run scripts/view_clips.py --store data/processed/asl_citizen_10_signs --sign <SIGN>
+```
+
 ### Downloading Kaggle ASL Signs
 
 1. Accept the competition rules on the [competition page](https://www.kaggle.com/competitions/asl-signs/data).

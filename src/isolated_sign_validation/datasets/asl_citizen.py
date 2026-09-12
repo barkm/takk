@@ -1,9 +1,12 @@
 """Adapter extracting landmarks from the ASL Citizen videos into a landmark store.
 
 Extraction takes about half a day; an interrupted run resumes where it left off when run again.
-Run from the repo root: uv run python -m isolated_sign_validation.datasets.asl_citizen
+Run from the repo root:
+    uv run python -m isolated_sign_validation.datasets.asl_citizen             # all videos
+    uv run python -m isolated_sign_validation.datasets.asl_citizen --signs 10  # all videos of 10 random signs
 """
 
+import argparse
 from collections.abc import Iterator, Sequence
 from pathlib import Path
 
@@ -52,5 +55,21 @@ def convert(videos: pl.DataFrame, raw_dir: Path, store_dir: Path) -> None:
     )
 
 
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument(
+        "--signs", type=int, help="only extract all videos of this many randomly chosen signs, into a separate store"
+    )
+    args = parser.parse_args()
+
+    videos, store_dir = read_videos(RAW_DIR), STORE_DIR
+    if args.signs:
+        signs = videos["Gloss"].unique().sort().sample(args.signs, seed=0).sort().to_list()
+        videos = videos.filter(pl.col("Gloss").is_in(signs))
+        store_dir = STORE_DIR.with_name(f"{DATASET}_{args.signs}_signs")
+        print(f"{videos.height} videos of the signs {', '.join(signs)} -> {store_dir}")
+    convert(videos, RAW_DIR, store_dir)
+
+
 if __name__ == "__main__":
-    convert(read_videos(RAW_DIR), RAW_DIR, STORE_DIR)
+    main()
