@@ -12,8 +12,10 @@ Status of the work and the plan ahead. Update this file when a step is finished,
 
 2. **ASL Citizen data** — next
    - Download (~46 GB zip) and inspect the contents: videos, metadata, official splits. — done (see findings)
-   - Choose the landmark extractor: run MediaPipe (Tasks API) on a handful of videos, check the result in the viewer, and measure extraction speed.
-   - Adapter extracting landmarks from the videos into the common layout, then the full extraction.
+   - Choose the landmark extractor: run MediaPipe (Tasks API) on a handful of videos, check the result in the viewer, and measure extraction speed. — done (see decisions and findings)
+   - Adapter extracting landmarks from the videos into the common layout (`datasets/asl_citizen.py`, resumable). — done
+   - Full extraction (~12–14 h, see README). — pending
+   - Delete `data/raw/ASL_Citizen.zip` (46 GB) once the extraction has been checked.
    - Exploration of the extracted data (sequence lengths, hand presence, handedness).
 
 3. **Splits**
@@ -50,10 +52,12 @@ Later: sensitivity analysis and threshold selection; Swedish Sign Language signs
 
 - **ASL Citizen is the primary dataset** instead of Kaggle ASL Signs: ~11x the vocabulary (the main lever for unseen signs), 52 signers, both hands free, and videos so the landmark extractor is under our control and matches what the system will use in practice. Kaggle ASL Signs is one-handed smartphone signing with landmarks from a removed MediaPipe version.
 
+- **Landmark extractor:** MediaPipe Tasks `HolisticLandmarker` (successor of the legacy Holistic) in video mode with default settings, on the CPU with 8 worker processes (`extraction.py`). Its landmarks match the Kaggle layout and hand label convention. MediaPipe's GPU mode was rejected: the holistic model fails on the GPU, and the separate face/hand/pose models run on the GPU but scale worse than the CPU (see findings).
+- **Frame rate:** each clip's source fps is stored in the store metadata (null when unknown), so sequences can be resampled to a common rate.
+- **Resumable extraction:** long extractions write the store in chunks of 1,024 clips and resume from the last finished chunk (`write_store_resumable`).
+
 ## Open decisions
 
-- **Landmark extractor:** candidate is MediaPipe's Tasks `HolisticLandmarker` (successor of the legacy Holistic; outputs face, pose and both hands), run in video mode. Settings (confidence thresholds) and speed still to be checked.
-- **Frame rate:** videos have different frame rates; store each clip's fps in the metadata so sequences can be resampled to a common rate?
 - **Held-out sign folds for ASL Citizen:** number of folds and signs per fold; decide after inspecting the data.
 
 ## Findings
@@ -74,6 +78,13 @@ ASL Citizen:
 - Official splits are signer-disjoint: 35 / 6 / 11 signers with 40,154 / 10,304 / 32,941 videos. All 2,731 glosses appear in every split; 21–45 videos per gloss (mean 31). Videos per signer are very uneven (2 to 3,004, median 1,496).
 - Glosses are cleaned labels (e.g. file `NOT MIND` → gloss `NOTMIND`, `SAIL` → `SAIL1`). 2,723 ASL-LEX codes; a few codes are shared by several glosses.
 - Videos (sample of 300): mostly H.264 640x480, some 960x540 and MPEG-4. Frame rate varies (mostly ~30 fps, also 25 and 15 fps). Mean length 2.7 s / 80 frames (33–366), so ~6.7M frames in total and a ~44 GB landmark store at float32.
+
+- First extraction test (32 videos): face and pose detected in 100% of frames; `left_hand` in 33%, `right_hand` in 42%, both in 30%, neither in 55% (recordings start and end with the hands down). Two-handed signing is present, unlike Kaggle.
+
+MediaPipe extraction speed (machine: Ryzen 9 5950X, 16 cores / 32 threads; RTX 3090):
+- HolisticLandmarker on the CPU, one process: ~22 ms per frame wall, ~40 ms CPU (uses ~1.7 cores).
+- Parallel throughput peaks at 8 worker processes (~136 frames/s in short benchmarks, ~150 expected with long-lived workers) and drops with more workers (16: ~103, 32: ~84). CPU time per frame doubles at 8 workers (contention for physical cores, SMT, clock speed). Pinning workers to cores makes it slower (8 pinned: 107). The Python API does not expose MediaPipe's thread count.
+- GPU: the HolisticLandmarker fails on the GPU (its face blendshapes model has unsupported operations, and the bundle cannot be built without it). The separate FaceLandmarker, HandLandmarker and PoseLandmarker run on the GPU (~6 ms per frame each, ~18 ms together), but multi-process throughput saturates at ~64 frames/s: MediaPipe's OpenGL path processes one frame at a time with CPU-GPU synchronization, and model loading takes 0.5–2 s per video. Using the GPU well would require reimplementing MediaPipe's pipeline with batched inference.
 
 MediaPipe:
 - MediaPipe 1.0 has removed the legacy Holistic API that the Kaggle landmarks were extracted with. Its Tasks API has a `HolisticLandmarker` (model: `https://storage.googleapis.com/mediapipe-models/holistic_landmarker/holistic_landmarker/float16/latest/holistic_landmarker.task`) as well as separate face, hand and pose landmarkers. The Tasks API also provides the landmark connection definitions (`FaceLandmarksConnections`, `HandLandmarksConnections`, `PoseLandmarksConnections`).
