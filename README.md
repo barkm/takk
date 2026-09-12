@@ -33,6 +33,17 @@ Kaggle ASL Signs is the starting point since it already contains landmarks. ASL 
 
 The data pipeline is dataset-agnostic: each dataset has an adapter that converts it into a common format (a landmark array per clip, plus metadata: dataset, sign, signer). Video datasets are first run through MediaPipe Holistic so their landmarks match the Kaggle layout. Sign labels have to be normalized when datasets are combined.
 
+### Downloading Kaggle ASL Signs
+
+1. Accept the competition rules on the [competition page](https://www.kaggle.com/competitions/asl-signs/data).
+2. Create an API token (Kaggle → Settings → API) and save it as `~/.kaggle/access_token`.
+3. Download and extract into the git-ignored `data/` directory:
+
+```sh
+uvx kaggle competitions download -c asl-signs -p data/raw
+unzip -q data/raw/asl-signs.zip -d data/raw/asl-signs
+```
+
 ## Evaluation
 
 - **Held-out signers:** no signer appears in both training and test data.

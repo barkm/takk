@@ -12,6 +12,8 @@ Key constraints:
 - **Consistent landmarks.** Landmarks for video datasets must be extracted with MediaPipe Holistic, matching the Kaggle ASL Signs layout.
 - **No leakage in evaluation.** Hold out both signers and signs. A test signer or held-out sign must never appear in training.
 - **Optimize for model quality.** Deployment constraints (model size, latency) and threshold selection are out of scope for now.
+- **Use uv, never bare python/pip.** `uv add` for dependencies, `uv run` for scripts, `uvx` for one-off CLI tools.
+- **Data lives in the git-ignored `data/` directory** (raw downloads in `data/raw/`).
 - **Long term (not in scope yet):** Swedish Sign Language signs from teckensprakslexikon.su.se.
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
