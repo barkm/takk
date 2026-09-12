@@ -6,6 +6,8 @@ Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-s
 
 This system takes as input a sequence of human pose landmarks and a sign, and outputs yes/no depending on whether the landmark sequence is signing that sign. See README.md for the approach, datasets, and evaluation protocol.
 
+**Read ROADMAP.md at the start of a session.** It holds the current plan, step status, open decisions and findings. Keep it updated: mark steps done, record decisions and new findings, and change the plan there when it changes.
+
 Key constraints:
 - **Open vocabulary.** The model must validate signs not seen during training, from few (possibly one) reference clips. Frame it as embedding + similarity verification, not closed-set classification.
 - **Dataset-agnostic data pipeline.** Each dataset (Kaggle ASL Signs, ASL Citizen, WLASL, ...) gets an adapter into a common landmark format. Nothing downstream may depend on a specific dataset.
