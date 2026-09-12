@@ -2,6 +2,18 @@
 
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
 
+## Project Context
+
+This system takes as input a sequence of human pose landmarks and a sign, and outputs yes/no depending on whether the landmark sequence is signing that sign. See README.md for the approach, datasets, and evaluation protocol.
+
+Key constraints:
+- **Open vocabulary.** The model must validate signs not seen during training, from few (possibly one) reference clips. Frame it as embedding + similarity verification, not closed-set classification.
+- **Dataset-agnostic data pipeline.** Each dataset (Kaggle ASL Signs, ASL Citizen, WLASL, ...) gets an adapter into a common landmark format. Nothing downstream may depend on a specific dataset.
+- **Consistent landmarks.** Landmarks for video datasets must be extracted with MediaPipe Holistic, matching the Kaggle ASL Signs layout.
+- **No leakage in evaluation.** Hold out both signers and signs. A test signer or held-out sign must never appear in training.
+- **Optimize for model quality.** Deployment constraints (model size, latency) and threshold selection are out of scope for now.
+- **Long term (not in scope yet):** Swedish Sign Language signs from teckensprakslexikon.su.se.
+
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
 ## 1. Think Before Coding
