@@ -14,6 +14,7 @@ Key constraints:
 - **Optimize for model quality.** Deployment constraints (model size, latency) and threshold selection are out of scope for now.
 - **Use uv, never bare python/pip.** `uv add` for dependencies, `uv run` for scripts, `uvx` for one-off CLI tools.
 - **Data lives in the git-ignored `data/` directory** (raw downloads in `data/raw/`).
+- **Headless machine.** The machine is used remotely over SSH with no display. Use matplotlib's Agg backend and save figures to the git-ignored `outputs/` directory; never `plt.show()`.
 - **Long term (not in scope yet):** Swedish Sign Language signs from teckensprakslexikon.su.se.
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
