@@ -25,13 +25,23 @@ Baselines:
 
 | Dataset | Format | Signs | Signers | Clips |
 |---|---|---|---|---|
-| [Kaggle ASL Signs](https://www.kaggle.com/competitions/asl-signs/data) | MediaPipe Holistic landmarks | 250 | 21 | ~94k |
 | [ASL Citizen](https://www.microsoft.com/en-us/research/project/asl-citizen/) | Video | 2,731 | 52 | ~83k |
+| [Sem-Lex](https://github.com/leekezar/SemLex) | Video | 3,149 | 41 | ~91k |
+| [Kaggle ASL Signs](https://www.kaggle.com/competitions/asl-signs/data) | MediaPipe Holistic landmarks | 250 | 21 | ~94k |
 | [WLASL](https://dxli94.github.io/WLASL/) | Video | 2,000 | ~119 | ~21k |
 
-Kaggle ASL Signs is the starting point since it already contains landmarks. ASL Citizen and WLASL add vocabulary, which matters most for generalizing to unseen signs. ASL Citizen and WLASL are licensed for non-commercial use only.
+ASL Citizen is the primary dataset: its large vocabulary matters most for generalizing to unseen signs, it is recorded with webcams with both hands free, and since it is video we extract the landmarks ourselves with the same setup the system will use in practice. Sem-Lex is the candidate second source (aligned with ASL Citizen through ASL-LEX, and annotated with phonological features). Kaggle ASL Signs comes from PopSign, which is one-handed smartphone signing (the other hand holds the phone), and its landmarks come from a MediaPipe version that is no longer available; it is kept only as an optional extra. ASL Citizen and WLASL are licensed for non-commercial use only.
 
-The data pipeline is dataset-agnostic: each dataset has an adapter that converts it into a common format (a landmark array per clip, plus metadata: dataset, sign, signer). Video datasets are first run through MediaPipe Holistic so their landmarks match the Kaggle layout. Sign labels have to be normalized when datasets are combined.
+The data pipeline is dataset-agnostic: each dataset has an adapter that converts it into a common format (a landmark array per clip, plus metadata: dataset, sign, signer). All video datasets are run through one fixed MediaPipe setup that outputs the common landmark layout. Sign labels have to be normalized when datasets are combined.
+
+### Downloading ASL Citizen
+
+No registration is needed. The zip is ~46 GB; download and extract into the git-ignored `data/` directory:
+
+```sh
+wget -c -P data/raw https://download.microsoft.com/download/b/8/8/b88c0bae-e6c1-43e1-8726-98cf5af36ca4/ASL_Citizen.zip
+unzip -q data/raw/ASL_Citizen.zip -d data/raw/asl-citizen
+```
 
 ### Downloading Kaggle ASL Signs
 
