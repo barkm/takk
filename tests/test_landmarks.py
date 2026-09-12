@@ -2,7 +2,14 @@ import numpy as np
 import polars as pl
 import pytest
 
-from isolated_sign_validation.landmarks import LANDMARK_GROUPS, N_LANDMARKS, LandmarkStore, write_store
+from isolated_sign_validation.landmarks import (
+    LANDMARK_GROUPS,
+    N_LANDMARKS,
+    LandmarkStore,
+    merge_stores,
+    write_store,
+    write_store_resumable,
+)
 
 
 def test_landmark_groups_are_disjoint_and_in_range():
@@ -43,3 +50,52 @@ def test_rejects_wrong_shape(tmp_path):
     metadata, _ = make_clip("a", 2, np.random.default_rng(0))
     with pytest.raises(ValueError, match="bad landmark shape"):
         write_store(tmp_path, [(metadata, np.zeros((2, 10, 3)))])
+
+
+def test_merge_stores(tmp_path):
+    rng = np.random.default_rng(0)
+    clips = [make_clip("a", 3, rng), make_clip("b", 2, rng), make_clip("c", 4, rng)]
+    write_store(tmp_path / "part1", clips[:2])
+    write_store(tmp_path / "part2", clips[2:])
+
+    merge_stores([tmp_path / "part1", tmp_path / "part2"], tmp_path / "merged")
+
+    store = LandmarkStore(tmp_path / "merged")
+    assert store.clips["clip_id"].to_list() == ["a", "b", "c"]
+    assert store.clips["offset"].to_list() == [0, 3, 5]
+    for i, (_, landmarks) in enumerate(clips):
+        np.testing.assert_array_equal(store[i], landmarks)
+
+
+def clip_for(item: int) -> tuple[dict, np.ndarray]:
+    landmarks = np.full((item % 3 + 1, N_LANDMARKS, 3), item, dtype=np.float32)
+    return {"dataset": "test", "clip_id": str(item), "sign": "hello", "signer": "test:1", "fps": 30.0}, landmarks
+
+
+def test_write_store_resumable_resumes_after_interruption(tmp_path):
+    items = list(range(10))
+
+    def crashing_convert(batch):
+        for item in batch[:5]:  # dies halfway through the second chunk
+            yield clip_for(item)
+        raise RuntimeError("interrupted")
+
+    with pytest.raises(RuntimeError):
+        write_store_resumable(tmp_path, items, crashing_convert, chunk_size=3)
+
+    converted = []
+
+    def convert(batch):
+        converted.extend(batch)
+        return map(clip_for, batch)
+
+    write_store_resumable(tmp_path, items, convert, chunk_size=3)
+
+    assert converted == list(range(3, 10))  # the first chunk was not redone
+    assert not (tmp_path / "chunks").exists()
+    store = LandmarkStore(tmp_path)
+    assert store.clips["clip_id"].to_list() == [str(i) for i in items]
+    for i in items:
+        np.testing.assert_array_equal(store[i], clip_for(i)[1])
+    with pytest.raises(FileExistsError):
+        write_store_resumable(tmp_path, items, convert, chunk_size=3)

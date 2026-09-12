@@ -12,7 +12,9 @@ Every dataset is converted into a landmark store: a directory with
 Landmarks are the 543 MediaPipe Holistic landmarks, in the order given by LANDMARK_SLICES.
 """
 
-from collections.abc import Iterable
+import itertools
+import shutil
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 
 import numpy as np
@@ -58,6 +60,46 @@ def write_store(path: Path, clips: Iterable[tuple[dict, np.ndarray]]) -> None:
             rows.append({**{c: metadata[c] for c in METADATA_COLUMNS}, "offset": offset, "n_frames": len(landmarks)})
             offset += len(landmarks)
     pl.DataFrame(rows, schema_overrides={"fps": pl.Float64}).write_parquet(path / "clips.parquet")
+
+
+def merge_stores(paths: Sequence[Path], out: Path) -> None:
+    """Concatenate the landmark stores at `paths`, in order, into one store at `out`."""
+    out.mkdir(parents=True, exist_ok=True)
+    parts, offset = [], 0
+    with open(out / "landmarks.f32", "wb") as f:
+        for path in paths:
+            clips = pl.read_parquet(path / "clips.parquet")
+            with open(path / "landmarks.f32", "rb") as part:
+                shutil.copyfileobj(part, f, length=64 * 2**20)
+            parts.append(clips.with_columns(pl.col("offset") + offset))
+            offset += int(clips["n_frames"].sum())
+    pl.concat(parts).write_parquet(out / "clips.parquet")
+
+
+def write_store_resumable[T](
+    path: Path,
+    items: Sequence[T],
+    convert: Callable[[Sequence[T]], Iterable[tuple[dict, np.ndarray]]],
+    chunk_size: int = 1024,
+) -> None:
+    """Write a landmark store at `path` in chunks, so that an interrupted run can be resumed.
+
+    `convert` turns items into (metadata, landmarks) pairs, one per item and in order. Every
+    `chunk_size` items are written as a separate store in ``path/chunks/``; when run again with
+    the same `items`, finished chunks are skipped. At the end the chunks are merged into the
+    store and removed.
+    """
+    if (path / "clips.parquet").exists():
+        raise FileExistsError(f"{path} already holds a finished store; delete it to rebuild")
+    chunks = [(path / "chunks" / f"{i:05d}", items[start : start + chunk_size]) for i, start in enumerate(range(0, len(items), chunk_size))]
+    # A chunk is finished once its clips.parquet exists: write_store writes it last.
+    pending = [(chunk, chunk_items) for chunk, chunk_items in chunks if not (chunk / "clips.parquet").exists()]
+    print(f"{len(chunks) - len(pending)} of {len(chunks)} chunks already written")
+    clips = iter(convert([item for _, chunk_items in pending for item in chunk_items]))
+    for chunk, chunk_items in pending:
+        write_store(chunk, itertools.islice(clips, len(chunk_items)))
+    merge_stores([chunk for chunk, _ in chunks], path)
+    shutil.rmtree(path / "chunks")
 
 
 class LandmarkStore:
