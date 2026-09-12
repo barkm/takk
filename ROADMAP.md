@@ -27,6 +27,7 @@ Status of the work and the plan ahead. Update this file when a step is finished,
    - Normalize relative to the body (shoulder center and width).
    - Mirror each clip so the dominant hand (the one detected in more frames) is always on the same side, swapping hand labels.
    - Trim leading and trailing frames without hands; cap sequence length by resampling long clips.
+   - Handle hand dropouts during signing (~9% of frames, mostly short gaps from motion blur or overlapping hands): interpolate short gaps, mask longer ones, and randomly drop hands during training.
    - Augmentation: rotation, scaling, time stretching, frame dropping.
    - Extend the viewer to show preprocessed clips.
 
@@ -80,6 +81,9 @@ ASL Citizen:
 - Videos (sample of 300): mostly H.264 640x480, some 960x540 and MPEG-4. Frame rate varies (mostly ~30 fps, also 25 and 15 fps). Mean length 2.7 s / 80 frames (33–366), so ~6.7M frames in total and a ~44 GB landmark store at float32.
 
 - First extraction test (32 videos): face and pose detected in 100% of frames; `left_hand` in 33%, `right_hand` in 42%, both in 30%, neither in 55% (recordings start and end with the hands down). Two-handed signing is present, unlike Kaggle.
+- Hand dropouts (30-sign subset, 932 clips, 76,918 frames): 57% of frames have no hand, of which 53 points are before the first / after the last detected hand (hands down) and 4 points are 948 short gaps during signing. During signing, with the pose wrist clearly inside the image (y < 0.85), the hand is detected in ~91% of frames.
+- Extractor comparison on 40 videos (hand detected when the pose wrist is clearly visible, all frames): holistic 83.9%; holistic with hand confidence 0.2 identical (the option has no effect); separate hand + pose landmarkers 83.0%; the same with thresholds 0.3: 84.6% but more hands far from their wrist; image mode (no tracking) 77.6%. No setup meaningfully reduces dropouts; separate hand + pose without face mesh is ~20% cheaper on the CPU.
+- Visual inspection of missed hands during signing: motion blur (most common), overlapping or touching hands, and hands seen edge-on. These are limits of the footage and hand models, not of the setup, so the holistic extractor is kept and gaps are handled in the loader.
 
 MediaPipe extraction speed (machine: Ryzen 9 5950X, 16 cores / 32 threads; RTX 3090):
 - HolisticLandmarker on the CPU, one process: ~22 ms per frame wall, ~40 ms CPU (uses ~1.7 cores).
