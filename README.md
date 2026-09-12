@@ -44,6 +44,12 @@ uvx kaggle competitions download -c asl-signs -p data/raw
 unzip -q data/raw/asl-signs.zip -d data/raw/asl-signs
 ```
 
+4. Convert to the common landmark format (a landmark store in `data/processed/kaggle_asl_signs/`, ~22 GB; the format is described in `src/isolated_sign_validation/landmarks.py`):
+
+```sh
+uv run python -m isolated_sign_validation.datasets.kaggle_asl_signs
+```
+
 ## Evaluation
 
 - **Held-out signers:** no signer appears in both training and test data.
