@@ -45,6 +45,21 @@ LANDMARK_GROUPS = {
     "lips": LANDMARK_SLICES["face"].start + np.array(_LIPS),
 }
 
+# MediaPipe HandLandmarksConnections.HAND_CONNECTIONS
+_HAND_EDGES = [(0, 1), (0, 17), (1, 2), (1, 5), (2, 3), (3, 4), (5, 6), (5, 9), (6, 7), (7, 8), (9, 10), (9, 13), (10, 11), (11, 12), (13, 14), (13, 17), (14, 15), (15, 16), (17, 18), (18, 19), (19, 20)]  # fmt: skip
+# MediaPipe PoseLandmarksConnections.POSE_LANDMARKS between shoulders, arms and pose hand points
+_UPPER_BODY_EDGES = [(11, 12), (11, 13), (12, 14), (13, 15), (14, 16), (15, 17), (15, 19), (15, 21), (16, 18), (16, 20), (16, 22), (17, 19), (18, 20)]  # fmt: skip
+# MediaPipe FaceLandmarksConnections.FACE_LANDMARKS_LIPS
+_LIPS_EDGES = [(0, 267), (13, 312), (14, 317), (17, 314), (37, 0), (39, 37), (40, 39), (61, 146), (61, 185), (78, 95), (78, 191), (80, 81), (81, 82), (82, 13), (84, 17), (87, 14), (88, 178), (91, 181), (95, 88), (146, 91), (178, 87), (181, 84), (185, 40), (191, 80), (267, 269), (269, 270), (270, 409), (310, 415), (311, 310), (312, 311), (314, 405), (317, 402), (318, 324), (321, 375), (324, 308), (375, 291), (402, 318), (405, 321), (409, 291), (415, 308)]  # fmt: skip
+
+# Connections between the landmarks of a group, as pairs of indices into the landmark axis.
+SKELETON_EDGES = {
+    "left_hand": np.array(_HAND_EDGES) + LANDMARK_SLICES["left_hand"].start,
+    "right_hand": np.array(_HAND_EDGES) + LANDMARK_SLICES["right_hand"].start,
+    "upper_body": np.array(_UPPER_BODY_EDGES) + LANDMARK_SLICES["pose"].start,
+    "lips": np.array(_LIPS_EDGES) + LANDMARK_SLICES["face"].start,
+}
+
 
 def write_store(path: Path, clips: Iterable[tuple[dict, np.ndarray]]) -> None:
     """Write (metadata, landmarks) pairs to a landmark store at `path`.
