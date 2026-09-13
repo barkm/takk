@@ -1,9 +1,10 @@
 import math
 
+import pytest
 import torch
 
 from isolated_sign_validation.dataset import collate
-from isolated_sign_validation.models import ArcFace, GRUEncoder, frame_features
+from isolated_sign_validation.models import ArcFace, ConvTransformerEncoder, GRUEncoder, frame_features
 from isolated_sign_validation.preparation import PrepConfig
 
 CONFIG = PrepConfig()
@@ -29,8 +30,9 @@ def test_frame_features_zero_velocity_for_missing_hand():
     assert (velocity[1:, HANDS[1]] != 0).any()
 
 
-def test_encoder_embeddings_are_unit_length_and_ignore_padding():
-    model = GRUEncoder(N, HANDS, hidden=32, embedding_dim=16).eval()
+@pytest.mark.parametrize("encoder", [GRUEncoder, ConvTransformerEncoder])
+def test_encoder_embeddings_are_unit_length_and_ignore_padding(encoder):
+    model = encoder(N, HANDS, hidden=32, embedding_dim=16).eval()
     short, long = item(4, seed=1), item(9, seed=2)
     alone = collate([short])
     padded = collate([short, long])  # short is padded to 9 frames
