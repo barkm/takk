@@ -80,7 +80,7 @@ uv run python -m isolated_sign_validation.datasets.mm_wlauslan --subsets Valid -
 
 ### Preparing training data
 
-Training uses prepared clips (`src/isolated_sign_validation/preparation.py`): broken clips excluded, trimmed to the frames with hands, corrected for the video's aspect ratio, short hand gaps interpolated, normalized by the shoulders, mirrored so the dominant hand is always in the `right_hand` slot, reduced to the hands, upper body and face reference points, and resampled to 30 fps (at most 128 frames). This takes a few seconds and writes `data/prepared/asl_citizen-<config id>/` (~1 GB):
+Training uses prepared clips (`src/isolated_sign_validation/preparation.py`): hands resting low below the shoulders treated as undetected (out of view, as in close webcam framings), broken clips excluded, trimmed to the frames with hands, corrected for the video's aspect ratio, short hand gaps interpolated, normalized by the shoulders, mirrored so the dominant hand is always in the `right_hand` slot, reduced to the hands, upper body and face reference points, and resampled to 30 fps (at most 128 frames). This takes a few seconds and writes `data/prepared/asl_citizen-<config id>/` (~1 GB):
 
 ```sh
 uv run scripts/prepare_asl_citizen.py
@@ -88,6 +88,12 @@ uv run scripts/view_clips.py --prepared data/prepared/asl_citizen-<config id> --
 ```
 
 The viewer shows the prepared clips below the original ones, and with `--augment` a random training augmentation below them. `src/isolated_sign_validation/dataset.py` serves the prepared clips of a split as a PyTorch dataset.
+
+MM-WLAuslan is prepared as extra training data: all its clips are training clips, except the signs whose gloss or English keyword matches an ASL Citizen val or test sign, which could look like held-out signs. Its sign labels get the prefix `auslan:`. It writes `data/prepared/mm_wlauslan-<config id>/`:
+
+```sh
+uv run scripts/prepare_mm_wlauslan.py
+```
 
 ### Downloading Kaggle ASL Signs
 
@@ -119,6 +125,8 @@ The learned baseline, a bidirectional GRU embedding model trained with an ArcFac
 ```sh
 uv run scripts/train.py --name gru_arcface
 ```
+
+To train on several datasets, pass their prepared directories: `--prepared data/prepared/asl_citizen-<config id> data/prepared/mm_wlauslan-<config id>`.
 
 A run writes `outputs/runs/<name>/`: `config.json`, per-epoch `metrics.csv` and `curves.png` (updated during training), the checkpoint with the best validation AUC (`best.pt`), and its full validation evaluation.
 
