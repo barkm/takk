@@ -42,6 +42,8 @@ class TrainConfig:
     augment: AugmentConfig = dataclasses.field(default_factory=AugmentConfig)
     # training signers left out of training, to measure generalization to unseen signers
     holdout_signers: tuple[str, ...] = ()
+    # share of the training signs to train on (a random subset, nested across fractions for a given seed)
+    train_sign_fraction: float = 1.0
     epochs: int = 30
     batch_size: int = 256
     lr: float = 1e-3
@@ -117,7 +119,9 @@ def train(config: TrainConfig, data: PreparedData, run_dir: Path, device: str = 
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "config.json").write_text(json.dumps(dataclasses.asdict(config), indent=2))
 
-    train_set = SignDataset(data, "train", augment=config.augment, exclude_signers=config.holdout_signers)
+    train_signs = np.random.default_rng(config.seed).permutation(sorted(data.clips.filter(pl.col("split") == "train")["sign"].unique()))
+    train_signs = train_signs[: round(config.train_sign_fraction * len(train_signs))]
+    train_set = SignDataset(data, "train", config.augment, exclude_signers=config.holdout_signers, only_signs=train_signs)
     val_set = SignDataset(data, "val")
     loader = DataLoader(
         train_set, batch_size=config.batch_size, shuffle=True, drop_last=True,
