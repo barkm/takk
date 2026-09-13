@@ -171,7 +171,8 @@ def prepare_store(store_path: Path, clips: pl.DataFrame, config: PrepConfig, out
     """Prepare `clips` (rows of the store's clip table with a `row` column of store row indices) into `out`.
 
     Writes frames.npy (all prepared frames back to back), clips.parquet (the included clips with
-    their hand counts, dominant hand, `offset` and `n_frames` in frames.npy) and config.json.
+    their hand counts, dominant hand, `offset` and `n_frames` in frames.npy, and their store row as
+    `store_row`) and config.json.
     """
     rows = clips["row"].to_list()
     tasks = [(store_path, rows[i : i + rows_per_task], config) for i in range(0, len(rows), rows_per_task)]
@@ -183,8 +184,11 @@ def prepare_store(store_path: Path, clips: pl.DataFrame, config: PrepConfig, out
     ).with_columns(included=pl.Series([f is not None for f in frames]))
     frames = [mirror(f, config) if dominant == "left" else f for f, dominant in zip(frames, clips["dominant"]) if f is not None]
     lengths = np.array([len(f) for f in frames])
-    kept = clips.filter(pl.col("included")).drop("included").with_columns(
-        offset=np.concatenate([[0], np.cumsum(lengths)[:-1]]), n_frames=lengths
+    kept = (
+        clips.filter(pl.col("included"))
+        .drop("included")
+        .rename({"row": "store_row"})
+        .with_columns(offset=np.concatenate([[0], np.cumsum(lengths)[:-1]]), n_frames=lengths)
     )
     out.mkdir(parents=True, exist_ok=True)
     np.save(out / "frames.npy", np.concatenate(frames))
