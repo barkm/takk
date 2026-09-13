@@ -128,7 +128,10 @@ def main() -> None:
         rows = [
             [(np.asarray(store[row["store_row"]][..., :2]), title(row)) for row in clips.iter_rows(named=True)],
             [
-                (to_landmark_layout(data[row["row"]], data.config), f"prepared ({row['split']})" + ", mirrored" * (row["dominant"] == "left"))
+                (
+                    to_landmark_layout(data[row["row"]], data.config),
+                    "prepared" + (f" ({row['split']})" if "split" in row else "") + ", mirrored" * (row["dominant"] == "left"),
+                )
                 for row in clips.iter_rows(named=True)
             ],
         ]
