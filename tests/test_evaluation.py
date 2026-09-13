@@ -37,6 +37,19 @@ def test_references_never_include_the_query_signer():
     assert (scores == 0).all()
 
 
+def test_query_subset_scores_only_those_queries():
+    clips = clips_table(6, 5)
+    _, signs = np.unique(clips["sign"].to_numpy(), return_inverse=True)
+    queries = (clips["signer"] == "P0").to_numpy()
+    similarity = cosine_similarity(np.eye(6)[signs] + 0.01 * np.random.default_rng(0).normal(size=(len(signs), 6)))
+    similarity[queries] = np.random.default_rng(1).normal(size=(queries.sum(), len(signs)))  # P0's queries are noise
+    subset, per_sign = evaluate(similarity, clips, ks=(1,), n_bootstrap=0, queries=queries)
+    rest, _ = evaluate(similarity, clips, ks=(1,), n_bootstrap=0, queries=~queries)
+    top1 = lambda summary: summary.filter(pl.col("metric") == "top1")["value"][0]  # noqa: E731
+    assert top1(rest) == 1.0 and top1(subset) < 0.6
+    assert (per_sign["queries"] == 1).all()  # one query per sign: P0's clip
+
+
 def test_perfect_and_random_similarities():
     clips = clips_table(10, 8)
     rng = np.random.default_rng(0)

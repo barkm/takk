@@ -69,10 +69,13 @@ def evaluate(
     n_draws: int = 5,
     n_bootstrap: int = 1000,
     seed: int = 0,
+    queries: np.ndarray | None = None,
 ) -> tuple[pl.DataFrame, pl.DataFrame]:
     """Evaluate a similarity matrix between `clips` (with `sign` and `signer` columns).
 
-    Returns a summary with one row per k and metric (estimate and 95% CI) and a per-sign table.
+    With `queries` (a boolean mask over the clips), only those clips are scored as queries; references
+    are still drawn from all clips. Returns a summary with one row per k and metric (estimate and
+    95% CI) and a per-sign table.
     """
     rng = np.random.default_rng(seed)
     sign_names, signs = np.unique(clips["sign"].to_numpy(), return_inverse=True)
@@ -91,6 +94,8 @@ def evaluate(
         pos, neg, rank = np.concatenate(pos), np.concatenate(neg), np.concatenate(rank)
         query_signs = np.tile(signs, n_draws)
         valid = ~np.isnan(pos)  # queries whose own sign has references by other signers
+        if queries is not None:
+            valid &= np.tile(queries, n_draws)
 
         edges = np.unique(np.nanquantile(np.concatenate([pos[valid], neg[valid].ravel()]), np.linspace(0, 1, N_BINS + 1)))
         n_signs = len(sign_names)
