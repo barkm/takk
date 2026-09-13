@@ -14,13 +14,13 @@ from isolated_sign_validation.preparation import PreparedData, resample
 
 @dataclass(frozen=True)
 class AugmentConfig:
-    rotation: float = 15.0  # degrees, up to this much in either direction
-    scale: float = 0.2  # relative, up to this much larger or smaller
-    shift: float = 0.1  # in shoulder widths, in each direction
-    shear: float = 0.1
-    speed: tuple[float, float] = (0.8, 1.25)  # playback speed range
-    frame_drop: float = 0.1  # probability of dropping each frame
-    hand_drop: float = 0.1  # probability of blanking each hand for a random stretch of frames
+    rotation: float = 20.0  # degrees, up to this much in either direction
+    scale: float = 0.3  # relative, up to this much larger or smaller
+    shift: float = 0.15  # in shoulder widths, in each direction
+    shear: float = 0.2
+    speed: tuple[float, float] = (0.7, 1.4)  # playback speed range
+    frame_drop: float = 0.2  # probability of dropping each frame
+    hand_drop: float = 0.25  # probability of blanking each hand for a random stretch of frames
 
 
 def affine(frames: np.ndarray, matrix: np.ndarray, shift: np.ndarray) -> np.ndarray:

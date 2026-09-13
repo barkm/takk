@@ -32,14 +32,14 @@ class TrainConfig:
     hidden: int = 256
     layers: int = 2
     embedding_dim: int = 256
-    dropout: float = 0.2
+    dropout: float = 0.4
     arcface_scale: float = 30.0
     arcface_margin: float = 0.3
     augment: AugmentConfig = dataclasses.field(default_factory=AugmentConfig)
     epochs: int = 30
     batch_size: int = 256
     lr: float = 1e-3
-    weight_decay: float = 0.01
+    weight_decay: float = 0.05
     warmup_epochs: int = 2
     eval_every: int = 2  # epochs between validation checks
     num_workers: int = 8
