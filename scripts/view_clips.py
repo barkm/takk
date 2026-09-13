@@ -1,9 +1,11 @@
 """Render landmark clips side by side as an animated GIF, for inspecting the data.
 
 By default picks clips from different signers. Examples, from the repo root:
-    uv run scripts/view_clips.py --sign hello            # 4 clips of "hello" by different signers
-    uv run scripts/view_clips.py --signer 26734 -n 2     # 2 random clips by one signer
-    uv run scripts/view_clips.py --clip-id 1000035562
+    uv run scripts/view_clips.py --sign HELLO            # 4 clips of HELLO by different signers
+    uv run scripts/view_clips.py --signer P12 -n 2       # 2 random clips by one signer
+    uv run scripts/view_clips.py --clip-id 15890366051589533-APPLE
+    uv run scripts/view_clips.py --prepared data/prepared/asl_citizen-b7bd1b06 --sign HELLO
+With --prepared, prepared clips (bottom row) are shown below the store clips they come from (top row).
 """
 
 import argparse
@@ -18,7 +20,14 @@ import polars as pl
 from matplotlib.animation import FuncAnimation, PillowWriter
 from matplotlib.collections import LineCollection
 
-from isolated_sign_validation.landmarks import LANDMARK_GROUPS, LANDMARK_SLICES, SKELETON_EDGES, LandmarkStore
+from isolated_sign_validation.landmarks import (
+    LANDMARK_GROUPS,
+    LANDMARK_SLICES,
+    N_LANDMARKS,
+    SKELETON_EDGES,
+    LandmarkStore,
+)
+from isolated_sign_validation.preparation import PrepConfig, PreparedData
 
 # Skeleton lines to draw: (edges as indices into the landmark axis, color)
 SKELETON = [
@@ -48,17 +57,29 @@ def select_clips(clips: pl.DataFrame, args: argparse.Namespace) -> pl.DataFrame:
     )
 
 
-def render(store: LandmarkStore, clips: pl.DataFrame, out: Path, fps: int) -> None:
-    fig, axes = plt.subplots(1, clips.height, figsize=(4 * clips.height, 5), squeeze=False)
+def to_landmark_layout(frames: np.ndarray, config: PrepConfig) -> np.ndarray:
+    """Prepared frames as x, y in the store's landmark layout; landmarks that were not prepared are NaN."""
+    xy = np.full((len(frames), N_LANDMARKS, 2), np.nan, dtype=np.float32)
+    xy[:, config.landmarks] = frames[..., :2]
+    return xy
+
+
+def title(row: dict) -> str:
+    return f"{row['sign']}\n{row['signer']}\nclip {row['clip_id']}"
+
+
+def render(rows: list[list[tuple[np.ndarray, str]]], out: Path, fps: int) -> None:
+    """Animate rows of panels, each (x, y in the store's landmark layout, title)."""
+    n_cols = max(len(row) for row in rows)
+    fig, axes = plt.subplots(len(rows), n_cols, figsize=(4 * n_cols, 5 * len(rows)), squeeze=False)
     face = np.arange(LANDMARK_SLICES["face"].start, LANDMARK_SLICES["face"].stop)
     drawn = np.concatenate([face, *LANDMARK_GROUPS.values()])  # determines the axis limits
     panels = []
-    for ax, row in zip(axes[0], clips.iter_rows(named=True)):
-        xy = np.asarray(store[row["row"]][..., :2])
+    for ax, (xy, panel_title) in [(ax, panel) for ax_row, row in zip(axes, rows) for ax, panel in zip(ax_row, row)]:
         lo, hi = np.nanmin(xy[:, drawn], axis=(0, 1)), np.nanmax(xy[:, drawn], axis=(0, 1))
         pad = 0.05 * (hi - lo)
         ax.set(xlim=(lo[0] - pad[0], hi[0] + pad[0]), ylim=(hi[1] + pad[1], lo[1] - pad[1]), aspect="equal")
-        ax.set_title(f"{row['sign']}\n{row['signer']}\nclip {row['clip_id']}", fontsize=9)
+        ax.set_title(panel_title, fontsize=9)
         ax.tick_params(labelsize=7)
         mesh = ax.plot([], [], "o", ms=1, color="lightgray")[0]
         reference = ax.plot([], [], "o", ms=3, color="black")[0]
@@ -79,14 +100,15 @@ def render(store: LandmarkStore, clips: pl.DataFrame, out: Path, fps: int) -> No
         return artists
 
     fig.tight_layout()
-    n_frames = int(clips["n_frames"].max())
+    n_frames = max(len(xy) for xy, *_ in panels)
     FuncAnimation(fig, update, frames=n_frames, blit=True).save(out, writer=PillowWriter(fps=fps), dpi=80)
     plt.close(fig)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--store", type=Path, default=Path("data/processed/kaggle_asl_signs"))
+    parser.add_argument("--store", type=Path, default=Path("data/processed/asl_citizen"))
+    parser.add_argument("--prepared", type=Path, help="prepared data made from --store; show its clips too")
     parser.add_argument("--sign")
     parser.add_argument("--signer", help="full signer id, or the id without the dataset prefix")
     parser.add_argument("--clip-id")
@@ -97,12 +119,24 @@ def main() -> None:
     args = parser.parse_args()
 
     store = LandmarkStore(args.store)
-    clips = select_clips(store.clips, args)
+    if args.prepared:
+        data = PreparedData(args.prepared)
+        clips = select_clips(data.clips, args)
+        rows = [
+            [(np.asarray(store[row["store_row"]][..., :2]), title(row)) for row in clips.iter_rows(named=True)],
+            [
+                (to_landmark_layout(data[row["row"]], data.config), f"prepared ({row['split']})" + ", mirrored" * (row["dominant"] == "left"))
+                for row in clips.iter_rows(named=True)
+            ],
+        ]
+    else:
+        clips = select_clips(store.clips, args)
+        rows = [[(np.asarray(store[row["row"]][..., :2]), title(row)) for row in clips.iter_rows(named=True)]]
     print(clips.select("clip_id", "sign", "signer", "n_frames"))
     name = "_".join(str(v) for v in (args.sign, args.signer, args.clip_id) if v) or "random"
-    out = args.out or Path("outputs/clips") / f"{name}.gif"
+    out = args.out or Path("outputs/clips") / f"{name}{'_prepared' * bool(args.prepared)}.gif"
     out.parent.mkdir(parents=True, exist_ok=True)
-    render(store, clips, out, args.fps)
+    render(rows, out, args.fps)
     print(f"wrote {out}")
 
 
