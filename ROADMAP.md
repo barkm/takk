@@ -59,9 +59,20 @@ Later: sensitivity analysis and threshold selection; Swedish Sign Language signs
 - **Splits** (`splits.py`): signs are assigned to train/val/test (~80/10/10) by a hash of the sign label, stable across datasets. Test = test signs by the official ASL Citizen test signers (held out completely). Train and val share the official train and val signers; val = val signs by those signers, so it measures unseen signs but not unseen signers. Chosen over the official signer split (train/val/test signers), which left only 31,909 training clips (57% of all clips unused) and 2–5 signers per val sign, too few for 5-shot validation.
 - **One fixed split during development**, with bootstrap confidence intervals over test signs; retraining on several sign folds (each fold is a full training run) only for final numbers or comparisons too close to call.
 
+- **Training data loader design** (step 4): PyTorch. Two stages: a deterministic preparation, cached in `data/prepared/`, and random augmentation at training time.
+  - Landmarks: hands + upper body + face reference points (60) by default, lips as a later experiment; x and y only by default (z is noisy).
+  - Image aspect ratio: store each clip's frame width and height, and convert coordinates to correct proportions before normalizing (ASL Citizen mixes 4:3 and 16:9).
+  - Normalization per clip: center on the mean shoulder midpoint, scale by the mean shoulder width.
+  - Mirroring per clip so the dominant hand is always on the same side, with the dominant hand chosen by which pose wrist moves more (to be checked against the per-signer majority first).
+  - Time: trim to the first to last frame with a hand plus ~0.1 s, resample to 30 fps, cap at 128 frames by resampling; variable length with padding and a mask.
+  - Hand gaps: interpolate gaps of up to ~5 frames; longer gaps are zeros with a per-frame hand-present flag.
+  - Exclude broken clips (no hands, hands for under ~0.2 s or over ~10 s), after checking examples.
+  - Augmentation: rotation, scale, shift, shear, speed change, frame dropping, random hand dropout.
+  - The loader outputs normalized coordinates and hand-present flags; derived features (velocities, hand-local coordinates) are computed in the model.
+
 ## Open decisions
 
-- **Mirroring for the dominant hand** (step 4): per signer (majority over their clips) or per clip by which hand moves more.
+- None at the moment.
 
 ## Findings
 
