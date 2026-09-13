@@ -19,18 +19,22 @@ import numpy as np
 import polars as pl
 import torch
 import torch.nn.functional as F
+from torch import nn
 from torch.utils.data import DataLoader
 
 from isolated_sign_validation.dataset import AugmentConfig, SignDataset, collate
 from isolated_sign_validation.evaluation import cosine_similarity, evaluate
-from isolated_sign_validation.models import ArcFace, GRUEncoder
+from isolated_sign_validation.models import ArcFace, ConvTransformerEncoder, GRUEncoder
 from isolated_sign_validation.preparation import PreparedData
 
 
 @dataclass(frozen=True)
 class TrainConfig:
-    hidden: int = 256
-    layers: int = 2
+    encoder: str = "gru"  # or "conv_transformer"
+    hidden: int = 256  # model width
+    layers: int = 2  # GRU layers, or stacks of 3 convolution blocks and a transformer block
+    heads: int = 4  # attention heads (conv_transformer)
+    kernel_size: int = 17  # temporal convolution kernel (conv_transformer)
     embedding_dim: int = 256
     dropout: float = 0.4
     arcface_scale: float = 30.0
@@ -46,13 +50,20 @@ class TrainConfig:
     seed: int = 0
 
 
-def build_model(config: TrainConfig, data: PreparedData) -> GRUEncoder:
+def build_model(config: TrainConfig, data: PreparedData) -> nn.Module:
     hands = [data.config.group_slices[hand] for hand in ("left_hand", "right_hand")]
-    return GRUEncoder(len(data.config.landmarks), hands, config.hidden, config.layers, config.embedding_dim, config.dropout)
+    n_landmarks = len(data.config.landmarks)
+    if config.encoder == "gru":
+        return GRUEncoder(n_landmarks, hands, config.hidden, config.layers, config.embedding_dim, config.dropout)
+    if config.encoder == "conv_transformer":
+        return ConvTransformerEncoder(
+            n_landmarks, hands, config.hidden, config.layers, config.embedding_dim, config.dropout, config.heads, config.kernel_size
+        )
+    raise ValueError(f"unknown encoder {config.encoder}")
 
 
 @torch.no_grad()
-def embed(model: GRUEncoder, dataset: SignDataset, device: str, batch_size: int = 512) -> np.ndarray:
+def embed(model: nn.Module, dataset: SignDataset, device: str, batch_size: int = 512) -> np.ndarray:
     """Embeddings of all clips of a (non-augmented) dataset, in order."""
     model.eval()
     loader = DataLoader(dataset, batch_size=batch_size, collate_fn=collate, num_workers=4)
@@ -63,7 +74,7 @@ def embed(model: GRUEncoder, dataset: SignDataset, device: str, batch_size: int 
     return torch.cat(parts).numpy()
 
 
-def quick_validation(model: GRUEncoder, val: SignDataset, device: str) -> dict[str, float]:
+def quick_validation(model: nn.Module, val: SignDataset, device: str) -> dict[str, float]:
     """Cheap validation metrics for checks during training: k = 1 and 5, one draw of references, no bootstrap."""
     similarity = cosine_similarity(embed(model, val, device))
     summary, _ = evaluate(similarity, val.data.clips[val.positions], ks=(1, 5), n_draws=1, n_bootstrap=0)
@@ -88,7 +99,7 @@ def plot_curves(metrics: pl.DataFrame, path: Path) -> None:
     plt.close(fig)
 
 
-def train(config: TrainConfig, data: PreparedData, run_dir: Path, device: str = "cuda") -> GRUEncoder:
+def train(config: TrainConfig, data: PreparedData, run_dir: Path, device: str = "cuda") -> nn.Module:
     torch.manual_seed(config.seed)
     np.random.seed(config.seed)
     run_dir.mkdir(parents=True, exist_ok=True)
