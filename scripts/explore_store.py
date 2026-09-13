@@ -70,7 +70,7 @@ def save(fig: Figure, out_dir: Path, name: str) -> None:
 
 def report(stats: pl.DataFrame, coords: dict[str, np.ndarray], out_dir: Path) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
-    frames = stats["n_frames"].sum()
+    frames = int(stats["n_frames"].sum())
     print(f"{stats.height} clips, {frames} frames, {stats['sign'].n_unique()} signs, {stats['signer'].n_unique()} signers")
     print("fps (rounded):", stats["fps"].round(0).value_counts(sort=True).head(8).rows())
 
@@ -83,7 +83,7 @@ def report(stats: pl.DataFrame, coords: dict[str, np.ndarray], out_dir: Path) ->
         ax.set(xlabel="seconds (clipped at 10)", ylabel="clips", title=title, yscale="log")
     save(fig, out_dir, "durations.png")
 
-    hand_frames, active_frames = stats["hand_frames"].sum(), stats["active_frames"].sum()
+    hand_frames, active_frames = int(stats["hand_frames"].sum()), int(stats["active_frames"].sum())
     print(f"\nclips without any hand: {(stats['hand_frames'] == 0).sum()}")
     print(
         f"frames without any hand: {1 - hand_frames / frames:.1%} = {1 - active_frames / frames:.1%} before the first / "
