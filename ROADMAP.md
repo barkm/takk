@@ -67,9 +67,11 @@ Later: sensitivity analysis and threshold selection, including score normalizati
   - Augmentation: rotation, scale, shift, shear, speed change, frame dropping, random hand dropout.
   - The loader outputs normalized coordinates and hand-present flags; derived features (velocities, hand-local coordinates) are computed in the model.
 
+- **Next direction after the architecture experiments: more data, starting with Sem-Lex** (step 8), since architectures and regularization converge to the same level. Measuring generalization to unseen signers (with training signers held out, not the test split) can run alongside.
+
 ## Open decisions
 
-- **Direction after the architecture experiments:** more data (Sem-Lex, and/or Kaggle ASL Signs as extra training clips), measuring generalization to unseen signers, or further tuning (ArcFace margin/scale, embedding size).
+- None at the moment.
 
 ## Findings
 
@@ -117,6 +119,10 @@ ASL Citizen:
 - Signers: 26 of 52 recorded nearly the whole vocabulary (~3,000 clips each); P13 and P19 have 2 clips each.
 - Coordinates (0.1–99.9 percentiles): hands x −0.02–1.03, y −0.01–1.12; upper body x −0.1–1.14, y 0.17–1.8 (arms below the frame when the hands are down). `right_hand` lies mostly on the image's left (x 0.08–0.76 at 1–99%), consistent with the Kaggle hand label convention.
 - Visual inspection of missed hands during signing: motion blur (most common), overlapping or touching hands, and hands seen edge-on. These are limits of the footage and hand models, not of the setup, so the holistic extractor is kept and gaps are handled in the loader.
+
+Sem-Lex:
+- Access: agree to the terms of use in a Google form linked from https://github.com/leekezar/SemLex, which gives the download links. The repository says pose files will be "available soon" (apparently not updated since 2023), so landmarks are extracted with our own setup.
+- Of the 84,568 benchmark videos, 65,935 are matched to ASL-LEX or ASL SignBank; 18,393 only have free-text descriptions (not usable as sign labels). The ASL-LEX alignment links its signs to ASL Citizen's. The paper is CC BY-NC-SA 4.0; the data's own terms are in the form.
 
 MediaPipe extraction speed (machine: Ryzen 9 5950X, 16 cores / 32 threads; RTX 3090):
 - HolisticLandmarker on the CPU, one process: ~22 ms per frame wall, ~40 ms CPU (uses ~1.7 cores).
