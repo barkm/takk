@@ -57,6 +57,17 @@ uv run python -m isolated_sign_validation.datasets.asl_citizen --signs 10
 uv run scripts/view_clips.py --store data/processed/asl_citizen_10_signs --sign <SIGN>
 ```
 
+### Preparing training data
+
+Training uses prepared clips (`src/isolated_sign_validation/preparation.py`): broken clips excluded, trimmed to the frames with hands, corrected for the video's aspect ratio, short hand gaps interpolated, normalized by the shoulders, mirrored so the dominant hand is always in the `right_hand` slot, reduced to the hands, upper body and face reference points, and resampled to 30 fps (at most 128 frames). This takes a few seconds and writes `data/prepared/asl_citizen-<config id>/` (~1 GB):
+
+```sh
+uv run scripts/prepare_asl_citizen.py
+uv run scripts/view_clips.py --prepared data/prepared/asl_citizen-<config id> --sign APPLE --augment
+```
+
+The viewer shows the prepared clips below the original ones, and with `--augment` a random training augmentation below them. `src/isolated_sign_validation/dataset.py` serves the prepared clips of a split as a PyTorch dataset.
+
 ### Downloading Kaggle ASL Signs
 
 1. Accept the competition rules on the [competition page](https://www.kaggle.com/competitions/asl-signs/data).

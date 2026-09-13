@@ -19,18 +19,13 @@ Status of the work and the plan ahead. Update this file when a step is finished,
 
 3. **Splits** — done: `splits.py` (see decisions). ASL Citizen: 40,126 train clips (2,172 signs, 40 signers), 5,342 val clips (290 signs, 39 signers, 13–20 per sign), 3,239 test clips (269 signs, 11 signers, 8–11 per sign); 34,692 clips belong to no split.
 
-4. **Training data loader** — next
-   - Select landmark groups and load them into RAM.
-   - Exclude broken clips: no hand in any frame (109 in ASL Citizen), hands for less than ~0.2 s, or more than ~10 s of hand activity; check a few in the viewer first.
-   - Resample to a common frame rate (85% of ASL Citizen is 30 fps).
-   - Normalize relative to the body (shoulder center and width).
-   - Mirror clips so the dominant hand is always on the same side, swapping hand labels. In ASL Citizen the hand detected in more frames is an unreliable indicator for two-handed signs (see findings); decide per signer (majority over their clips) or per clip by which hand moves more.
-   - Trim leading and trailing frames without hands; cap sequence length by resampling long clips.
-   - Handle hand dropouts during signing (~9% of frames, mostly short gaps from motion blur or overlapping hands): interpolate short gaps, mask longer ones, and randomly drop hands during training.
-   - Augmentation: rotation, scaling, time stretching, frame dropping.
-   - Extend the viewer to show preprocessed clips.
+4. **Training data loader** — done (see the loader design decision)
+   - Frame size stored per clip (`width`, `height`), backfilled into the existing stores.
+   - `preparation.py`: exclusion, trimming, aspect correction, gap filling, normalization, mirroring, landmark selection, resampling; `scripts/prepare_asl_citizen.py` writes `data/prepared/asl_citizen-b7bd1b06/` (48,559 of 48,707 split clips; 0.98 GB; 12 s).
+   - `dataset.py`: PyTorch `SignDataset` per split with augmentation, and `collate` with padding and a frame mask (~25,000 clips/s with 8 workers).
+   - Clip viewer: `--prepared` shows prepared clips below their originals, `--augment` adds augmented versions.
 
-5. **Evaluation harness**
+5. **Evaluation harness** — next
    - k-shot verification episodes (k = 1, 3, 5): reference clips of a held-out sign from some signers; positive and negative queries from other signers.
    - Metrics: ROC-AUC, equal error rate, per-sign breakdown.
 
@@ -102,6 +97,7 @@ ASL Citizen:
 - Dominant hand: unlike Kaggle, no signer is one-sided. For most signers `left_hand` is the more-detected hand in 15–45% of their clips (right-handed); ~10 signers are at 55–80% (left-handed, or mirrored webcam video, which the landmarks cannot tell apart). Counting detected frames per clip is ambiguous for two-handed signs.
 - Handedness: in one-handed clips (26,278 with both hands in < 10% of their hand frames) the detected hand's label is on the expected image side in 97% of clips (pose right shoulder on the image's left in 99.95% of frames), and per signer it is clear-cut: 28 signers are ≤ 10% `left_hand`, 7 are ≥ 90%, 12 are in between (possibly mirroring that changed between recording sessions, or switching hands). For the 35 clear-cut signers, the detected hand matches the signer's handedness in 97.2% of one-handed clips, but no per-clip rule works for two-handed clips: which hand moves more (hand wrist path, frames with both hands) matches in only 51.6% (63% when one hand moves 3x more). Pose wrist motion is useless for this: the pose model's estimates for resting, out-of-frame wrists jitter as much as the signing hand moves.
 - Suspected broken clips, inspected as video frames: 109 clips without any hand (22 signers, 40 from P18) and 152 with hands for under 0.2 s are mostly extraction failures on real signing (hands in front of the face, raised above the head, blurred or partly out of frame), plus a few truncated recordings; 50 clips with over 10 s of hand activity (47 from P46) are long recordings with idle time, so hand presence cannot locate the sign. All 311 (0.37%) are excluded with the planned thresholds. Hands in front of the face are a weak spot of hand detection.
+- Prepared data (default config): train 40,015 clips (2,172 signs), val 5,326 (290), test 3,218 (269); 148 excluded. Prepared length median 41–42 frames, 95th percentile 74–80, max 128. Mirrored: 17% of train and val clips but 44% of test clips, so several of the 11 test signers are left-dominant or recorded mirrored.
 - Frame size (backfilled from the videos' first decoded frame): 80,184 clips 640x480, 3,211 at 960x540, 4 at 480x640.
 - Signers: 26 of 52 recorded nearly the whole vocabulary (~3,000 clips each); P13 and P19 have 2 clips each.
 - Coordinates (0.1–99.9 percentiles): hands x −0.02–1.03, y −0.01–1.12; upper body x −0.1–1.14, y 0.17–1.8 (arms below the frame when the hands are down). `right_hand` lies mostly on the image's left (x 0.08–0.76 at 1–99%), consistent with the Kaggle hand label convention.

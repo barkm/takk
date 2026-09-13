@@ -16,7 +16,7 @@ Key constraints:
 - **Optimize for model quality.** Deployment constraints (model size, latency) and threshold selection are out of scope for now.
 - **Use uv, never bare python/pip.** `uv add` for dependencies, `uv run` for scripts, `uvx` for one-off CLI tools.
 - **Data lives in the git-ignored `data/` directory** (raw downloads in `data/raw/`, converted landmark stores in `data/processed/<dataset>/`).
-- **Code layout.** Library code in `src/isolated_sign_validation/` (common landmark format in `landmarks.py`, one adapter per dataset in `datasets/`), one-off scripts in `scripts/`, tests in `tests/` (`uv run pytest`).
+- **Code layout.** Library code in `src/isolated_sign_validation/`: common landmark format in `landmarks.py`, one adapter per dataset in `datasets/`, splits in `splits.py`, training data preparation in `preparation.py` (cached in `data/prepared/`), PyTorch dataset and augmentation in `dataset.py`. One-off scripts in `scripts/`, tests in `tests/` (`uv run pytest`).
 - **Headless machine.** The machine is used remotely over SSH with no display. Use matplotlib's Agg backend and save figures to the git-ignored `outputs/` directory; never `plt.show()`.
 - **Long term (not in scope yet):** Swedish Sign Language signs from teckensprakslexikon.su.se.
 
