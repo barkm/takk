@@ -5,7 +5,8 @@ By default picks clips from different signers. Examples, from the repo root:
     uv run scripts/view_clips.py --signer P12 -n 2       # 2 random clips by one signer
     uv run scripts/view_clips.py --clip-id 15890366051589533-APPLE
     uv run scripts/view_clips.py --prepared data/prepared/asl_citizen-b7bd1b06 --sign HELLO
-With --prepared, prepared clips (bottom row) are shown below the store clips they come from (top row).
+With --prepared, prepared clips (bottom row) are shown below the store clips they come from (top row);
+--augment adds a row with a random training augmentation of each prepared clip.
 """
 
 import argparse
@@ -20,6 +21,7 @@ import polars as pl
 from matplotlib.animation import FuncAnimation, PillowWriter
 from matplotlib.collections import LineCollection
 
+from isolated_sign_validation.dataset import AugmentConfig, augment
 from isolated_sign_validation.landmarks import (
     LANDMARK_GROUPS,
     LANDMARK_SLICES,
@@ -109,6 +111,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--store", type=Path, default=Path("data/processed/asl_citizen"))
     parser.add_argument("--prepared", type=Path, help="prepared data made from --store; show its clips too")
+    parser.add_argument("--augment", action="store_true", help="with --prepared, also show augmented clips")
     parser.add_argument("--sign")
     parser.add_argument("--signer", help="full signer id, or the id without the dataset prefix")
     parser.add_argument("--clip-id")
@@ -129,6 +132,11 @@ def main() -> None:
                 for row in clips.iter_rows(named=True)
             ],
         ]
+        if args.augment:
+            rng = np.random.default_rng(args.seed)
+            hands = [data.config.group_slices[hand] for hand in ("left_hand", "right_hand")]
+            augmented = [augment(data[row["row"]], rng, AugmentConfig(), hands, data.config.max_frames) for row in clips.iter_rows(named=True)]
+            rows.append([(to_landmark_layout(frames, data.config), "augmented") for frames in augmented])
     else:
         clips = select_clips(store.clips, args)
         rows = [[(np.asarray(store[row["row"]][..., :2]), title(row)) for row in clips.iter_rows(named=True)]]
