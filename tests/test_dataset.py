@@ -89,6 +89,16 @@ def test_dataset_excludes_signers(data):
     assert dataset.positions.tolist() == [0] and dataset.signs == ["B"]
 
 
+def test_dataset_keeps_clips_without_signer(data):
+    data.clips = data.clips.with_columns(signer=pl.Series([None, "p2", "p3"], dtype=pl.String))
+    assert SignDataset(data, "train", exclude_signers={"p2"}).positions.tolist() == [0]
+
+
+def test_dataset_leaves_out_clips_without_split(data):
+    data.clips = data.clips.with_columns(split=pl.Series(["train", None, "val"], dtype=pl.String))
+    assert SignDataset(data, "train").positions.tolist() == [0]
+
+
 def test_dataset_only_signs(data):
     dataset = SignDataset(data, "train", only_signs={"A"})
     assert dataset.positions.tolist() == [1] and dataset.signs == ["A"]

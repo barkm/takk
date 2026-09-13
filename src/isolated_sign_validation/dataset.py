@@ -75,7 +75,8 @@ class SignDataset(torch.utils.data.Dataset):
         only_signs: Collection[str] | None = None,
     ):
         self.data = data
-        selected = (data.clips["split"] == split) & ~data.clips["signer"].is_in(list(exclude_signers))
+        in_split = (data.clips["split"] == split).fill_null(False)
+        selected = in_split & ~data.clips["signer"].is_in(list(exclude_signers)).fill_null(False)
         if only_signs is not None:
             selected &= data.clips["sign"].is_in(list(only_signs))
         self.positions = np.flatnonzero(selected.to_numpy())
