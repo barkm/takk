@@ -42,7 +42,8 @@ Status of the work and the plan ahead. Update this file when a step is finished,
    - Experiments: landmark groups (hands only / + body / + face), loss (ArcFace vs supervised contrastive), sequence length.
 
 8. **More data**
-   - Sem-Lex: adapter with the same extractor; sign labels normalized with ASL Citizen via ASL-LEX. Its phonological feature annotations (handshape, location, movement) could serve as auxiliary training targets.
+   - MM-WLAuslan (3,215 Auslan signs, see findings): downloadable; inspected labels, splits and sample videos. — in progress
+   - Sem-Lex (blocked: no access to the Drive files yet): adapter with the same extractor; sign labels normalized with ASL Citizen via ASL-LEX. Its phonological feature annotations (handshape, location, movement) could serve as auxiliary training targets.
    - Optionally Kaggle ASL Signs, keeping in mind it is one-handed signing from a different extractor.
 
 Later: sensitivity analysis and threshold selection, including score normalization (see the baseline findings); Swedish Sign Language signs from teckensprakslexikon.su.se.
@@ -73,7 +74,7 @@ Later: sensitivity analysis and threshold selection, including score normalizati
 
 ## Open decisions
 
-- None at the moment.
+- MM-WLAuslan has no signer ids: how to use it (training-only data vs deriving signer ids), and which camera views and subsets to extract.
 
 ## Findings
 
@@ -134,6 +135,14 @@ Other datasets (for more training signs; signs of other sign languages are all n
 - Other languages: MM-WLAuslan (Auslan, 3,215 signs, 282k videos from 4 camera views, 73 signers, public, CC BY-NC-SA 4.0), Slovo (Russian, 1,000 signs, 20k videos, 194 signers, public on Kaggle, 16 GB), SLR500 (Chinese, 500 signs, 125k videos, 50 signers), NMFs-CSL (Chinese, 1,067 signs), AUTSL (Turkish, 226 signs, 38k videos, 43 signers).
 - Dictionaries with one video per sign (reference sets, not training data): ASL-LEX, ASL SignBank, the Swedish lexicon.
 - Related work: "Representing Signs as Signs" (Vandendriessche et al., Ghent University, 2025, arXiv 2502.20171) trains an embedding model on MediaPipe pose and hand landmarks of ASL Citizen and recognizes signs one-shot in a Flemish Sign Language dictionary of 10,235 signs: recall@1 0.374, recall@5 0.670, MRR 0.508; trained on a Flemish corpus with 292 signs instead, recall@1 is only 0.089. Supports both the vocabulary finding and cross-language transfer (relevant for Swedish Sign Language later).
+
+MM-WLAuslan:
+- Public Google Drive folder `1EQ1Nh3lidEcu1QLFw0IjRN7YqEq1N48q` (linked from https://uq-cvlab.github.io/MM-WLAuslan-Dataset/), readable with the rclone remote: `rclone copy "personal gdrive:" <dir> --drive-root-folder-id 1EQ1Nh3lidEcu1QLFw0IjRN7YqEq1N48q --include <path>`. License CC BY-NC-SA 4.0.
+- Layout: `{Train,Valid,Test-STU,Test-ITW,Test-SYN,Test-TED}/<camera>/{rgb,depth}.zip` for cameras `Kinect_F`, `Kinect_L`, `Kinect_R` (Kinect V2 front, left-front, right-front) and `RealSense_F`; videos inside are `rgb/<id>_<kf|kl|kr|rf>_rgb.mp4`. RGB `Kinect_F` sizes: Train 14.5 GB, Valid 2.4, STU 2.6, ITW 4.5, SYN 3.5, TED 2.0 GB (`RealSense_F` is ~5x larger). Also a `Test-MTV` zip (multi-view challenge) and `WWW_CV_ISLR_Challenge/` (a copy of Train/Valid for the WWW 2025 challenge).
+- Labels: `Annotation/Labels & Split/<subset>.json` maps a random 5-digit sample id to its gloss (3,215 glosses, all in every subset): Train 38,580 (12 per gloss), Valid and each test subset 6,430 (2 per gloss). The same sample id is shared by its four camera videos. `Dictionary.json` gives each gloss's English keywords and region.
+- No per-sample signer ids are released, although the paper lists them as part of each sample; the label files, dictionary and pose pickles (gzipped `{id: float64 array (frames, 136, 3)}`, AlphaPose keypoints) contain none. Per the paper: 73 signers; Train 55, Valid 53, STU 12, ITW 15, SYN 62, TED 63 signers; 18 signers appear only in test subsets.
+- Test subsets: STU is the studio setting of the training data; ITW and SYN replace the green screen with real or synthetic backgrounds; TED removes frames at the start or end and changes playback speed (could cut signs).
+- Videos (`Kinect_F`, 50 from Valid): 512x408, 30 fps, 51–127 frames (mean 85); green screen, the signer cropped to about the thighs, small in the frame. Our extractor runs as on ASL Citizen (~45 frames/s single-process); hands are detected during signing. Estimated extraction at ~140 frames/s with 8 workers: ~1 h per 6,430 clips, ~6.5 h for Train.
 
 MediaPipe extraction speed (machine: Ryzen 9 5950X, 16 cores / 32 threads; RTX 3090):
 - HolisticLandmarker on the CPU, one process: ~22 ms per frame wall, ~40 ms CPU (uses ~1.7 cores).
