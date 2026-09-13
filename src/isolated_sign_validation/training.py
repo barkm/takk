@@ -1,7 +1,8 @@
 """Training of sign embedding models with an ArcFace classification loss over the training signs.
 
-A run directory gets the config, per-epoch metrics, training curves, the checkpoint with the best
-validation AUC, and the full validation evaluation of that checkpoint.
+A run directory gets the config, per-epoch metrics, training curves, the checkpoint with the lowest
+validation EER at k = 1 (validation AUC is close to saturated), and the full validation evaluation
+of that checkpoint.
 """
 
 import dataclasses
@@ -34,12 +35,13 @@ class TrainConfig:
     dropout: float = 0.2
     arcface_scale: float = 30.0
     arcface_margin: float = 0.3
-    epochs: int = 60
+    augment: AugmentConfig = dataclasses.field(default_factory=AugmentConfig)
+    epochs: int = 30
     batch_size: int = 256
     lr: float = 1e-3
     weight_decay: float = 0.01
     warmup_epochs: int = 2
-    eval_every: int = 5  # epochs between validation checks
+    eval_every: int = 2  # epochs between validation checks
     num_workers: int = 8
     seed: int = 0
 
@@ -62,10 +64,10 @@ def embed(model: GRUEncoder, dataset: SignDataset, device: str, batch_size: int 
 
 
 def quick_validation(model: GRUEncoder, val: SignDataset, device: str) -> dict[str, float]:
-    """Cheap validation metrics for checks during training: k = 5, one draw of references, no bootstrap."""
+    """Cheap validation metrics for checks during training: k = 1 and 5, one draw of references, no bootstrap."""
     similarity = cosine_similarity(embed(model, val, device))
-    summary, _ = evaluate(similarity, val.data.clips[val.positions], ks=(5,), n_draws=1, n_bootstrap=0)
-    return dict(zip(summary["metric"], summary["value"]))
+    summary, _ = evaluate(similarity, val.data.clips[val.positions], ks=(1, 5), n_draws=1, n_bootstrap=0)
+    return {f"{metric}_k{k}": value for k, metric, value in summary.select("k", "metric", "value").iter_rows()}
 
 
 def plot_curves(metrics: pl.DataFrame, path: Path) -> None:
@@ -75,13 +77,12 @@ def plot_curves(metrics: pl.DataFrame, path: Path) -> None:
     ax1b = ax1.twinx()
     ax1b.plot(metrics["epoch"], metrics["train_accuracy"], color="tab:orange", label="train accuracy")
     ax1b.set(ylabel="training accuracy")
-    if "val_auc" in metrics.columns:  # after the first validation check
-        val = metrics.drop_nulls("val_auc")
-        ax2.plot(val["epoch"], val["val_auc"], marker="o", label="AUC")
-        ax2.plot(val["epoch"], val["val_top1"], marker="o", label="top-1")
-        ax2.plot(val["epoch"], val["val_eer"], marker="o", label="EER")
+    if "val_eer_k1" in metrics.columns:  # after the first validation check
+        val = metrics.drop_nulls("val_eer_k1")
+        for column, label in [("top1_k1", "top-1, k = 1"), ("top1_k5", "top-1, k = 5"), ("eer_k1", "EER, k = 1"), ("eer_k5", "EER, k = 5")]:
+            ax2.plot(val["epoch"], val[f"val_{column}"], marker="o", label=label)
         ax2.legend()
-    ax2.set(xlabel="epoch", title="Validation, k = 5 (quick)")
+    ax2.set(xlabel="epoch", title="Validation (quick: one draw of references)")
     fig.tight_layout()
     fig.savefig(path, dpi=120)
     plt.close(fig)
@@ -93,7 +94,7 @@ def train(config: TrainConfig, data: PreparedData, run_dir: Path, device: str = 
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "config.json").write_text(json.dumps(dataclasses.asdict(config), indent=2))
 
-    train_set = SignDataset(data, "train", augment=AugmentConfig())
+    train_set = SignDataset(data, "train", augment=config.augment)
     val_set = SignDataset(data, "val")
     loader = DataLoader(
         train_set, batch_size=config.batch_size, shuffle=True, drop_last=True,
@@ -107,7 +108,7 @@ def train(config: TrainConfig, data: PreparedData, run_dir: Path, device: str = 
         optimizer, lambda step: min(1, (step + 1) / warmup_steps) * 0.5 * (1 + np.cos(np.pi * min(1, step / total_steps)))
     )
 
-    rows, best_auc = [], -1.0
+    rows, best_eer = [], np.inf
     for epoch in range(1, config.epochs + 1):
         model.train()
         start, losses, correct, seen = time.time(), [], 0, 0
@@ -128,8 +129,8 @@ def train(config: TrainConfig, data: PreparedData, run_dir: Path, device: str = 
         if epoch % config.eval_every == 0 or epoch == config.epochs:
             val_metrics = quick_validation(model, val_set, device)
             row |= {f"val_{name}": value for name, value in val_metrics.items()}
-            if val_metrics["auc"] > best_auc:
-                best_auc = val_metrics["auc"]
+            if val_metrics["eer_k1"] < best_eer:
+                best_eer = val_metrics["eer_k1"]
                 torch.save({"model": model.state_dict(), "epoch": epoch}, run_dir / "best.pt")
         row["seconds"] = time.time() - start
         rows.append(row)
