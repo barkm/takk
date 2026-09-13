@@ -42,7 +42,13 @@ Status of the work and the plan ahead. Update this file when a step is finished,
    - Experiments: landmark groups (hands only / + body / + face), loss (ArcFace vs supervised contrastive), sequence length.
 
 8. **More data**
-   - MM-WLAuslan (3,215 Auslan signs, see findings): downloadable; inspected labels, splits and sample videos. — in progress
+   - MM-WLAuslan (3,215 Auslan signs, see decisions and findings) — in progress
+     - Adapter (`datasets/mm_wlauslan.py`) and a 30-sign sample of Valid (`data/processed/mm_wlauslan_valid_30_signs/`). — done
+     - Download and full extraction (27.6 GB of zips, 64,300 videos, ~11 h; commands in the README).
+     - Preparation for both datasets: handle resting hands, which are visible in MM-WLAuslan but out of frame in ASL Citizen (see findings), and clips without signers (dominant hand, `SignDataset`'s signer filter).
+     - Splits: all MM-WLAuslan clips train, except the signs matching an ASL Citizen val/test sign by label.
+     - Lookalike check: MM-WLAuslan clips that the current model embeds close to ASL Citizen val/test signs, inspected.
+     - Train on both, and compare the gain on val signs with and without an Auslan label match.
    - Sem-Lex (blocked: no access to the Drive files yet): adapter with the same extractor; sign labels normalized with ASL Citizen via ASL-LEX. Its phonological feature annotations (handshape, location, movement) could serve as auxiliary training targets.
    - Optionally Kaggle ASL Signs, keeping in mind it is one-handed signing from a different extractor.
 
@@ -72,9 +78,13 @@ Later: sensitivity analysis and threshold selection, including score normalizati
 
 - **Next direction after the architecture experiments: more data, starting with Sem-Lex** (step 8), since architectures and regularization converge to the same level. Measuring generalization to unseen signers (with training signers held out, not the test split) can run alongside.
 
+- **MM-WLAuslan is used as training data only** (Sem-Lex is blocked on access): all its signs are new classes, ASL Citizen's val and test stay unchanged, so results remain comparable with earlier runs and measure whether more signs, even of another language, help with unseen ASL signs. Without signer ids it cannot be evaluated k-shot with references by other signers; asking the authors for the ids would enable that later. Clips have a null `signer`.
+- **MM-WLAuslan scope:** RGB of the front Kinect camera (closest to ASL Citizen's frontal webcams), subsets Train, Valid, Test-STU, Test-ITW and Test-SYN (64,300 clips, 20 per sign); not Test-TED (frames removed and speed changed, which can cut signs). The side cameras film the same performances from other angles, so they are left for later.
+- **Sign overlap with ASL Citizen:** MM-WLAuslan signs whose gloss or keyword matches an ASL Citizen val or test sign by label (597 of 3,215) are left out of training, so lookalike signs don't leak into the evaluation (see findings); they stay in the store. Remaining lookalikes are searched with the embedding model, and the gain on val signs with and without a label match is compared.
+
 ## Open decisions
 
-- MM-WLAuslan has no signer ids: how to use it (training-only data vs deriving signer ids), and which camera views and subsets to extract.
+- None at the moment.
 
 ## Findings
 
@@ -142,7 +152,8 @@ MM-WLAuslan:
 - Labels: `Annotation/Labels & Split/<subset>.json` maps a random 5-digit sample id to its gloss (3,215 glosses, all in every subset): Train 38,580 (12 per gloss), Valid and each test subset 6,430 (2 per gloss). The same sample id is shared by its four camera videos. `Dictionary.json` gives each gloss's English keywords and region.
 - No per-sample signer ids are released, although the paper lists them as part of each sample; the label files, dictionary and pose pickles (gzipped `{id: float64 array (frames, 136, 3)}`, AlphaPose keypoints) contain none. Per the paper: 73 signers; Train 55, Valid 53, STU 12, ITW 15, SYN 62, TED 63 signers; 18 signers appear only in test subsets.
 - Test subsets: STU is the studio setting of the training data; ITW and SYN replace the green screen with real or synthetic backgrounds; TED removes frames at the start or end and changes playback speed (could cut signs).
-- Videos (`Kinect_F`, 50 from Valid): 512x408, 30 fps, 51–127 frames (mean 85); green screen, the signer cropped to about the thighs, small in the frame. Our extractor runs as on ASL Citizen (~45 frames/s single-process); hands are detected during signing. Estimated extraction at ~140 frames/s with 8 workers: ~1 h per 6,430 clips, ~6.5 h for Train.
+- Videos (`Kinect_F`, 50 from Valid): 512x408, 30 fps, 51–127 frames (mean 85); green screen, the signer cropped to about the thighs, small in the frame. Our extractor runs as on ASL Citizen (~45 frames/s single-process, ~140 frames/s with 8 workers): ~1 h per 6,430 clips, ~11 h for the 64,300 clips of the chosen subsets. Sample ids are unique across subsets. A missing video file would silently give an empty clip, so the adapter checks that all videos exist first.
+- 30-sign sample of Valid (60 clips, 4,619 frames): clips 1.0–4.1 s (median 2.6 s). Unlike ASL Citizen, the hands are in the frame when resting (wrist y ≈ 0.8–0.95; shoulders at y ≈ 0.5), so hands are detected in 92% of frames (ASL Citizen: 43%), only 2% of frames lie before the first or after the last hand, and in one-handed signs the idle hand is detected, holding still, throughout. Consequences for preparation: trimming to the frames with hands removes nothing (clips keep the rest at start and end); 92% of clips count as two-handed (both hands in at least half the hand frames; ASL Citizen: 55%), so the one-handed rule for the dominant hand doesn't apply; and a model could tell the datasets apart by the resting hand. A position-based rule (a hand counts as absent while resting low, e.g. its wrist below a threshold relative to the shoulders) would make both datasets alike, and webcam users with visible resting hands too. `right_hand` lies on the image's left as in ASL Citizen.
 - Sign overlap with ASL Citizen: Auslan belongs to the BANZSL family (with BSL and NZSL), unrelated to ASL, but some signs look alike (iconic signs, loans); a lexical comparison of basic vocabulary (McKee & Kennedy) found 26–32% of ASL signs identical or similar to Auslan, BSL and NZSL signs. By English label (ignoring case and sense numbers), 130 of 290 ASL Citizen val signs and 110 of 269 test signs match an Auslan gloss (216 and 187 including the Auslan keywords). Conversely, 263 Auslan glosses match an ASL val/test sign by gloss, 597 by gloss or keyword. A matching label does not mean the same sign, and a lookalike sign can have a different label, so labels only locate likely overlaps. An Auslan lookalike of a val/test sign in training would make that sign no longer unseen and inflate the evaluation.
 
 MediaPipe extraction speed (machine: Ryzen 9 5950X, 16 cores / 32 threads; RTX 3090):
