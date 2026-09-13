@@ -87,3 +87,8 @@ def test_collate_pads_and_masks(data):
 def test_dataset_excludes_signers(data):
     dataset = SignDataset(data, "train", exclude_signers={"p2"})
     assert dataset.positions.tolist() == [0] and dataset.signs == ["B"]
+
+
+def test_dataset_only_signs(data):
+    dataset = SignDataset(data, "train", only_signs={"A"})
+    assert dataset.positions.tolist() == [1] and dataset.signs == ["A"]

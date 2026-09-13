@@ -63,11 +63,21 @@ def augment(frames: np.ndarray, rng: np.random.Generator, config: AugmentConfig,
 
 
 class SignDataset(torch.utils.data.Dataset):
-    """The prepared clips of one split, except those of `exclude_signers`, labeled by sign (indices into `signs`)."""
+    """The prepared clips of one split, labeled by sign (indices into `signs`); optionally only of
+    `only_signs`, and without the clips of `exclude_signers`."""
 
-    def __init__(self, data: PreparedData, split: str, augment: AugmentConfig | None = None, exclude_signers: Collection[str] = ()):
+    def __init__(
+        self,
+        data: PreparedData,
+        split: str,
+        augment: AugmentConfig | None = None,
+        exclude_signers: Collection[str] = (),
+        only_signs: Collection[str] | None = None,
+    ):
         self.data = data
         selected = (data.clips["split"] == split) & ~data.clips["signer"].is_in(list(exclude_signers))
+        if only_signs is not None:
+            selected &= data.clips["sign"].is_in(list(only_signs))
         self.positions = np.flatnonzero(selected.to_numpy())
         clip_signs = data.clips["sign"].to_numpy()[self.positions]
         self.signs = sorted(set(clip_signs))
