@@ -106,7 +106,7 @@ def report(stats: pl.DataFrame, coords: dict[str, np.ndarray], out_dir: Path) ->
     print(f"\nclips with left_hand dominant: {(stats['dominant'] == 'left').mean():.1%}")
     print("signers by share of clips with left_hand dominant:")
     print(per_signer["left_dominant"].cut([0.1, 0.5, 0.9]).value_counts().sort("left_dominant"))
-    labels = per_signer["signer"].str.split(":").list.last()
+    labels = per_signer["signer"].fill_null("unknown").str.split(":").list.last()
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 7), sharex=True)
     ax1.bar(labels, per_signer["clips"])
     ax1.set(ylabel="clips", title="Clips per signer")
