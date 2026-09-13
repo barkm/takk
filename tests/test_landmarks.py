@@ -4,7 +4,9 @@ import pytest
 
 from isolated_sign_validation.landmarks import (
     LANDMARK_GROUPS,
+    MIRROR_INDEX,
     N_LANDMARKS,
+    SKELETON_EDGES,
     LandmarkStore,
     merge_stores,
     write_store,
@@ -104,3 +106,18 @@ def test_write_store_resumable_resumes_after_interruption(tmp_path):
         np.testing.assert_array_equal(store[i], clip_for(i)[1])
     with pytest.raises(FileExistsError):
         write_store_resumable(tmp_path, items, convert, chunk_size=3)
+
+
+def test_mirror_index_swaps_sides_and_is_its_own_inverse():
+    np.testing.assert_array_equal(MIRROR_INDEX[MIRROR_INDEX], np.arange(N_LANDMARKS))
+    np.testing.assert_array_equal(MIRROR_INDEX[LANDMARK_GROUPS["left_hand"]], LANDMARK_GROUPS["right_hand"])
+    for group in ("upper_body", "face_reference", "lips"):  # groups containing both sides of the body
+        assert set(MIRROR_INDEX[LANDMARK_GROUPS[group]]) == set(LANDMARK_GROUPS[group])
+
+
+def test_mirror_index_maps_skeleton_onto_itself():
+    # Mirroring a connected pair of points must give another connected pair.
+    for group, edges in SKELETON_EDGES.items():
+        mirrored = {tuple(sorted(pair)) for pair in MIRROR_INDEX[edges]}
+        partner = {"left_hand": "right_hand", "right_hand": "left_hand"}.get(group, group)
+        assert mirrored == {tuple(sorted(pair)) for pair in SKELETON_EDGES[partner]}, group

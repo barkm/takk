@@ -52,6 +52,32 @@ _UPPER_BODY_EDGES = [(11, 12), (11, 13), (12, 14), (13, 15), (14, 16), (15, 17),
 # MediaPipe FaceLandmarksConnections.FACE_LANDMARKS_LIPS
 _LIPS_EDGES = [(0, 267), (13, 312), (14, 317), (17, 314), (37, 0), (39, 37), (40, 39), (61, 146), (61, 185), (78, 95), (78, 191), (80, 81), (81, 82), (82, 13), (84, 17), (87, 14), (88, 178), (91, 181), (95, 88), (146, 91), (178, 87), (181, 84), (185, 40), (191, 80), (267, 269), (269, 270), (270, 409), (310, 415), (311, 310), (312, 311), (314, 405), (317, 402), (318, 324), (321, 375), (324, 308), (375, 291), (402, 318), (405, 321), (409, 291), (415, 308)]  # fmt: skip
 
+# Mirror-image pairs: the same point on the other side of the body. Pose indices: shoulders, elbows,
+# wrists, pinkies, index fingers, thumbs. Face mesh indices: eye corners, then the lip contours
+# (outer lower, outer upper, inner lower, inner upper), each from the mouth corner to the midline.
+_POSE_MIRROR_PAIRS = [(11, 12), (13, 14), (15, 16), (17, 18), (19, 20), (21, 22)]
+_FACE_MIRROR_PAIRS = [
+    (33, 263), (133, 362),
+    (61, 291), (146, 375), (91, 321), (181, 405), (84, 314),
+    (185, 409), (40, 270), (39, 269), (37, 267),
+    (78, 308), (95, 324), (88, 318), (178, 402), (87, 317),
+    (191, 415), (80, 310), (81, 311), (82, 312),
+]  # fmt: skip
+
+
+def _mirror_index() -> np.ndarray:
+    index = np.arange(N_LANDMARKS)  # points on the midline are their own mirror image
+    left, right = LANDMARK_SLICES["left_hand"], LANDMARK_SLICES["right_hand"]
+    index[left], index[right] = np.arange(right.start, right.stop), np.arange(left.start, left.stop)
+    for offset, pairs in [(LANDMARK_SLICES["pose"].start, _POSE_MIRROR_PAIRS), (LANDMARK_SLICES["face"].start, _FACE_MIRROR_PAIRS)]:
+        for a, b in pairs:
+            index[offset + a], index[offset + b] = offset + b, offset + a
+    return index
+
+
+# For each landmark, the index of its mirror image. Defined for the landmarks in LANDMARK_GROUPS.
+MIRROR_INDEX = _mirror_index()
+
 # Connections between the landmarks of a group, as pairs of indices into the landmark axis.
 SKELETON_EDGES = {
     "left_hand": np.array(_HAND_EDGES) + LANDMARK_SLICES["left_hand"].start,
