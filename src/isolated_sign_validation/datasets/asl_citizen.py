@@ -30,6 +30,12 @@ def read_videos(raw_dir: Path) -> pl.DataFrame:
     return pl.concat([pl.read_csv(raw_dir / "splits" / f"{split}.csv") for split in ("train", "val", "test")])
 
 
+def official_test_signers(raw_dir: Path) -> set[str]:
+    """Signers of the official test split, as signer ids of the landmark store."""
+    test = pl.read_csv(raw_dir / "splits" / "test.csv")
+    return {f"{DATASET}:{participant}" for participant in test["Participant ID"].unique()}
+
+
 def extract_clips(videos: Sequence[dict], raw_dir: Path) -> Iterator[tuple[dict, np.ndarray]]:
     """Extract (metadata, landmarks) for `videos` (rows of the split CSVs), in order."""
     paths = [raw_dir / "videos" / video["Video file"] for video in videos]
