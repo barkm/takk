@@ -37,8 +37,8 @@ def test_extract_landmarks_from_video_without_person(tmp_path):
         writer.write(np.zeros((240, 320, 3), dtype=np.uint8))
     writer.release()
 
-    landmarks, fps = extract_landmarks(video)
+    landmarks, info = extract_landmarks(video)
 
     assert landmarks.shape == (5, N_LANDMARKS, 3)
     assert np.isnan(landmarks).all()
-    assert fps == 25
+    assert (info.fps, info.width, info.height) == (25, 320, 240)

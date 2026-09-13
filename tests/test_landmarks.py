@@ -21,9 +21,11 @@ def test_landmark_groups_are_disjoint_and_in_range():
 
 
 def make_clip(clip_id: str, n_frames: int, rng: np.random.Generator, fps: float | None = 30.0) -> tuple[dict, np.ndarray]:
+    """A random clip; `fps=None` means the video info is unknown."""
     landmarks = rng.random((n_frames, N_LANDMARKS, 3), dtype=np.float32)
     landmarks[0, :21] = np.nan  # a missing hand
-    metadata = {"dataset": "test", "clip_id": clip_id, "sign": "hello", "signer": "test:1", "fps": fps}
+    width, height = (640, 480) if fps is not None else (None, None)
+    metadata = {"dataset": "test", "clip_id": clip_id, "sign": "hello", "signer": "test:1", "fps": fps, "width": width, "height": height}  # fmt: skip
     return metadata, landmarks
 
 
@@ -37,13 +39,15 @@ def test_roundtrip(tmp_path):
     assert store.clips["clip_id"].to_list() == ["a", "b", "c"]
     assert store.clips["n_frames"].to_list() == [3, 1, 5]
     assert store.clips["fps"].to_list() == [30.0, None, 25.0]
+    assert store.clips["width"].to_list() == [640, None, 640]
     for i, (_, landmarks) in enumerate(clips):
         np.testing.assert_array_equal(store[i], landmarks)
 
 
-def test_unknown_fps_is_stored_as_float(tmp_path):
+def test_unknown_video_info_keeps_column_types(tmp_path):
     write_store(tmp_path, [make_clip("a", 2, np.random.default_rng(0), fps=None)])
-    assert LandmarkStore(tmp_path).clips["fps"].dtype == pl.Float64
+    schema = LandmarkStore(tmp_path).clips.schema
+    assert (schema["fps"], schema["width"], schema["height"]) == (pl.Float64, pl.Int64, pl.Int64)
 
 
 def test_rejects_wrong_shape(tmp_path):
@@ -69,7 +73,8 @@ def test_merge_stores(tmp_path):
 
 def clip_for(item: int) -> tuple[dict, np.ndarray]:
     landmarks = np.full((item % 3 + 1, N_LANDMARKS, 3), item, dtype=np.float32)
-    return {"dataset": "test", "clip_id": str(item), "sign": "hello", "signer": "test:1", "fps": 30.0}, landmarks
+    metadata = {"dataset": "test", "clip_id": str(item), "sign": "hello", "signer": "test:1", "fps": 30.0, "width": 640, "height": 480}  # fmt: skip
+    return metadata, landmarks
 
 
 def test_write_store_resumable_resumes_after_interruption(tmp_path):

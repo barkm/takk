@@ -40,13 +40,15 @@ def extract_clips(videos: Sequence[dict], raw_dir: Path) -> Iterator[tuple[dict,
     """Extract (metadata, landmarks) for `videos` (rows of the split CSVs), in order."""
     paths = [raw_dir / "videos" / video["Video file"] for video in videos]
     results = parallel_map(extract_landmarks, paths, max_workers=MAX_WORKERS, initializer=silence_native_logs)
-    for video, (landmarks, fps) in zip(videos, results):
+    for video, (landmarks, info) in zip(videos, results):
         metadata = {
             "dataset": DATASET,
             "clip_id": Path(video["Video file"]).stem,
             "sign": video["Gloss"],
             "signer": f"{DATASET}:{video['Participant ID']}",
-            "fps": fps,
+            "fps": info.fps,
+            "width": info.width,
+            "height": info.height,
         }
         yield metadata, landmarks
 

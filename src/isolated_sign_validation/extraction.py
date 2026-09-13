@@ -6,6 +6,7 @@ All video datasets go through this one setup, so their landmarks are consistent 
 import os
 import urllib.request
 from pathlib import Path
+from typing import NamedTuple
 
 import cv2
 import mediapipe as mp
@@ -24,6 +25,12 @@ _RESULT_FIELDS = {
     "pose": "pose_landmarks",
     "right_hand": "right_hand_landmarks",
 }
+
+
+class VideoInfo(NamedTuple):
+    fps: float
+    width: int  # of the decoded frames, which the landmark coordinates are fractions of
+    height: int
 
 
 def download_model(path: Path = MODEL_PATH) -> None:
@@ -55,10 +62,10 @@ def result_to_array(result) -> np.ndarray:
     return landmarks
 
 
-def extract_landmarks(video: Path, model_path: Path = MODEL_PATH) -> tuple[np.ndarray, float]:
+def extract_landmarks(video: Path, model_path: Path = MODEL_PATH) -> tuple[np.ndarray, VideoInfo]:
     """Run the HolisticLandmarker over a video.
 
-    Returns the landmarks, shape (n_frames, N_LANDMARKS, 3), and the video's frame rate.
+    Returns the landmarks, shape (n_frames, N_LANDMARKS, 3), and the video's frame rate and frame size.
     """
     options = vision.HolisticLandmarkerOptions(
         base_options=BaseOptions(model_asset_path=str(model_path)), running_mode=vision.RunningMode.VIDEO
@@ -66,16 +73,19 @@ def extract_landmarks(video: Path, model_path: Path = MODEL_PATH) -> tuple[np.nd
     cv2.setNumThreads(1)  # extraction is parallelized over videos; avoid oversubscribing the CPUs
     capture = cv2.VideoCapture(str(video))
     fps = capture.get(cv2.CAP_PROP_FPS)
+    width, height = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH)), int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
     frames, last_timestamp = [], -1
     with vision.HolisticLandmarker.create_from_options(options) as landmarker:
         while True:
             ok, frame = capture.read()
             if not ok:
                 break
+            height, width = frame.shape[:2]  # the decoded size is what MediaPipe sees
             # Video mode requires strictly increasing timestamps, which some containers don't provide.
             timestamp = max(int(capture.get(cv2.CAP_PROP_POS_MSEC)), last_timestamp + 1)
             image = mp.Image(image_format=mp.ImageFormat.SRGB, data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
             frames.append(result_to_array(landmarker.detect_for_video(image, timestamp)))
             last_timestamp = timestamp
     capture.release()
-    return np.stack(frames) if frames else np.empty((0, N_LANDMARKS, 3), dtype=np.float32), fps
+    landmarks = np.stack(frames) if frames else np.empty((0, N_LANDMARKS, 3), dtype=np.float32)
+    return landmarks, VideoInfo(fps, width, height)
