@@ -85,6 +85,22 @@ unzip -q data/raw/asl-signs.zip -d data/raw/asl-signs
 uv run python -m isolated_sign_validation.datasets.kaggle_asl_signs
 ```
 
+## Training and baselines
+
+Baselines without training (a hand-crafted embedding and dynamic time warping) are evaluated with:
+
+```sh
+uv run scripts/evaluate_baselines.py  # results in outputs/results/
+```
+
+The learned baseline, a bidirectional GRU embedding model trained with an ArcFace loss over the training signs (`src/isolated_sign_validation/models.py`, `training.py`), is trained with:
+
+```sh
+uv run scripts/train.py --name gru_arcface
+```
+
+A run writes `outputs/runs/<name>/`: `config.json`, per-epoch `metrics.csv` and `curves.png` (updated during training), the checkpoint with the best validation AUC (`best.pt`), and its full validation evaluation.
+
 ## Evaluation
 
 Splits (`src/isolated_sign_validation/splits.py`) hold out both signs and signers:

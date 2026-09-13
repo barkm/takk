@@ -27,11 +27,11 @@ Status of the work and the plan ahead. Update this file when a step is finished,
 
 5. **Evaluation harness** — done: `evaluation.py` (see README). Evaluates a similarity matrix: per query and sign, k references by different signers other than the query's; pooled ROC-AUC and EER over the positive and all negative trials; top-1/top-5 identification; per-sign metrics; 5 reference draws; 95% bootstrap CIs over signs. A full evaluation of the val split takes 20–35 s; for checks during training use one k, one draw and no bootstrap.
 
-6. **Baselines** — in progress
+6. **Baselines** — done
    - Baselines without training (`baselines.py`, `scripts/evaluate_baselines.py`, results in `outputs/results/`): hand-crafted embedding and DTW. — done (see findings)
-   - Small GRU embedding trained with ArcFace, to validate the training and evaluation pipeline end to end. — next
+   - Small GRU embedding trained with ArcFace (`models.py`, `training.py`, `scripts/train.py`, run `outputs/runs/gru_arcface/`). — done (see findings)
 
-7. **Strong model**
+7. **Strong model** — next
    - Conv + transformer encoder with heavy augmentation.
    - Experiments: landmark groups (hands only / + body / + face), loss (ArcFace vs supervised contrastive), sequence length.
 
@@ -101,6 +101,10 @@ ASL Citizen:
   - Hand features (cosine of the hand-crafted embedding): AUC 0.827 / 0.875 / 0.887, EER 0.249 / 0.204 / 0.191, top-1 16.3% / 19.0% / 20.0%.
   - DTW (both hands + upper body, 32 frames, missing hands at the pose wrist): AUC 0.817 / 0.850 / 0.859, EER 0.259 / 0.231 / 0.223, top-1 17.8% / 20.7% / 22.4%. Better at identification but worse at verification than the hand features.
   - The difference is calibration: raw DTW distances vary in scale between queries, which hurts a single global threshold. Z-normalizing each query's similarities (against all other clips of the split, i.e. a cohort of other signs) lifts DTW to AUC 0.832 / 0.877 / 0.890 and EER 0.185 at k = 5, on par with the hand features (0.894, 0.186 normalized), without changing identification. Relevant for threshold selection later; a cohort of other signs' references would be needed at inference.
+- GRU + ArcFace baseline (bidirectional 2-layer GRU, hidden 256, 256-d embedding, ArcFace scale 30 / margin 0.3, AdamW 1e-3, 60 epochs of ~9 s on the RTX 3090): val AUC 0.979 / 0.991 / 0.992, EER 0.061 / 0.036 / 0.033, top-1 75.3% / 83.7% / 86.1% for k = 1 / 3 / 5 (95% CI for top-1 at k = 5: 84.0–87.8%), far above the baselines without training (AUC 0.887, top-1 22% at k = 5). Already after 2 epochs: AUC 0.969, top-1 48% (k = 5).
+- The GRU overfits: validation peaks around epochs 15–20 (best checkpoint epoch 15) while training accuracy keeps rising to 99.7% at epoch 60 and validation slowly declines. With ~18 training clips per sign, more regularization, augmentation or data should help.
+- Validation AUC is close to saturated (0.99 with CIs of ±0.002), so EER and top-1, especially at k = 1, are the more sensitive metrics for comparing models. Validation signers are also training signers, so the test split will show how much of this carries over to unseen signers.
+- Hardest val signs for the GRU (k = 5, by AUC): CHEERLEADER2, BOW2, SKATEBOARDING3, EGO, CRAWL1, FAN, LONGWORD, LUNCH1.
 - Frame size (backfilled from the videos' first decoded frame): 80,184 clips 640x480, 3,211 at 960x540, 4 at 480x640.
 - Signers: 26 of 52 recorded nearly the whole vocabulary (~3,000 clips each); P13 and P19 have 2 clips each.
 - Coordinates (0.1–99.9 percentiles): hands x −0.02–1.03, y −0.01–1.12; upper body x −0.1–1.14, y 0.17–1.8 (arms below the frame when the hands are down). `right_hand` lies mostly on the image's left (x 0.08–0.76 at 1–99%), consistent with the Kaggle hand label convention.
