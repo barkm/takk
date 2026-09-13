@@ -54,7 +54,7 @@ def test_augment_keeps_landmarks_and_missing_hands():
 @pytest.fixture
 def data(tmp_path) -> PreparedData:
     lengths = [3, 5, 4]
-    clips = pl.DataFrame({"sign": ["B", "A", "B"], "split": ["train", "train", "val"], "n_frames": lengths})
+    clips = pl.DataFrame({"sign": ["B", "A", "B"], "signer": ["p1", "p2", "p3"], "split": ["train", "train", "val"], "n_frames": lengths})
     clips = clips.with_columns(offset=pl.col("n_frames").cum_sum() - pl.col("n_frames"))
     frames = np.concatenate([clip_frames(n, value=i, left_hand=(i == 1)) for i, n in enumerate(lengths)])
     path = tmp_path / "prepared"
@@ -82,3 +82,8 @@ def test_collate_pads_and_masks(data):
     assert batch["mask"].tolist() == [[True] * 3 + [False] * 2, [True] * 5]
     assert batch["labels"].tolist() == [1, 0]
     assert batch["frames"].dtype == torch.float32
+
+
+def test_dataset_excludes_signers(data):
+    dataset = SignDataset(data, "train", exclude_signers={"p2"})
+    assert dataset.positions.tolist() == [0] and dataset.signs == ["B"]

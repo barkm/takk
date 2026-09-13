@@ -4,6 +4,7 @@ Items are frames with missing landmarks set to 0, plus per-frame flags for which
 `collate` pads a batch to its longest clip and adds a mask of the real frames.
 """
 
+from collections.abc import Collection
 from dataclasses import dataclass
 
 import numpy as np
@@ -62,11 +63,12 @@ def augment(frames: np.ndarray, rng: np.random.Generator, config: AugmentConfig,
 
 
 class SignDataset(torch.utils.data.Dataset):
-    """The prepared clips of one split, labeled by sign (indices into `signs`)."""
+    """The prepared clips of one split, except those of `exclude_signers`, labeled by sign (indices into `signs`)."""
 
-    def __init__(self, data: PreparedData, split: str, augment: AugmentConfig | None = None):
+    def __init__(self, data: PreparedData, split: str, augment: AugmentConfig | None = None, exclude_signers: Collection[str] = ()):
         self.data = data
-        self.positions = np.flatnonzero((data.clips["split"] == split).to_numpy())
+        selected = (data.clips["split"] == split) & ~data.clips["signer"].is_in(list(exclude_signers))
+        self.positions = np.flatnonzero(selected.to_numpy())
         clip_signs = data.clips["sign"].to_numpy()[self.positions]
         self.signs = sorted(set(clip_signs))
         self.labels = np.searchsorted(self.signs, clip_signs)
