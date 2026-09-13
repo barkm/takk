@@ -27,9 +27,9 @@ Status of the work and the plan ahead. Update this file when a step is finished,
 
 5. **Evaluation harness** — done: `evaluation.py` (see README). Evaluates a similarity matrix: per query and sign, k references by different signers other than the query's; pooled ROC-AUC and EER over the positive and all negative trials; top-1/top-5 identification; per-sign metrics; 5 reference draws; 95% bootstrap CIs over signs. A full evaluation of the val split takes 20–35 s; for checks during training use one k, one draw and no bootstrap.
 
-6. **Baselines** — next
-   - DTW on normalized hand landmarks (no training).
-   - Small GRU embedding trained with ArcFace, to validate the training and evaluation pipeline end to end.
+6. **Baselines** — in progress
+   - Baselines without training (`baselines.py`, `scripts/evaluate_baselines.py`, results in `outputs/results/`): hand-crafted embedding and DTW. — done (see findings)
+   - Small GRU embedding trained with ArcFace, to validate the training and evaluation pipeline end to end. — next
 
 7. **Strong model**
    - Conv + transformer encoder with heavy augmentation.
@@ -39,7 +39,7 @@ Status of the work and the plan ahead. Update this file when a step is finished,
    - Sem-Lex: adapter with the same extractor; sign labels normalized with ASL Citizen via ASL-LEX. Its phonological feature annotations (handshape, location, movement) could serve as auxiliary training targets.
    - Optionally Kaggle ASL Signs, keeping in mind it is one-handed signing from a different extractor.
 
-Later: sensitivity analysis and threshold selection; Swedish Sign Language signs from teckensprakslexikon.su.se.
+Later: sensitivity analysis and threshold selection, including score normalization (see the baseline findings); Swedish Sign Language signs from teckensprakslexikon.su.se.
 
 ## Decisions
 
@@ -97,6 +97,10 @@ ASL Citizen:
 - Suspected broken clips, inspected as video frames: 109 clips without any hand (22 signers, 40 from P18) and 152 with hands for under 0.2 s are mostly extraction failures on real signing (hands in front of the face, raised above the head, blurred or partly out of frame), plus a few truncated recordings; 50 clips with over 10 s of hand activity (47 from P46) are long recordings with idle time, so hand presence cannot locate the sign. All 311 (0.37%) are excluded with the planned thresholds. Hands in front of the face are a weak spot of hand detection.
 - Prepared data (default config): train 40,015 clips (2,172 signs), val 5,326 (290), test 3,218 (269); 148 excluded. Prepared length median 41–42 frames, 95th percentile 74–80, max 128. Mirrored: 17% of train and val clips but 44% of test clips, so several of the 11 test signers are left-dominant or recorded mirrored.
 - Evaluation harness sanity check on val (290 signs): random embeddings give AUC 0.50, EER 0.50, top-1 0.003 (= 1/290), top-5 0.017 (= 5/290). A trivial hand-crafted embedding (dominant hand's mean shape relative to the wrist, mean wrist position and wrist path at 8 time points) gives AUC 0.83 / 0.88 / 0.89, EER 0.25 / 0.20 / 0.19, top-1 16% / 19% / 20% for k = 1 / 3 / 5; 95% CI for AUC at k = 1: 0.815–0.839. Hardest signs for it: BARK2, END, MISSING, AXE1, BOW2. Trained models have to beat this.
+- Baselines without training on val (k = 1 / 3 / 5, 95% CI about ±0.01 for AUC):
+  - Hand features (cosine of the hand-crafted embedding): AUC 0.827 / 0.875 / 0.887, EER 0.249 / 0.204 / 0.191, top-1 16.3% / 19.0% / 20.0%.
+  - DTW (both hands + upper body, 32 frames, missing hands at the pose wrist): AUC 0.817 / 0.850 / 0.859, EER 0.259 / 0.231 / 0.223, top-1 17.8% / 20.7% / 22.4%. Better at identification but worse at verification than the hand features.
+  - The difference is calibration: raw DTW distances vary in scale between queries, which hurts a single global threshold. Z-normalizing each query's similarities (against all other clips of the split, i.e. a cohort of other signs) lifts DTW to AUC 0.832 / 0.877 / 0.890 and EER 0.185 at k = 5, on par with the hand features (0.894, 0.186 normalized), without changing identification. Relevant for threshold selection later; a cohort of other signs' references would be needed at inference.
 - Frame size (backfilled from the videos' first decoded frame): 80,184 clips 640x480, 3,211 at 960x540, 4 at 480x640.
 - Signers: 26 of 52 recorded nearly the whole vocabulary (~3,000 clips each); P13 and P19 have 2 clips each.
 - Coordinates (0.1–99.9 percentiles): hands x −0.02–1.03, y −0.01–1.12; upper body x −0.1–1.14, y 0.17–1.8 (arms below the frame when the hands are down). `right_hand` lies mostly on the image's left (x 0.08–0.76 at 1–99%), consistent with the Kaggle hand label convention.
