@@ -47,7 +47,7 @@ Status of the work and the plan ahead. Update this file when a step is finished,
      - Download and full extraction (27.6 GB of zips, 64,300 videos, ~11 h; commands in the README). — running (started 19:30)
      - Preparation for both datasets: hands resting low count as undetected (`PrepConfig.max_hand_y`, see decisions); clips without signers (dominant hand, `SignDataset`); ASL Citizen re-prepared as `data/prepared/asl_citizen-d314433a/` and the GRU baseline retrained on it (`gru_hide_low`). — done
      - Splits and preparation: all MM-WLAuslan clips train, except the signs matching an ASL Citizen val/test sign by label (`splits.assign_training_only`, `scripts/prepare_mm_wlauslan.py`; signs prefixed `auslan:`); training on several prepared directories (`scripts/train.py --prepared a b`). — done, tested on the 30-sign sample
-     - Lookalike check: MM-WLAuslan clips that the current model embeds close to ASL Citizen val/test signs, inspected.
+     - Lookalike check: MM-WLAuslan signs that the current model embeds close to ASL Citizen val/test signs, compared with how close the same ASL sign is by two halves of its signers, then inspected (`scripts/find_lookalikes.py`, tested on the 30-sign sample).
      - Train on both, and compare the gain on val signs with and without an Auslan label match.
    - Sem-Lex (blocked: no access to the Drive files yet): adapter with the same extractor; sign labels normalized with ASL Citizen via ASL-LEX. Its phonological feature annotations (handshape, location, movement) could serve as auxiliary training targets.
    - Optionally Kaggle ASL Signs, keeping in mind it is one-handed signing from a different extractor.
