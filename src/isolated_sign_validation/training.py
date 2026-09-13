@@ -40,6 +40,8 @@ class TrainConfig:
     arcface_scale: float = 30.0
     arcface_margin: float = 0.3
     augment: AugmentConfig = dataclasses.field(default_factory=AugmentConfig)
+    # training signers left out of training, to measure generalization to unseen signers
+    holdout_signers: tuple[str, ...] = ()
     epochs: int = 30
     batch_size: int = 256
     lr: float = 1e-3
@@ -60,6 +62,16 @@ def build_model(config: TrainConfig, data: PreparedData) -> nn.Module:
             n_landmarks, hands, config.hidden, config.layers, config.embedding_dim, config.dropout, config.heads, config.kernel_size
         )
     raise ValueError(f"unknown encoder {config.encoder}")
+
+
+def load_run(run_dir: Path, data: PreparedData) -> tuple[TrainConfig, nn.Module]:
+    """The config of a training run and its best model (on the CPU)."""
+    values = json.loads((run_dir / "config.json").read_text())
+    as_tuples = lambda d: {k: tuple(v) if isinstance(v, list) else v for k, v in d.items()}  # noqa: E731
+    config = TrainConfig(**as_tuples(values) | {"augment": AugmentConfig(**as_tuples(values.get("augment", {})))})
+    model = build_model(config, data)
+    model.load_state_dict(torch.load(run_dir / "best.pt", map_location="cpu")["model"])
+    return config, model
 
 
 @torch.no_grad()
@@ -105,7 +117,7 @@ def train(config: TrainConfig, data: PreparedData, run_dir: Path, device: str = 
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "config.json").write_text(json.dumps(dataclasses.asdict(config), indent=2))
 
-    train_set = SignDataset(data, "train", augment=config.augment)
+    train_set = SignDataset(data, "train", augment=config.augment, exclude_signers=config.holdout_signers)
     val_set = SignDataset(data, "val")
     loader = DataLoader(
         train_set, batch_size=config.batch_size, shuffle=True, drop_last=True,
