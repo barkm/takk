@@ -129,6 +129,12 @@ Sem-Lex:
 - Access: agree to the terms of use in a Google form linked from https://github.com/leekezar/SemLex, which gives the download links. The repository says pose files will be "available soon" (apparently not updated since 2023), so landmarks are extracted with our own setup.
 - Of the 84,568 benchmark videos, 65,935 are matched to ASL-LEX or ASL SignBank; 18,393 only have free-text descriptions (not usable as sign labels). The ASL-LEX alignment links its signs to ASL Citizen's. The paper is CC BY-NC-SA 4.0; the data's own terms are in the form.
 
+Other datasets (for more training signs; signs of other sign languages are all new classes):
+- ASL: WLASL (2,000 signs, 21k clips, YouTube links, many dead), MS-ASL (1,000 signs, 25.5k clips, 200+ signers, YouTube links); both mostly common words overlapping with ASL Citizen.
+- Other languages: MM-WLAuslan (Auslan, 3,215 signs, 282k videos from 4 camera views, 73 signers, public, CC BY-NC-SA 4.0), Slovo (Russian, 1,000 signs, 20k videos, 194 signers, public on Kaggle, 16 GB), SLR500 (Chinese, 500 signs, 125k videos, 50 signers), NMFs-CSL (Chinese, 1,067 signs), AUTSL (Turkish, 226 signs, 38k videos, 43 signers).
+- Dictionaries with one video per sign (reference sets, not training data): ASL-LEX, ASL SignBank, the Swedish lexicon.
+- Related work: "Representing Signs as Signs" (Vandendriessche et al., Ghent University, 2025, arXiv 2502.20171) trains an embedding model on MediaPipe pose and hand landmarks of ASL Citizen and recognizes signs one-shot in a Flemish Sign Language dictionary of 10,235 signs: recall@1 0.374, recall@5 0.670, MRR 0.508; trained on a Flemish corpus with 292 signs instead, recall@1 is only 0.089. Supports both the vocabulary finding and cross-language transfer (relevant for Swedish Sign Language later).
+
 MediaPipe extraction speed (machine: Ryzen 9 5950X, 16 cores / 32 threads; RTX 3090):
 - HolisticLandmarker on the CPU, one process: ~22 ms per frame wall, ~40 ms CPU (uses ~1.7 cores).
 - Parallel throughput peaks at 8 worker processes (~136 frames/s in short benchmarks, ~150 expected with long-lived workers) and drops with more workers (16: ~103, 32: ~84). CPU time per frame doubles at 8 workers (contention for physical cores, SMT, clock speed). Pinning workers to cores makes it slower (8 pinned: 107). The Python API does not expose MediaPipe's thread count.
