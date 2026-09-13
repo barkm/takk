@@ -96,10 +96,14 @@ Splits (`src/isolated_sign_validation/splits.py`) hold out both signs and signer
 
 For ASL Citizen this gives 40,126 train clips (2,172 signs, 40 signers), 5,342 val clips (290 signs, 13–20 signers per sign) and 3,239 test clips (269 signs, 11 signers).
 
-Evaluation:
+Evaluation (`src/isolated_sign_validation/evaluation.py`) works on a similarity matrix between the clips of a split, e.g. cosine similarities of embeddings or negative DTW distances:
 
-- **k-shot verification episodes (k = 1, 3, 5):** k reference clips of a held-out sign come from some signers. Queries from other signers are either the same sign (positive) or another held-out sign (negative).
-- **Metrics:** ROC-AUC and equal error rate. Closed-set accuracy on the training signs is reported as a sanity check. Threshold selection and sensitivity analysis come later.
+- **k-shot references (k = 1, 3, 5):** for each query clip and each sign of the split, k reference clips of the sign by k different signers, never the query's signer. The query's score for a sign is its mean similarity to the references.
+- **Verification:** the query's own sign is a positive trial, every other sign a negative trial (so confusable signs are included). ROC-AUC and equal error rate over all trials pooled, i.e. for one global threshold.
+- **Identification:** top-1 and top-5 accuracy of the query's own sign among all signs of the split.
+- **Uncertainty and breakdown:** pooled over 5 random draws of references, with 95% bootstrap confidence intervals over signs, and per-sign metrics to find hard signs.
+
+Threshold selection and sensitivity analysis come later.
 
 ## Future
 

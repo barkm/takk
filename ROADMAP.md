@@ -25,11 +25,9 @@ Status of the work and the plan ahead. Update this file when a step is finished,
    - `dataset.py`: PyTorch `SignDataset` per split with augmentation, and `collate` with padding and a frame mask (~25,000 clips/s with 8 workers).
    - Clip viewer: `--prepared` shows prepared clips below their originals, `--augment` adds augmented versions.
 
-5. **Evaluation harness** — next
-   - k-shot verification episodes (k = 1, 3, 5): reference clips of a held-out sign from some signers; positive and negative queries from other signers.
-   - Metrics: ROC-AUC, equal error rate, per-sign breakdown.
+5. **Evaluation harness** — done: `evaluation.py` (see README). Evaluates a similarity matrix: per query and sign, k references by different signers other than the query's; pooled ROC-AUC and EER over the positive and all negative trials; top-1/top-5 identification; per-sign metrics; 5 reference draws; 95% bootstrap CIs over signs. A full evaluation of the val split takes 20–35 s; for checks during training use one k, one draw and no bootstrap.
 
-6. **Baselines**
+6. **Baselines** — next
    - DTW on normalized hand landmarks (no training).
    - Small GRU embedding trained with ArcFace, to validate the training and evaluation pipeline end to end.
 
@@ -98,6 +96,7 @@ ASL Citizen:
 - Handedness: in one-handed clips (26,278 with both hands in < 10% of their hand frames) the detected hand's label is on the expected image side in 97% of clips (pose right shoulder on the image's left in 99.95% of frames), and per signer it is clear-cut: 28 signers are ≤ 10% `left_hand`, 7 are ≥ 90%, 12 are in between (possibly mirroring that changed between recording sessions, or switching hands). For the 35 clear-cut signers, the detected hand matches the signer's handedness in 97.2% of one-handed clips, but no per-clip rule works for two-handed clips: which hand moves more (hand wrist path, frames with both hands) matches in only 51.6% (63% when one hand moves 3x more). Pose wrist motion is useless for this: the pose model's estimates for resting, out-of-frame wrists jitter as much as the signing hand moves.
 - Suspected broken clips, inspected as video frames: 109 clips without any hand (22 signers, 40 from P18) and 152 with hands for under 0.2 s are mostly extraction failures on real signing (hands in front of the face, raised above the head, blurred or partly out of frame), plus a few truncated recordings; 50 clips with over 10 s of hand activity (47 from P46) are long recordings with idle time, so hand presence cannot locate the sign. All 311 (0.37%) are excluded with the planned thresholds. Hands in front of the face are a weak spot of hand detection.
 - Prepared data (default config): train 40,015 clips (2,172 signs), val 5,326 (290), test 3,218 (269); 148 excluded. Prepared length median 41–42 frames, 95th percentile 74–80, max 128. Mirrored: 17% of train and val clips but 44% of test clips, so several of the 11 test signers are left-dominant or recorded mirrored.
+- Evaluation harness sanity check on val (290 signs): random embeddings give AUC 0.50, EER 0.50, top-1 0.003 (= 1/290), top-5 0.017 (= 5/290). A trivial hand-crafted embedding (dominant hand's mean shape relative to the wrist, mean wrist position and wrist path at 8 time points) gives AUC 0.83 / 0.88 / 0.89, EER 0.25 / 0.20 / 0.19, top-1 16% / 19% / 20% for k = 1 / 3 / 5; 95% CI for AUC at k = 1: 0.815–0.839. Hardest signs for it: BARK2, END, MISSING, AXE1, BOW2. Trained models have to beat this.
 - Frame size (backfilled from the videos' first decoded frame): 80,184 clips 640x480, 3,211 at 960x540, 4 at 480x640.
 - Signers: 26 of 52 recorded nearly the whole vocabulary (~3,000 clips each); P13 and P19 have 2 clips each.
 - Coordinates (0.1–99.9 percentiles): hands x −0.02–1.03, y −0.01–1.12; upper body x −0.1–1.14, y 0.17–1.8 (arms below the frame when the hands are down). `right_hand` lies mostly on the image's left (x 0.08–0.76 at 1–99%), consistent with the Kaggle hand label convention.
