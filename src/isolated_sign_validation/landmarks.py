@@ -6,7 +6,8 @@ Every dataset is converted into a landmark store: a directory with
   x, y, z coordinates of all clips' frames back to back. Missing landmarks are NaN.
 - ``clips.parquet``: one row per clip with columns ``dataset``, ``clip_id``, ``sign``,
   ``signer``, ``fps``, ``width``, ``height``, ``offset`` and ``n_frames``; the clip's frames are
-  ``landmarks[offset : offset + n_frames]``. ``signer`` is unique across datasets.
+  ``landmarks[offset : offset + n_frames]``. ``signer`` is unique across datasets, or null if
+  the dataset has no signer ids.
   ``fps`` is the frame rate and ``width`` and ``height`` the frame size of the source video,
   null if unknown. Landmark x and y are fractions of the frame width and height.
 
@@ -101,7 +102,7 @@ def write_store(path: Path, clips: Iterable[tuple[dict, np.ndarray]]) -> None:
             f.write(np.ascontiguousarray(landmarks, dtype=np.float32).tobytes())
             rows.append({**{c: metadata[c] for c in METADATA_COLUMNS}, "offset": offset, "n_frames": len(landmarks)})
             offset += len(landmarks)
-    schema = {"fps": pl.Float64, "width": pl.Int64, "height": pl.Int64}  # so all-null columns keep their type
+    schema = {"signer": pl.String, "fps": pl.Float64, "width": pl.Int64, "height": pl.Int64}  # so all-null columns keep their type
     pl.DataFrame(rows, schema_overrides=schema).write_parquet(path / "clips.parquet")
 
 

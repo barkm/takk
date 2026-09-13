@@ -46,10 +46,11 @@ def test_roundtrip(tmp_path):
         np.testing.assert_array_equal(store[i], landmarks)
 
 
-def test_unknown_video_info_keeps_column_types(tmp_path):
-    write_store(tmp_path, [make_clip("a", 2, np.random.default_rng(0), fps=None)])
+def test_unknown_metadata_keeps_column_types(tmp_path):
+    metadata, landmarks = make_clip("a", 2, np.random.default_rng(0), fps=None)
+    write_store(tmp_path, [(metadata | {"signer": None}, landmarks)])
     schema = LandmarkStore(tmp_path).clips.schema
-    assert (schema["fps"], schema["width"], schema["height"]) == (pl.Float64, pl.Int64, pl.Int64)
+    assert (schema["signer"], schema["fps"], schema["width"], schema["height"]) == (pl.String, pl.Float64, pl.Int64, pl.Int64)
 
 
 def test_rejects_wrong_shape(tmp_path):
