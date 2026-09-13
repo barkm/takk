@@ -35,7 +35,7 @@ Status of the work and the plan ahead. Update this file when a step is finished,
    - Experiment tooling: `scripts/train.py --set key=value` overrides, `scripts/compare_runs.py`; checkpoints selected on validation EER at k = 1. — done
    - Regularization (GRU, 30 epochs): stronger augmentation + dropout 0.4 + weight decay 0.05 are the new defaults (see findings). — done
    - Conv + transformer encoder (`ConvTransformerEncoder`): width and depth comparison. — done: worse than the GRU (see findings)
-   - Conv + transformer with longer training (80 epochs) and less dropout (0.2). — running
+   - Conv + transformer with longer training (80 epochs) and less dropout (0.2). — done: with dropout 0.2 it matches the GRU; longer training doesn't help (see findings)
    - Conv + transformer encoder with heavy augmentation.
    - Experiments: landmark groups (hands only / + body / + face), loss (ArcFace vs supervised contrastive), sequence length.
 
@@ -69,7 +69,7 @@ Later: sensitivity analysis and threshold selection, including score normalizati
 
 ## Open decisions
 
-- None at the moment.
+- **Direction after the architecture experiments:** more data (Sem-Lex, and/or Kaggle ASL Signs as extra training clips), measuring generalization to unseen signers, or further tuning (ArcFace margin/scale, embedding size).
 
 ## Findings
 
@@ -110,6 +110,8 @@ ASL Citizen:
 - Validation AUC is close to saturated (0.99 with CIs of ±0.002), so EER and top-1, especially at k = 1, are the more sensitive metrics for comparing models. Validation signers are also training signers, so the test split will show how much of this carries over to unseen signers.
 - Regularization experiments (GRU, 30 epochs, val EER / top-1 at k = 1): defaults 0.0593 / 75.7%; dropout 0.4 + weight decay 0.05: 0.0605 / 75.6%; stronger augmentation (rotation 20°, scale 0.3, shift 0.15, shear 0.2, speed 0.7–1.4, frame drop 0.2, hand drop 0.25): 0.0583 / 75.8%; both: 0.0575 / 75.9%. All within noise (CI about ±0.006 EER, ±2 points top-1). Regularization does reduce the train/val gap (train accuracy 92% instead of 98% at epoch 30) and keeps validation at its best level through epoch 30 instead of degrading, but the best validation result doesn't improve: overfitting is not what limits the GRU; the architecture or the amount of data is.
 - Conv + transformer vs GRU (new defaults, 30 epochs, val EER / top-1 at k = 1): GRU 0.0575 / 75.9% (2.3M parameters, 9 s/epoch); conv + transformer width 192, 2 stacks 0.0676 / 73.2% (1.2M, 7 s/epoch); width 256, 3 stacks 0.0651 / 73.4% (3.0M, 11 s/epoch); width 384, 2 stacks 0.0680 / 73.0% (4.5M, 12 s/epoch). Size makes no difference; the transformers still improve until epoch 22–30 and reach only 86–89% training accuracy, which points to undertraining rather than overfitting.
+- Conv + transformer follow-ups (width 192, val EER / top-1 at k = 1 / top-1 at k = 5): 80 epochs 0.0657 / 74.0% / 85.0%, peaking around epoch 26–30 and declining afterwards (not undertrained); dropout 0.2 instead of 0.4: 0.0621 / 75.3% / 86.4%, within noise of the GRU (0.0575 / 75.9% / 86.1%). Dropout 0.4 was too strong for the transformer.
+- Across 11 runs, different architectures (GRU, conv + transformer, 1.2–4.5M parameters) and regularization settings converge to about the same level (EER ≈ 0.058–0.062, top-1 ≈ 76% at k = 1), which suggests the models are limited by the data (2,172 training signs, ~18 clips each, 40 signers) rather than by the architecture.
 - Hardest val signs for the GRU (k = 5, by AUC): CHEERLEADER2, BOW2, SKATEBOARDING3, EGO, CRAWL1, FAN, LONGWORD, LUNCH1.
 - Frame size (backfilled from the videos' first decoded frame): 80,184 clips 640x480, 3,211 at 960x540, 4 at 480x640.
 - Signers: 26 of 52 recorded nearly the whole vocabulary (~3,000 clips each); P13 and P19 have 2 clips each.
