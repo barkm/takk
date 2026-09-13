@@ -8,9 +8,13 @@
 
 Clips of test signers performing non-test signs, and of other signers performing test signs, belong
 to no split.
+
+Datasets of other sign languages are used for training only (assign_training_only), without their
+signs that match a held-out sign by label.
 """
 
 import hashlib
+import re
 from collections.abc import Collection
 
 import polars as pl
@@ -35,3 +39,25 @@ def assign_splits(clips: pl.DataFrame, test_signers: Collection[str]) -> pl.Data
     return clips.with_columns(
         split=pl.when(test_signer & (sign == "test")).then(sign).when(~test_signer & (sign != "test")).then(sign)
     )
+
+
+def normalize_label(label: str) -> str:
+    """A sign label or English word reduced for matching across datasets and sign languages: lowercase
+    letters and spaces, without parenthesized notes and sense numbers ("SAIL1" and "sail (boat)" give "sail")."""
+    return re.sub(r"[^a-z ]", "", re.sub(r"\d+$", "", re.sub(r"\(.*?\)", "", label).strip().lower())).strip()
+
+
+def matching_signs(words: dict[str, Collection[str]], labels: Collection[str]) -> set[str]:
+    """The signs (keys of `words`, which gives each sign's label and English words) with a word that
+    matches one of `labels` after normalize_label."""
+    targets = {normalize_label(label) for label in labels}
+    return {sign for sign, sign_words in words.items() if {normalize_label(word) for word in sign_words} & targets}
+
+
+def assign_training_only(clips: pl.DataFrame, excluded_signs: Collection[str]) -> pl.DataFrame:
+    """Add a `split` column for a dataset used only for training: "train", or null for `excluded_signs`.
+
+    Used for datasets of other sign languages, whose signs are all new; excluded are those that could
+    be lookalikes of held-out signs (see matching_signs).
+    """
+    return clips.with_columns(split=pl.when(~pl.col("sign").is_in(list(excluded_signs))).then(pl.lit("train")))

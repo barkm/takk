@@ -2,7 +2,7 @@ from collections import Counter
 
 import polars as pl
 
-from isolated_sign_validation.splits import assign_splits, sign_split
+from isolated_sign_validation.splits import assign_splits, assign_training_only, matching_signs, normalize_label, sign_split
 
 
 def test_sign_split_is_roughly_80_10_10():
@@ -49,3 +49,19 @@ def test_assign_splits_holds_out_signs_and_test_signers():
         None,  # test signer, validation sign
         "test",  # test signer, test sign
     ]
+
+
+def test_normalize_label():
+    assert normalize_label("SAIL1") == normalize_label("sail (boat)") == "sail"
+    assert normalize_label("TURN ON (START)") == "turn on"
+    assert normalize_label("don't") == "dont"
+
+
+def test_matching_signs_by_label_or_word():
+    words = {"WHALE": ["WHALE", "whale"], "HOLY SPIRIT": ["HOLY SPIRIT", "sun", "radiate"], "BAPTISE": ["BAPTISE"]}
+    assert matching_signs(words, ["WHALE1", "SUN", "APPLE"]) == {"WHALE", "HOLY SPIRIT"}
+
+
+def test_assign_training_only():
+    clips = pl.DataFrame({"sign": ["A", "B", "A"]})
+    assert assign_training_only(clips, excluded_signs={"B"})["split"].to_list() == ["train", None, "train"]
