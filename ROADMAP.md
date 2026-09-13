@@ -10,22 +10,24 @@ Status of the work and the plan ahead. Update this file when a step is finished,
    - Landmark groups relevant for signing (`LANDMARK_GROUPS`, ~100 landmarks: hands, upper body, face reference points, lips).
    - Clip viewer rendering sequences as animated GIFs (`scripts/view_clips.py`).
 
-2. **ASL Citizen data** — next
+2. **ASL Citizen data** — done (except deleting the zip)
    - Download (~46 GB zip) and inspect the contents: videos, metadata, official splits. — done (see findings)
    - Choose the landmark extractor: run MediaPipe (Tasks API) on a handful of videos, check the result in the viewer, and measure extraction speed. — done (see decisions and findings)
    - Adapter extracting landmarks from the videos into the common layout (`datasets/asl_citizen.py`, resumable). — done
    - Full extraction (~12–14 h, see README). — done: `data/processed/asl_citizen/` (42 GB), 83,399 clips, 6,901,733 frames, 2,731 signs, 52 signers; clip order matches the split CSVs, no empty clips, fps 11.3–120.
    - Delete `data/raw/ASL_Citizen.zip` (46 GB) once the extraction has been checked.
-   - Exploration of the extracted data (sequence lengths, hand presence, handedness).
+   - Exploration of the extracted data (sequence lengths, hand presence, handedness). — done: `scripts/explore_store.py` (works on any store; figures in `outputs/eda/asl_citizen/`), see findings.
 
-3. **Splits**
+3. **Splits** — next
    - Use ASL Citizen's official signer-disjoint splits.
    - Held-out signs rotated over folds; held out across all datasets once more are added.
 
 4. **Training data loader**
    - Select landmark groups and load them into RAM.
+   - Exclude broken clips: no hand in any frame (109 in ASL Citizen), hands for less than ~0.2 s, or more than ~10 s of hand activity; check a few in the viewer first.
+   - Resample to a common frame rate (85% of ASL Citizen is 30 fps).
    - Normalize relative to the body (shoulder center and width).
-   - Mirror each clip so the dominant hand (the one detected in more frames) is always on the same side, swapping hand labels.
+   - Mirror clips so the dominant hand is always on the same side, swapping hand labels. In ASL Citizen the hand detected in more frames is an unreliable indicator for two-handed signs (see findings); decide per signer (majority over their clips) or per clip by which hand moves more.
    - Trim leading and trailing frames without hands; cap sequence length by resampling long clips.
    - Handle hand dropouts during signing (~9% of frames, mostly short gaps from motion blur or overlapping hands): interpolate short gaps, mask longer ones, and randomly drop hands during training.
    - Augmentation: rotation, scaling, time stretching, frame dropping.
@@ -83,6 +85,12 @@ ASL Citizen:
 - First extraction test (32 videos): face and pose detected in 100% of frames; `left_hand` in 33%, `right_hand` in 42%, both in 30%, neither in 55% (recordings start and end with the hands down). Two-handed signing is present, unlike Kaggle.
 - Hand dropouts (30-sign subset, 932 clips, 76,918 frames): 57% of frames have no hand, of which 53 points are before the first / after the last detected hand (hands down) and 4 points are 948 short gaps during signing. During signing, with the pose wrist clearly inside the image (y < 0.85), the hand is detected in ~91% of frames.
 - Extractor comparison on 40 videos (hand detected when the pose wrist is clearly visible, all frames): holistic 83.9%; holistic with hand confidence 0.2 identical (the option has no effect); separate hand + pose landmarkers 83.0%; the same with thresholds 0.3: 84.6% but more hands far from their wrist; image mode (no tracking) 77.6%. No setup meaningfully reduces dropouts; separate hand + pose without face mesh is ~20% cheaper on the CPU.
+- Full store (`scripts/explore_store.py`): fps mostly 30 (70,744 clips), then 31 (5,804), 25 (3,173), 15 (1,698). Clip duration median 2.6 s (99%: 6.9 s, max 22.6 s); first to last frame with a hand median 1.2 s (95%: 2.5 s, 99%: 4.0 s, max 19.9 s).
+- 57.2% of frames have no hand: 53.1 points before the first / after the last hand, 4.1 points gaps during signing. 109 clips have no hand at all; ~250 clips have hands for under 0.2 s and ~50 for over 10 s (likely broken or multi-attempt recordings).
+- Two-handedness is bimodal: ~28% of clips have (almost) no frame with both hands; 54.8% have both hands in at least half of their frames with a hand.
+- Dominant hand: unlike Kaggle, no signer is one-sided. For most signers `left_hand` is the more-detected hand in 15–45% of their clips (right-handed); ~10 signers are at 55–80% (left-handed, or mirrored webcam video, which the landmarks cannot tell apart). Counting detected frames per clip is ambiguous for two-handed signs.
+- Signers: 26 of 52 recorded nearly the whole vocabulary (~3,000 clips each); P13 and P19 have 2 clips each.
+- Coordinates (0.1–99.9 percentiles): hands x −0.02–1.03, y −0.01–1.12; upper body x −0.1–1.14, y 0.17–1.8 (arms below the frame when the hands are down). `right_hand` lies mostly on the image's left (x 0.08–0.76 at 1–99%), consistent with the Kaggle hand label convention.
 - Visual inspection of missed hands during signing: motion blur (most common), overlapping or touching hands, and hands seen edge-on. These are limits of the footage and hand models, not of the setup, so the holistic extractor is kept and gaps are handled in the loader.
 
 MediaPipe extraction speed (machine: Ryzen 9 5950X, 16 cores / 32 threads; RTX 3090):
