@@ -1,6 +1,7 @@
 """Deterministic preparation of landmark clips for training.
 
-Each clip is excluded if its hands are missing or span implausibly little or much time. Otherwise it
+Hands resting low below the shoulders count as undetected. Then each clip is excluded if its hands
+are missing or span implausibly little or much time. Otherwise it
 is trimmed to the frames with hands (plus a margin), restored to correct proportions, short hand gaps
 are interpolated, it is normalized by the shoulders, the landmark groups are selected, and it is
 resampled to a common frame rate. Finally clips are mirrored so the dominant hand is always in the
@@ -38,6 +39,8 @@ class PrepConfig:
     max_gap: float = 0.17  # seconds; gaps in a hand up to this long are interpolated (5 frames at 30 fps)
     min_hands: float = 0.2  # seconds; clips whose hands span less or more time are excluded
     max_hands: float = 10.0
+    # shoulder widths below the shoulders; lower hands count as undetected (resting, see hide_low_hands)
+    max_hand_y: float = 1.0
 
     def __post_init__(self):
         if not set(MIRROR_INDEX[self.landmarks]) <= set(self.landmarks):
@@ -69,6 +72,23 @@ def hand_presence(landmarks: np.ndarray) -> np.ndarray:
     return np.stack([~np.isnan(landmarks[:, hand.start, 0]) for hand in HANDS], axis=1)
 
 
+def hide_low_hands(landmarks: np.ndarray, aspect: float, max_hand_y: float) -> np.ndarray:
+    """Store landmarks with each hand set to undetected (NaN) in the frames where its wrist is more than
+    `max_hand_y` mean shoulder widths below the mean shoulder height of the clip.
+
+    Resting hands are out of view in close webcam framings like ASL Citizen's (whose frame bottom is
+    at a median 0.7 shoulder widths below the shoulders) but detected in wider ones like MM-WLAuslan's.
+    """
+    xy = landmarks[..., :2] * np.array([aspect, 1.0], dtype=np.float32)
+    shoulders = xy[:, SHOULDERS]
+    width = np.nanmean(np.linalg.norm(shoulders[:, 0] - shoulders[:, 1], axis=1))
+    low = (xy[:, [hand.start for hand in HANDS], 1] - np.nanmean(shoulders[..., 1])) / width > max_hand_y
+    out = landmarks.copy()
+    for hand, hand_low in zip(HANDS, low.T):
+        out[hand_low, hand] = np.nan
+    return out
+
+
 def fill_gaps(x: np.ndarray, present: np.ndarray, max_gap: int) -> None:
     """Linearly interpolate each hand in place over gaps of up to `max_gap` frames between detections."""
     for hand, hand_present in zip(HANDS, present.T):
@@ -98,6 +118,7 @@ def prepare_clip(landmarks: np.ndarray, fps: float | None, aspect: float | None,
     (n, len(config.landmarks), config.n_coords), or None if the clip is excluded.
     """
     fps, aspect = fps or config.fps, aspect or 1.0
+    landmarks = hide_low_hands(landmarks, aspect, config.max_hand_y)
     present = hand_presence(landmarks)
     with_hands = np.flatnonzero(present.any(axis=1))
     if not len(with_hands) or not config.min_hands <= (with_hands[-1] - with_hands[0] + 1) / fps <= config.max_hands:
@@ -161,7 +182,7 @@ def _prepare_rows(task: tuple[Path, list[int], PrepConfig]) -> list[tuple[np.nda
         landmarks = np.asarray(store[row])
         clip = store.clips.row(row, named=True)
         aspect = clip["width"] / clip["height"] if clip["width"] else None
-        present = hand_presence(landmarks)
+        present = hand_presence(hide_low_hands(landmarks, aspect or 1.0, config.max_hand_y))
         counts = (int(present[:, 0].sum()), int(present[:, 1].sum()), int(present.all(axis=1).sum()))
         results.append((prepare_clip(landmarks, clip["fps"], aspect, config), counts))
     return results

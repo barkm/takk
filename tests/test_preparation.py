@@ -7,6 +7,7 @@ from isolated_sign_validation.preparation import (
     PrepConfig,
     PreparedData,
     add_dominant_hands,
+    hide_low_hands,
     mirror,
     prepare_clip,
     prepare_store,
@@ -61,6 +62,17 @@ def test_normalizes_by_shoulders_with_correct_proportions(aspect):
     np.testing.assert_allclose(frames[3, position("right_hand")], [(0.35 + 0.02 - 0.5) / 0.2, 0.1 / (0.2 * aspect)], atol=1e-5)
 
 
+def test_hides_low_hands():
+    landmarks = make_landmarks(60, range(20, 40))
+    landmarks[:20, RIGHT_HAND, 1] = 0.75  # resting: 1.25 shoulder widths below the shoulders
+    landmarks[40:, RIGHT_HAND] = landmarks[20, RIGHT_HAND] * [1, 0, 1] + [0, 0.65, 0]  # 0.75 below
+    hidden = hide_low_hands(landmarks, 1.0, max_hand_y=1.0)
+    assert np.isnan(hidden[:20, RIGHT_HAND]).all() and np.isfinite(hidden[20:, RIGHT_HAND]).all()
+    np.testing.assert_array_equal(hidden[20:], landmarks[20:])
+    # trimmed to the frames where the hand is up
+    assert len(prepare_clip(landmarks, 30, 1.0, CONFIG)) == 40 + 3
+
+
 def test_interpolates_short_hand_gaps_only():
     hand_frames = [t for t in range(20, 50) if not 25 <= t <= 27 and not 33 <= t <= 39]  # gaps of 3 and 7 frames
     x = hand_x(prepare_clip(make_landmarks(60, hand_frames), 30, 1.0, CONFIG))[3:-3]  # frames 20..49
@@ -98,9 +110,12 @@ def test_dominant_hand_per_clip_or_signer():
             {"signer": "a", "left_frames": 0, "right_frames": 20, "both_frames": 0},  # one-handed with the right hand
             {"signer": "a", "left_frames": 20, "right_frames": 25, "both_frames": 18},  # two-handed
             {"signer": "b", "left_frames": 20, "right_frames": 20, "both_frames": 20},  # two-handed, no one-handed clips
+            # unknown signers: one-handed clips by their hand, two-handed ones right
+            {"signer": None, "left_frames": 20, "right_frames": 0, "both_frames": 0},
+            {"signer": None, "left_frames": 20, "right_frames": 20, "both_frames": 20},
         ]
     )
-    assert add_dominant_hands(clips)["dominant"].to_list() == ["left", "left", "right", "left", "right"]
+    assert add_dominant_hands(clips)["dominant"].to_list() == ["left", "left", "right", "left", "right", "left", "right"]
 
 
 def test_prepare_store(tmp_path):
@@ -109,6 +124,7 @@ def test_prepare_store(tmp_path):
 
     left_handed = make_landmarks(60, [])
     left_handed[20:40, LANDMARK_SLICES["left_hand"]] = [0.65, 0.6, 0.0]
+    left_handed[:, RIGHT_HAND] = [0.4, 0.8, 0.0]  # resting low throughout: still a one-handed clip
     write_store(
         tmp_path / "store",
         [clip("right", make_landmarks(60, range(20, 40)), "a"), clip("no_hands", make_landmarks(60, []), "a"), clip("left", left_handed, "b")],
