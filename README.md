@@ -29,8 +29,9 @@ Baselines:
 | [Sem-Lex](https://github.com/leekezar/SemLex) | Video | 3,149 | 41 | ~91k |
 | [Kaggle ASL Signs](https://www.kaggle.com/competitions/asl-signs/data) | MediaPipe Holistic landmarks | 250 | 21 | ~94k |
 | [WLASL](https://dxli94.github.io/WLASL/) | Video | 2,000 | ~119 | ~21k |
+| [MM-WLAuslan](https://uq-cvlab.github.io/MM-WLAuslan-Dataset/) (Australian Sign Language) | Video (4 cameras) | 3,215 | 73 | ~283k |
 
-ASL Citizen is the primary dataset: its large vocabulary matters most for generalizing to unseen signs, it is recorded with webcams with both hands free, and since it is video we extract the landmarks ourselves with the same setup the system will use in practice. Sem-Lex is the candidate second source (aligned with ASL Citizen through ASL-LEX, and annotated with phonological features). Kaggle ASL Signs comes from PopSign, which is one-handed smartphone signing (the other hand holds the phone), and its landmarks come from a MediaPipe version that is no longer available; it is kept only as an optional extra. ASL Citizen and WLASL are licensed for non-commercial use only.
+ASL Citizen is the primary dataset: its large vocabulary matters most for generalizing to unseen signs, it is recorded with webcams with both hands free, and since it is video we extract the landmarks ourselves with the same setup the system will use in practice. Sem-Lex is the candidate second source (aligned with ASL Citizen through ASL-LEX, and annotated with phonological features). Kaggle ASL Signs comes from PopSign, which is one-handed smartphone signing (the other hand holds the phone), and its landmarks come from a MediaPipe version that is no longer available; it is kept only as an optional extra. MM-WLAuslan adds training signs from another sign language (all new classes); it has no signer ids. ASL Citizen and WLASL are licensed for non-commercial use only, MM-WLAuslan under CC BY-NC-SA 4.0.
 
 The data pipeline is dataset-agnostic: each dataset has an adapter that converts it into a common format (a landmark array per clip, plus metadata: dataset, sign, signer). All video datasets are run through one fixed MediaPipe setup that outputs the common landmark layout. Sign labels have to be normalized when datasets are combined.
 
@@ -55,6 +56,25 @@ For a quick look at the data, extract only all videos of a few randomly chosen s
 ```sh
 uv run python -m isolated_sign_validation.datasets.asl_citizen --signs 10
 uv run scripts/view_clips.py --store data/processed/asl_citizen_10_signs --sign <SIGN>
+```
+
+### Downloading MM-WLAuslan
+
+The dataset is in a public Google Drive folder, downloaded with [rclone](https://rclone.org/) and a Google Drive remote (here named `personal gdrive`). Only the RGB videos of the front Kinect camera are used, from the subsets Train, Valid, Test-STU, Test-ITW and Test-SYN (27.6 GB of zips; the label files are small):
+
+```sh
+rclone copy "personal gdrive:" data/raw/mm-wlauslan --drive-root-folder-id 1EQ1Nh3lidEcu1QLFw0IjRN7YqEq1N48q \
+    --include "Annotation/Labels & Split/**" --include "{Train,Valid,Test-STU,Test-ITW,Test-SYN}/Kinect_F/rgb.zip" -P
+for subset in Train Valid Test-STU Test-ITW Test-SYN; do
+    unzip -q data/raw/mm-wlauslan/$subset/Kinect_F/rgb.zip -d data/raw/mm-wlauslan/$subset/Kinect_F
+done
+```
+
+Then extract the landmarks of the 64,300 videos into `data/processed/mm_wlauslan/` (~36 GB, about 11 hours; run it in `tmux`, and run it again to resume). `--subsets` and `--signs N` extract a sample into a separate store instead:
+
+```sh
+uv run python -m isolated_sign_validation.datasets.mm_wlauslan
+uv run python -m isolated_sign_validation.datasets.mm_wlauslan --subsets Valid --signs 30
 ```
 
 ### Preparing training data
