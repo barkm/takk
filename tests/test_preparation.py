@@ -1,3 +1,6 @@
+import dataclasses
+import json
+
 import numpy as np
 import polars as pl
 import pytest
@@ -116,6 +119,27 @@ def test_dominant_hand_per_clip_or_signer():
         ]
     )
     assert add_dominant_hands(clips)["dominant"].to_list() == ["left", "left", "right", "left", "right", "left", "right"]
+
+
+def write_prepared(path, signs: list[str], lengths: list[int], value: float, config: PrepConfig = CONFIG) -> None:
+    path.mkdir()
+    clips = pl.DataFrame({"sign": signs, "n_frames": lengths}).with_columns(offset=pl.col("n_frames").cum_sum() - pl.col("n_frames"))
+    clips.write_parquet(path / "clips.parquet")
+    np.save(path / "frames.npy", np.full((sum(lengths), len(config.landmarks), config.n_coords), value, dtype=np.float32))
+    (path / "config.json").write_text(json.dumps(dataclasses.asdict(config)))
+
+
+def test_prepared_data_combines_directories(tmp_path):
+    write_prepared(tmp_path / "a", ["x", "y"], [3, 2], 1.0)
+    write_prepared(tmp_path / "b", ["z"], [4], 2.0)
+    data = PreparedData(tmp_path / "a", tmp_path / "b")
+    assert data.clips["sign"].to_list() == ["x", "y", "z"]
+    assert [len(data[i]) for i in range(3)] == [3, 2, 4]
+    assert (data[1] == 1.0).all() and (data[2] == 2.0).all()
+
+    write_prepared(tmp_path / "c", ["w"], [1], 3.0, dataclasses.replace(CONFIG, fps=25.0))
+    with pytest.raises(ValueError):
+        PreparedData(tmp_path / "a", tmp_path / "c")
 
 
 def test_prepare_store(tmp_path):

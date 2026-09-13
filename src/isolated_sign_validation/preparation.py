@@ -219,13 +219,21 @@ def prepare_store(store_path: Path, clips: pl.DataFrame, config: PrepConfig, out
 
 
 class PreparedData:
-    """Clips written by prepare_store; the frames are loaded into memory."""
+    """Clips written by prepare_store, from one or more directories prepared with the same config (e.g.
+    of different datasets); the frames are loaded into memory."""
 
-    def __init__(self, path: Path):
-        config = json.loads((path / "config.json").read_text())
-        self.config = PrepConfig(**config | {"groups": tuple(config["groups"])})
-        self.clips = pl.read_parquet(path / "clips.parquet")
-        self.frames = np.load(path / "frames.npy")
+    def __init__(self, *paths: Path):
+        configs = [json.loads((path / "config.json").read_text()) for path in paths]
+        if any(config != configs[0] for config in configs):
+            raise ValueError(f"{paths} are prepared with different configs")
+        self.config = PrepConfig(**configs[0] | {"groups": tuple(configs[0]["groups"])})
+        frames = [np.load(path / "frames.npy") for path in paths]
+        starts = np.cumsum([0] + [len(f) for f in frames[:-1]])
+        self.clips = pl.concat(
+            [pl.read_parquet(path / "clips.parquet").with_columns(offset=pl.col("offset") + int(start)) for path, start in zip(paths, starts)],
+            how="diagonal_relaxed",
+        )
+        self.frames = np.concatenate(frames) if len(frames) > 1 else frames[0]
         self._offsets = self.clips["offset"].to_numpy()
         self._n_frames = self.clips["n_frames"].to_numpy()
 
