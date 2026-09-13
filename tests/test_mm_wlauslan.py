@@ -1,6 +1,6 @@
 import json
 
-from isolated_sign_validation.datasets.mm_wlauslan import read_videos
+from isolated_sign_validation.datasets.mm_wlauslan import read_videos, sign_words
 
 
 def test_read_videos(tmp_path):
@@ -15,3 +15,11 @@ def test_read_videos(tmp_path):
     assert videos["clip_id"].to_list() == ["35776", "10920", "75205"]
     assert videos["sign"].to_list() == ["WHALE", "TURN ON (START)", "WHALE"]
     assert videos["path"][2] == str(tmp_path / "Test-STU" / "Kinect_F" / "rgb" / "75205_kf_rgb.mp4")
+
+
+def test_sign_words(tmp_path):
+    folder = tmp_path / "WWW_CV_ISLR_Challenge" / "Dictionary_Mapping"
+    folder.mkdir(parents=True)
+    entry = {"Group_Name": "TURN ON (START)", "Keywords": "light,illuminate,turn on (start)", "State": "AustraliaWide-traditional"}
+    (folder / "Dictionary.json").write_text(json.dumps({"TURN ON (START)": entry}))
+    assert sign_words(tmp_path) == {"TURN ON (START)": ["TURN ON (START)", "light", "illuminate", "turn on (start)"]}

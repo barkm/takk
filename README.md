@@ -60,11 +60,12 @@ uv run scripts/view_clips.py --store data/processed/asl_citizen_10_signs --sign 
 
 ### Downloading MM-WLAuslan
 
-The dataset is in a public Google Drive folder, downloaded with [rclone](https://rclone.org/) and a Google Drive remote (here named `personal gdrive`). Only the RGB videos of the front Kinect camera are used, from the subsets Train, Valid, Test-STU, Test-ITW and Test-SYN (27.6 GB of zips; the label files are small):
+The dataset is in a public Google Drive folder, downloaded with [rclone](https://rclone.org/) and a Google Drive remote (here named `personal gdrive`). Only the RGB videos of the front Kinect camera are used, from the subsets Train, Valid, Test-STU, Test-ITW and Test-SYN (27.6 GB of zips; the label files and the dictionary of English keywords are small):
 
 ```sh
 rclone copy "personal gdrive:" data/raw/mm-wlauslan --drive-root-folder-id 1EQ1Nh3lidEcu1QLFw0IjRN7YqEq1N48q \
-    --include "Annotation/Labels & Split/**" --include "{Train,Valid,Test-STU,Test-ITW,Test-SYN}/Kinect_F/rgb.zip" -P
+    --include "Annotation/Labels & Split/**" --include "WWW_CV_ISLR_Challenge/Dictionary_Mapping/**" \
+    --include "{Train,Valid,Test-STU,Test-ITW,Test-SYN}/Kinect_F/rgb.zip" -P
 for subset in Train Valid Test-STU Test-ITW Test-SYN; do
     unzip -q data/raw/mm-wlauslan/$subset/Kinect_F/rgb.zip -d data/raw/mm-wlauslan/$subset/Kinect_F
 done

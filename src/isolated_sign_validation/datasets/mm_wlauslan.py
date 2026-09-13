@@ -47,6 +47,12 @@ def read_videos(raw_dir: Path, subsets: Sequence[str] = SUBSETS) -> pl.DataFrame
     return pl.DataFrame(rows)
 
 
+def sign_words(raw_dir: Path) -> dict[str, list[str]]:
+    """Each sign's gloss and English keywords, from the dataset's dictionary."""
+    dictionary = json.loads((raw_dir / "WWW_CV_ISLR_Challenge" / "Dictionary_Mapping" / "Dictionary.json").read_text())
+    return {sign: [sign, *entry["Keywords"].split(",")] for sign, entry in dictionary.items()}
+
+
 def extract_clips(videos: Sequence[dict]) -> Iterator[tuple[dict, np.ndarray]]:
     """Extract (metadata, landmarks) for `videos` (rows of read_videos), in order."""
     results = parallel_map(extract_landmarks, [Path(video["path"]) for video in videos], max_workers=MAX_WORKERS, initializer=silence_native_logs)  # fmt: skip
