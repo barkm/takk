@@ -76,8 +76,17 @@ uv run python -m isolated_sign_validation.datasets.kaggle_asl_signs
 
 ## Evaluation
 
-- **Held-out signers:** no signer appears in both training and test data.
-- **Held-out signs:** test signs are never seen during training. Which signs are held out is rotated across folds.
+Splits (`src/isolated_sign_validation/splits.py`) hold out both signs and signers:
+
+- **Held-out signs:** signs are assigned to train, val or test (~80/10/10) by a hash of the sign label, so a held-out sign stays held out when datasets are added.
+- **Held-out signers:** test clips are test signs performed by the official ASL Citizen test signers, who never appear in training or validation.
+- **Validation:** val signs performed by the training signers. It measures generalization to unseen signs but not to unseen signers, so validation scores are somewhat optimistic; only test measures both.
+- **One fixed split** during development, with bootstrap confidence intervals. Retraining on several sign folds is reserved for final numbers or close comparisons.
+
+For ASL Citizen this gives 40,126 train clips (2,172 signs, 40 signers), 5,342 val clips (290 signs, 13–20 signers per sign) and 3,239 test clips (269 signs, 11 signers).
+
+Evaluation:
+
 - **k-shot verification episodes (k = 1, 3, 5):** k reference clips of a held-out sign come from some signers. Queries from other signers are either the same sign (positive) or another held-out sign (negative).
 - **Metrics:** ROC-AUC and equal error rate. Closed-set accuracy on the training signs is reported as a sanity check. Threshold selection and sensitivity analysis come later.
 

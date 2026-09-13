@@ -10,19 +10,16 @@ Status of the work and the plan ahead. Update this file when a step is finished,
    - Landmark groups relevant for signing (`LANDMARK_GROUPS`, ~100 landmarks: hands, upper body, face reference points, lips).
    - Clip viewer rendering sequences as animated GIFs (`scripts/view_clips.py`).
 
-2. **ASL Citizen data** — done (except deleting the zip)
+2. **ASL Citizen data** — done
    - Download (~46 GB zip) and inspect the contents: videos, metadata, official splits. — done (see findings)
    - Choose the landmark extractor: run MediaPipe (Tasks API) on a handful of videos, check the result in the viewer, and measure extraction speed. — done (see decisions and findings)
    - Adapter extracting landmarks from the videos into the common layout (`datasets/asl_citizen.py`, resumable). — done
    - Full extraction (~12–14 h, see README). — done: `data/processed/asl_citizen/` (42 GB), 83,399 clips, 6,901,733 frames, 2,731 signs, 52 signers; clip order matches the split CSVs, no empty clips, fps 11.3–120.
-   - Delete `data/raw/ASL_Citizen.zip` (46 GB) once the extraction has been checked.
    - Exploration of the extracted data (sequence lengths, hand presence, handedness). — done: `scripts/explore_store.py` (works on any store; figures in `outputs/eda/asl_citizen/`), see findings.
 
-3. **Splits** — next
-   - Use ASL Citizen's official signer-disjoint splits.
-   - Held-out signs rotated over folds; held out across all datasets once more are added.
+3. **Splits** — done: `splits.py` (see decisions). ASL Citizen: 40,126 train clips (2,172 signs, 40 signers), 5,342 val clips (290 signs, 39 signers, 13–20 per sign), 3,239 test clips (269 signs, 11 signers, 8–11 per sign); 34,692 clips belong to no split.
 
-4. **Training data loader**
+4. **Training data loader** — next
    - Select landmark groups and load them into RAM.
    - Exclude broken clips: no hand in any frame (109 in ASL Citizen), hands for less than ~0.2 s, or more than ~10 s of hand activity; check a few in the viewer first.
    - Resample to a common frame rate (85% of ASL Citizen is 30 fps).
@@ -58,10 +55,13 @@ Later: sensitivity analysis and threshold selection; Swedish Sign Language signs
 - **Landmark extractor:** MediaPipe Tasks `HolisticLandmarker` (successor of the legacy Holistic) in video mode with default settings, on the CPU with 8 worker processes (`extraction.py`). Its landmarks match the Kaggle layout and hand label convention. MediaPipe's GPU mode was rejected: the holistic model fails on the GPU, and the separate face/hand/pose models run on the GPU but scale worse than the CPU (see findings).
 - **Frame rate:** each clip's source fps is stored in the store metadata (null when unknown), so sequences can be resampled to a common rate.
 - **Resumable extraction:** long extractions write the store in chunks of 1,024 clips and resume from the last finished chunk (`write_store_resumable`).
+- **Raw ASL Citizen data is kept** (zip and videos), e.g. for re-extraction or rendering video frames.
+- **Splits** (`splits.py`): signs are assigned to train/val/test (~80/10/10) by a hash of the sign label, stable across datasets. Test = test signs by the official ASL Citizen test signers (held out completely). Train and val share the official train and val signers; val = val signs by those signers, so it measures unseen signs but not unseen signers. Chosen over the official signer split (train/val/test signers), which left only 31,909 training clips (57% of all clips unused) and 2–5 signers per val sign, too few for 5-shot validation.
+- **One fixed split during development**, with bootstrap confidence intervals over test signs; retraining on several sign folds (each fold is a full training run) only for final numbers or comparisons too close to call.
 
 ## Open decisions
 
-- **Held-out sign folds for ASL Citizen:** number of folds and signs per fold; decide after inspecting the data.
+- **Mirroring for the dominant hand** (step 4): per signer (majority over their clips) or per clip by which hand moves more.
 
 ## Findings
 
@@ -79,7 +79,7 @@ ASL Citizen:
 - License (`use.txt`, Microsoft Research License Terms): non-commercial research only; the data and modifications of it (e.g. extracted landmarks) may not be distributed; personal data must be destroyed when the research is completed.
 - Layout: `ASL_Citizen/videos/*.mp4` (83,399 videos, ~50 GB) and `ASL_Citizen/splits/{train,val,test}.csv` with columns `Participant ID`, `Video file`, `Gloss`, `ASL-LEX Code`.
 - Official splits are signer-disjoint: 35 / 6 / 11 signers with 40,154 / 10,304 / 32,941 videos. All 2,731 glosses appear in every split; 21–45 videos per gloss (mean 31). Videos per signer are very uneven (2 to 3,004, median 1,496).
-- Glosses are cleaned labels (e.g. file `NOT MIND` → gloss `NOTMIND`, `SAIL` → `SAIL1`). 2,723 ASL-LEX codes; a few codes are shared by several glosses.
+- Glosses are cleaned labels (e.g. file `NOT MIND` → gloss `NOTMIND`, `SAIL` → `SAIL1`). 2,723 ASL-LEX codes; only RESEARCH1/2 and WHATFOR1/2/3 share a real code (all in the train split, so no leakage), and a few glosses have code `NA`.
 - Videos (sample of 300): mostly H.264 640x480, some 960x540 and MPEG-4. Frame rate varies (mostly ~30 fps, also 25 and 15 fps). Mean length 2.7 s / 80 frames (33–366), so ~6.7M frames in total and a ~44 GB landmark store at float32.
 
 - First extraction test (32 videos): face and pose detected in 100% of frames; `left_hand` in 33%, `right_hand` in 42%, both in 30%, neither in 55% (recordings start and end with the hands down). Two-handed signing is present, unlike Kaggle.
