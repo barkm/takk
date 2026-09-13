@@ -31,7 +31,10 @@ Status of the work and the plan ahead. Update this file when a step is finished,
    - Baselines without training (`baselines.py`, `scripts/evaluate_baselines.py`, results in `outputs/results/`): hand-crafted embedding and DTW. — done (see findings)
    - Small GRU embedding trained with ArcFace (`models.py`, `training.py`, `scripts/train.py`, run `outputs/runs/gru_arcface/`). — done (see findings)
 
-7. **Strong model** — next
+7. **Strong model** — in progress
+   - Experiment tooling: `scripts/train.py --set key=value` overrides, `scripts/compare_runs.py`; checkpoints selected on validation EER at k = 1. — done
+   - Regularization (GRU, 30 epochs): stronger augmentation + dropout 0.4 + weight decay 0.05 are the new defaults (see findings). — done
+   - Conv + transformer encoder (`ConvTransformerEncoder`): width and depth comparison. — running
    - Conv + transformer encoder with heavy augmentation.
    - Experiments: landmark groups (hands only / + body / + face), loss (ArcFace vs supervised contrastive), sequence length.
 
@@ -104,6 +107,7 @@ ASL Citizen:
 - GRU + ArcFace baseline (bidirectional 2-layer GRU, hidden 256, 256-d embedding, ArcFace scale 30 / margin 0.3, AdamW 1e-3, 60 epochs of ~9 s on the RTX 3090): val AUC 0.979 / 0.991 / 0.992, EER 0.061 / 0.036 / 0.033, top-1 75.3% / 83.7% / 86.1% for k = 1 / 3 / 5 (95% CI for top-1 at k = 5: 84.0–87.8%), far above the baselines without training (AUC 0.887, top-1 22% at k = 5). Already after 2 epochs: AUC 0.969, top-1 48% (k = 5).
 - The GRU overfits: validation peaks around epochs 15–20 (best checkpoint epoch 15) while training accuracy keeps rising to 99.7% at epoch 60 and validation slowly declines. With ~18 training clips per sign, more regularization, augmentation or data should help.
 - Validation AUC is close to saturated (0.99 with CIs of ±0.002), so EER and top-1, especially at k = 1, are the more sensitive metrics for comparing models. Validation signers are also training signers, so the test split will show how much of this carries over to unseen signers.
+- Regularization experiments (GRU, 30 epochs, val EER / top-1 at k = 1): defaults 0.0593 / 75.7%; dropout 0.4 + weight decay 0.05: 0.0605 / 75.6%; stronger augmentation (rotation 20°, scale 0.3, shift 0.15, shear 0.2, speed 0.7–1.4, frame drop 0.2, hand drop 0.25): 0.0583 / 75.8%; both: 0.0575 / 75.9%. All within noise (CI about ±0.006 EER, ±2 points top-1). Regularization does reduce the train/val gap (train accuracy 92% instead of 98% at epoch 30) and keeps validation at its best level through epoch 30 instead of degrading, but the best validation result doesn't improve: overfitting is not what limits the GRU; the architecture or the amount of data is.
 - Hardest val signs for the GRU (k = 5, by AUC): CHEERLEADER2, BOW2, SKATEBOARDING3, EGO, CRAWL1, FAN, LONGWORD, LUNCH1.
 - Frame size (backfilled from the videos' first decoded frame): 80,184 clips 640x480, 3,211 at 960x540, 4 at 480x640.
 - Signers: 26 of 52 recorded nearly the whole vocabulary (~3,000 clips each); P13 and P19 have 2 clips each.
