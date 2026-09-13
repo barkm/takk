@@ -17,11 +17,14 @@ from isolated_sign_validation.training import TrainConfig, train
 
 
 def with_override(config, key: str, value: str):
-    """`config` with the (possibly nested, dot-separated) field `key` set to the Python literal `value`."""
+    """`config` with the (possibly nested, dot-separated) field `key` set to `value`: taken as is for
+    text fields, otherwise parsed as a Python literal."""
     field, _, rest = key.partition(".")
     current = getattr(config, field)
     if rest:
         return dataclasses.replace(config, **{field: with_override(current, rest, value)})
+    if isinstance(current, str):
+        return dataclasses.replace(config, **{field: value})
     parsed = ast.literal_eval(value)
     return dataclasses.replace(config, **{field: tuple(parsed) if isinstance(current, tuple) else type(current)(parsed)})
 
