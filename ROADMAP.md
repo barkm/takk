@@ -14,7 +14,7 @@ Status of the work and the plan ahead. Update this file when a step is finished,
    - Download (~46 GB zip) and inspect the contents: videos, metadata, official splits. — done (see findings)
    - Choose the landmark extractor: run MediaPipe (Tasks API) on a handful of videos, check the result in the viewer, and measure extraction speed. — done (see decisions and findings)
    - Adapter extracting landmarks from the videos into the common layout (`datasets/asl_citizen.py`, resumable). — done
-   - Full extraction (~12–14 h, see README). — pending
+   - Full extraction (~12–14 h, see README). — done: `data/processed/asl_citizen/` (42 GB), 83,399 clips, 6,901,733 frames, 2,731 signs, 52 signers; clip order matches the split CSVs, no empty clips, fps 11.3–120.
    - Delete `data/raw/ASL_Citizen.zip` (46 GB) once the extraction has been checked.
    - Exploration of the extracted data (sequence lengths, hand presence, handedness).
 
