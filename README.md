@@ -148,6 +148,12 @@ Evaluation (`src/isolated_sign_validation/evaluation.py`) works on a similarity 
 - **Identification:** top-1 and top-5 accuracy of the query's own sign among all signs of the split.
 - **Uncertainty and breakdown:** pooled over 5 random draws of references, with 95% bootstrap confidence intervals over signs, and per-sign metrics to find hard signs.
 
+Model decisions are made on validation; the test split is for final numbers and important comparisons. To evaluate runs on it (the gains are relative to the first run, paired over signs):
+
+```sh
+uv run scripts/evaluate_test.py gru_hide_low gru_auslan  # writes outputs/runs/<run>/test_*.parquet
+```
+
 Threshold selection and sensitivity analysis come later.
 
 ## Future
