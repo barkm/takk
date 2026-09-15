@@ -78,9 +78,19 @@ uv run python -m isolated_sign_validation.datasets.mm_wlauslan
 uv run python -m isolated_sign_validation.datasets.mm_wlauslan --subsets Valid --signs 30
 ```
 
+### Downloading ASL-LEX
+
+[ASL-LEX 2.0](https://osf.io/zpha4/) (CC BY 4.0) describes the phonology of the ASL signs that ASL Citizen's glosses are coded against (handshape, location, movement, ...). Its sign data (2 MB) is public:
+
+```sh
+mkdir -p data/raw/asl-lex
+curl -L -o data/raw/asl-lex/signdata.csv https://osf.io/download/9nygd/
+curl -L -o data/raw/asl-lex/signdataKEY.csv https://osf.io/download/ygq4v/  # column descriptions
+```
+
 ### Preparing training data
 
-Training uses prepared clips (`src/isolated_sign_validation/preparation.py`): hands resting low below the shoulders treated as undetected (out of view, as in close webcam framings), broken clips excluded, trimmed to the frames with hands, corrected for the video's aspect ratio, short hand gaps interpolated, normalized by the shoulders, mirrored so the dominant hand is always in the `right_hand` slot, reduced to the hands, upper body and face reference points, and resampled to 30 fps (at most 128 frames). This takes a few seconds and writes `data/prepared/asl_citizen-<config id>/` (~1 GB):
+Training uses prepared clips (`src/isolated_sign_validation/preparation.py`): hands resting low below the shoulders treated as undetected (out of view, as in close webcam framings), broken clips excluded, trimmed to the frames with hands, corrected for the video's aspect ratio, short hand gaps interpolated, normalized by the shoulders, mirrored so the dominant hand is always in the `right_hand` slot, reduced to the hands, upper body and face reference points, and resampled to 30 fps (at most 128 frames). ASL Citizen clips also get their sign's ASL-LEX phonological features. This takes a few seconds and writes `data/prepared/asl_citizen-<config id>/` (~1 GB):
 
 ```sh
 uv run scripts/prepare_asl_citizen.py
