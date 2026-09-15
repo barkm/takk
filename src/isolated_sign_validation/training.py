@@ -1,5 +1,9 @@
 """Training of sign embedding models with an ArcFace classification loss over the training signs.
 
+Optionally, linear heads on the embedding also predict each training sign's phonological features
+(prepared clip columns `phonology.<feature>`, e.g. from ASL-LEX), as an auxiliary loss; clips of
+signs without features only get the ArcFace loss. The heads are only used in training.
+
 A run directory gets the config, per-epoch metrics, training curves, the checkpoint with the lowest
 validation EER at k = 1 (validation AUC is close to saturated), and the full validation evaluation
 of that checkpoint.
@@ -8,6 +12,7 @@ of that checkpoint.
 import dataclasses
 import json
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -39,6 +44,7 @@ class TrainConfig:
     dropout: float = 0.4
     arcface_scale: float = 30.0
     arcface_margin: float = 0.3
+    phonology_weight: float = 0.0  # weight of the auxiliary phonological feature loss (0: off)
     augment: AugmentConfig = dataclasses.field(default_factory=AugmentConfig)
     # training signers left out of training, to measure generalization to unseen signers
     holdout_signers: tuple[str, ...] = ()
@@ -74,6 +80,21 @@ def load_run(run_dir: Path, data: PreparedData) -> tuple[TrainConfig, nn.Module]
     model = build_model(config, data)
     model.load_state_dict(torch.load(run_dir / "best.pt", map_location="cpu")["model"])
     return config, model
+
+
+def phonology_targets(clips: pl.DataFrame, signs: Sequence[str]) -> tuple[np.ndarray, list[int]]:
+    """The phonological features of `signs` (columns `phonology.<feature>` of `clips`) as class indices,
+    shape (n_signs, n_features), -1 where unknown; and the number of classes of each feature."""
+    columns = [column for column in clips.columns if column.startswith("phonology.")]
+    table = pl.DataFrame({"sign": list(signs)}).join(
+        clips.group_by("sign").agg(pl.col(columns).first()), on="sign", how="left", maintain_order="left"
+    )
+    targets, n_classes = [], []
+    for column in columns:
+        index = {value: i for i, value in enumerate(sorted(table[column].drop_nulls().unique()))}
+        targets.append([index.get(value, -1) for value in table[column]])
+        n_classes.append(len(index))
+    return np.array(targets, dtype=np.int64).T.reshape(len(signs), len(columns)), n_classes
 
 
 @torch.no_grad()
@@ -129,7 +150,13 @@ def train(config: TrainConfig, data: PreparedData, run_dir: Path, device: str = 
     )  # fmt: skip
     model = build_model(config, data).to(device)
     head = ArcFace(config.embedding_dim, len(train_set.signs), config.arcface_scale, config.arcface_margin).to(device)
-    optimizer = torch.optim.AdamW([*model.parameters(), *head.parameters()], lr=config.lr, weight_decay=config.weight_decay)
+    targets, n_classes = phonology_targets(data.clips, train_set.signs) if config.phonology_weight else (np.zeros((0, 0)), [])
+    if config.phonology_weight and not n_classes:
+        raise ValueError("phonology_weight is set, but the prepared clips have no phonology columns")
+    targets = torch.from_numpy(targets).to(device)
+    phonology_heads = nn.ModuleList(nn.Linear(config.embedding_dim, n) for n in n_classes).to(device)
+    parameters = [*model.parameters(), *head.parameters(), *phonology_heads.parameters()]
+    optimizer = torch.optim.AdamW(parameters, lr=config.lr, weight_decay=config.weight_decay)
     total_steps, warmup_steps = config.epochs * len(loader), config.warmup_epochs * len(loader)
     schedule = torch.optim.lr_scheduler.LambdaLR(
         optimizer, lambda step: min(1, (step + 1) / warmup_steps) * 0.5 * (1 + np.cos(np.pi * min(1, step / total_steps)))
@@ -138,21 +165,31 @@ def train(config: TrainConfig, data: PreparedData, run_dir: Path, device: str = 
     rows, best_eer = [], np.inf
     for epoch in range(1, config.epochs + 1):
         model.train()
-        start, losses, correct, seen = time.time(), [], 0, 0
+        start, losses, phonology_losses, correct, seen = time.time(), [], [], 0, 0
         for batch in loader:
             labels = batch["labels"].to(device)
             with torch.autocast(device, dtype=torch.bfloat16):
                 embeddings = model(batch["frames"].to(device), batch["hands"].to(device), batch["mask"].to(device))
                 logits = head(embeddings, labels)
-            loss = F.cross_entropy(logits, labels)
+            loss = arcface_loss = F.cross_entropy(logits, labels)
+            if phonology_heads:
+                features = targets[labels]
+                total = sum(
+                    F.cross_entropy(h(embeddings.float()), features[:, j], ignore_index=-1, reduction="sum") for j, h in enumerate(phonology_heads)
+                )
+                phonology_loss = total / (features >= 0).sum().clamp(min=1)  # mean over the known features
+                loss = loss + config.phonology_weight * phonology_loss
+                phonology_losses.append(phonology_loss.item())
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
             optimizer.step()
             schedule.step()
-            losses.append(loss.item())
+            losses.append(arcface_loss.item())
             correct += (head(embeddings.detach()).argmax(dim=1) == labels).sum().item()
             seen += len(labels)
         row = {"epoch": epoch, "loss": float(np.mean(losses)), "train_accuracy": correct / seen, "lr": schedule.get_last_lr()[0]}
+        if phonology_losses:
+            row["phonology_loss"] = float(np.mean(phonology_losses))
         if epoch % config.eval_every == 0 or epoch == config.epochs:
             val_metrics = quick_validation(model, val_set, device)
             row |= {f"val_{name}": value for name, value in val_metrics.items()}
