@@ -71,3 +71,16 @@ def test_training_step_reduces_loss():
         optimizer.step()
         losses.append(loss.item())
     assert losses[-1] < 0.5 * losses[0]
+
+
+@pytest.mark.parametrize("encoder", [GRUEncoder, ConvTransformerEncoder])
+def test_return_pooled_gives_the_embeddings_input(encoder):
+    model = encoder(N, HANDS, hidden=32, layers=1, embedding_dim=16).eval()
+    batch = collate([item(5), item(3, seed=1)])
+    arguments = (batch["frames"], batch["hands"], batch["mask"])
+
+    embedding, pooled = model(*arguments, return_pooled=True)
+
+    assert pooled.shape == (2, model.head.in_features)
+    assert torch.allclose(embedding, torch.nn.functional.normalize(model.head(pooled), dim=1), atol=1e-6)
+    assert torch.allclose(embedding, model(*arguments), atol=1e-6)

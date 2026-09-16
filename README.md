@@ -136,7 +136,7 @@ The learned baseline, a bidirectional GRU embedding model trained with an ArcFac
 uv run scripts/train.py --name gru_arcface
 ```
 
-With `--set phonology_weight=<w>`, linear heads on the embedding also predict each sign's ASL-LEX phonological features (handshape, location, movement, ...) as an auxiliary loss with weight `w`; clips without features (e.g. MM-WLAuslan) only get the ArcFace loss.
+With `--set phonology_weight=<w>`, linear heads on the embedding also predict each sign's ASL-LEX phonological features (handshape, location, movement, ...) as an auxiliary loss with weight `w`; clips without features (e.g. MM-WLAuslan) only get the ArcFace loss. `--set phonology_input=pooled` puts the heads on the pooled encoder output instead of the embedding, leaving the embedding free.
 
 To train on several datasets, pass their prepared directories: `--prepared data/prepared/asl_citizen-<config id> data/prepared/mm_wlauslan-<config id>`.
 

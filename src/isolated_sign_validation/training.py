@@ -1,8 +1,9 @@
 """Training of sign embedding models with an ArcFace classification loss over the training signs.
 
 Optionally, linear heads on the embedding also predict each training sign's phonological features
-(prepared clip columns `phonology.<feature>`, e.g. from ASL-LEX), as an auxiliary loss; clips of
-signs without features only get the ArcFace loss. The heads are only used in training.
+(prepared clip columns `phonology.<feature>`, e.g. from ASL-LEX), as an auxiliary loss, either from
+the embedding itself or from the pooled encoder output it is projected from (`phonology_input`); clips
+of signs without features only get the ArcFace loss. The heads are only used in training.
 
 A run directory gets the config, per-epoch metrics, training curves, the checkpoint with the lowest
 validation EER at k = 1 (validation AUC is close to saturated), and the full validation evaluation
@@ -45,6 +46,7 @@ class TrainConfig:
     arcface_scale: float = 30.0
     arcface_margin: float = 0.3
     phonology_weight: float = 0.0  # weight of the auxiliary phonological feature loss (0: off)
+    phonology_input: str = "embedding"  # what the feature heads read: "embedding" or "pooled" (the encoder output)
     augment: AugmentConfig = dataclasses.field(default_factory=AugmentConfig)
     # training signers left out of training, to measure generalization to unseen signers
     holdout_signers: tuple[str, ...] = ()
@@ -154,7 +156,10 @@ def train(config: TrainConfig, data: PreparedData, run_dir: Path, device: str = 
     if config.phonology_weight and not n_classes:
         raise ValueError("phonology_weight is set, but the prepared clips have no phonology columns")
     targets = torch.from_numpy(targets).to(device)
-    phonology_heads = nn.ModuleList(nn.Linear(config.embedding_dim, n) for n in n_classes).to(device)
+    if config.phonology_input not in ("embedding", "pooled"):
+        raise ValueError(f"unknown phonology_input {config.phonology_input}")
+    head_input = model.head.in_features if config.phonology_input == "pooled" else config.embedding_dim
+    phonology_heads = nn.ModuleList(nn.Linear(head_input, n) for n in n_classes).to(device)
     parameters = [*model.parameters(), *head.parameters(), *phonology_heads.parameters()]
     optimizer = torch.optim.AdamW(parameters, lr=config.lr, weight_decay=config.weight_decay)
     total_steps, warmup_steps = config.epochs * len(loader), config.warmup_epochs * len(loader)
@@ -169,13 +174,13 @@ def train(config: TrainConfig, data: PreparedData, run_dir: Path, device: str = 
         for batch in loader:
             labels = batch["labels"].to(device)
             with torch.autocast(device, dtype=torch.bfloat16):
-                embeddings = model(batch["frames"].to(device), batch["hands"].to(device), batch["mask"].to(device))
+                embeddings, pooled = model(batch["frames"].to(device), batch["hands"].to(device), batch["mask"].to(device), return_pooled=True)
                 logits = head(embeddings, labels)
             loss = arcface_loss = F.cross_entropy(logits, labels)
             if phonology_heads:
-                features = targets[labels]
+                features, inputs = targets[labels], (pooled if config.phonology_input == "pooled" else embeddings).float()
                 total = sum(
-                    F.cross_entropy(h(embeddings.float()), features[:, j], ignore_index=-1, reduction="sum") for j, h in enumerate(phonology_heads)
+                    F.cross_entropy(h(inputs), features[:, j], ignore_index=-1, reduction="sum") for j, h in enumerate(phonology_heads)
                 )
                 phonology_loss = total / (features >= 0).sum().clamp(min=1)  # mean over the known features
                 loss = loss + config.phonology_weight * phonology_loss

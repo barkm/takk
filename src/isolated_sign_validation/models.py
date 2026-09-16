@@ -33,7 +33,8 @@ class GRUEncoder(nn.Module):
         self.gru = nn.GRU(hidden, hidden, layers, batch_first=True, bidirectional=True, dropout=dropout)
         self.head = nn.Linear(4 * hidden, embedding_dim)  # mean and max pooling of both directions
 
-    def forward(self, frames: torch.Tensor, hands: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+    def forward(self, frames: torch.Tensor, hands: torch.Tensor, mask: torch.Tensor, return_pooled: bool = False) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+        """The embedding, and with `return_pooled` also the pooled encoder output it is projected from."""
         x = self.input(frame_features(frames, hands, mask, self.hand_slices))
         lengths = mask.sum(dim=1).cpu()
         packed = nn.utils.rnn.pack_padded_sequence(x, lengths, batch_first=True, enforce_sorted=False)
@@ -42,7 +43,9 @@ class GRUEncoder(nn.Module):
         valid = mask[:, :, None]
         mean = (output * valid).sum(dim=1) / valid.sum(dim=1)
         maximum = output.masked_fill(~valid, -torch.inf).amax(dim=1)
-        return F.normalize(self.head(torch.cat([mean, maximum], dim=1)), dim=1)
+        pooled = torch.cat([mean, maximum], dim=1)
+        embedding = F.normalize(self.head(pooled), dim=1)
+        return (embedding, pooled) if return_pooled else embedding
 
 
 class ConvBlock(nn.Module):
@@ -95,7 +98,8 @@ class ConvTransformerEncoder(nn.Module):
         self.norm = nn.LayerNorm(hidden)
         self.head = nn.Linear(2 * hidden, embedding_dim)  # mean and max pooling
 
-    def forward(self, frames: torch.Tensor, hands: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+    def forward(self, frames: torch.Tensor, hands: torch.Tensor, mask: torch.Tensor, return_pooled: bool = False) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+        """The embedding, and with `return_pooled` also the pooled encoder output it is projected from."""
         x = self.input(frame_features(frames, hands, mask, self.hand_slices))
         for block in self.blocks:
             x = block(x, mask)
@@ -103,7 +107,9 @@ class ConvTransformerEncoder(nn.Module):
         valid = mask[:, :, None]
         mean = (x * valid).sum(dim=1) / valid.sum(dim=1)
         maximum = x.masked_fill(~valid, -torch.inf).amax(dim=1)
-        return F.normalize(self.head(torch.cat([mean, maximum], dim=1)), dim=1)
+        pooled = torch.cat([mean, maximum], dim=1)
+        embedding = F.normalize(self.head(pooled), dim=1)
+        return (embedding, pooled) if return_pooled else embedding
 
 
 class ArcFace(nn.Module):
