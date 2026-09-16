@@ -148,7 +148,11 @@ ASL Citizen:
 - Visual inspection of missed hands during signing: motion blur (most common), overlapping or touching hands, and hands seen edge-on. These are limits of the footage and hand models, not of the setup, so the holistic extractor is kept and gaps are handled in the loader.
 
 Sem-Lex:
-- Access: agree to the terms of use in a Google form linked from https://github.com/leekezar/SemLex, which gives the download links. The repository says pose files will be "available soon" (apparently not updated since 2023), so landmarks are extracted with our own setup.
+- Access: agree to the terms of use in a Google form linked from https://github.com/leekezar/SemLex, which gives the download links (obtained; the files are Google Drive files shared for download, so `gdown` fails and they need the rclone remote, as for MM-WLAuslan: `rclone backend copyid "personal gdrive:" <file id> <destination>`). The metadata maps video ids to pose and video file paths, gloss id, signer id, the phoneme ids of the 16 phonological types, and the official train/val/test split:
+  - `sem-lex-metadata.csv` (12 MB): `1pkX8_TzL3kdJytQvrU68QEAp6oUvt4rv`
+  - train (51,029 videos): poses `12BlVy7S07MvF-moHoT0egdyJIJf_f7nS` (7 GB), videos `1jiUasWSGv5lkrBUIRmtCXyMzliClCqXo` (22 GB)
+  - validation (18,025 videos): poses `1r7SmksY4U9GtLUR05h-fYZHZ9uup4eeI` (2.5 GB), videos `1VvrbYgNZe_4fWS5ZdSsHyxOuWHmhisGq` (7 GB)
+  - test (15,514 videos): poses `1uYoM1zNpw4oLpJe4LwtDVPBNgKmAi8CC` (2.1 GB), videos `1nVjvgJhjo3lILr5S23p_PsMR7yFdQTrS` (13 GB) The repository says pose files will be "available soon" (apparently not updated since 2023), so landmarks are extracted with our own setup.
 - Of the 84,568 benchmark videos, 65,935 are matched to ASL-LEX or ASL SignBank; 18,393 only have free-text descriptions (not usable as sign labels). The ASL-LEX alignment links its signs to ASL Citizen's. The paper is CC BY-NC-SA 4.0; the data's own terms are in the form.
 
 Other datasets (for more training signs; signs of other sign languages are all new classes):
