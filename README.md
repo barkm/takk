@@ -95,6 +95,30 @@ in `tmux`, and run it again to resume). The 400 `no_event` videos hold no signin
 uv run python -m isolated_sign_validation.datasets.slovo
 ```
 
+### Downloading WLASL
+
+WLASL is distributed as links to YouTube and ASL dictionary sites, many of them dead (the dataset is
+C-UDA: academic and computational use only). The surviving videos come from the
+[wlasl-processed](https://www.kaggle.com/datasets/risangbaskoro/wlasl-processed) mirror on Kaggle
+(11,880 of the 21,083 instances, 4.8 GB, `missing.txt` lists the dead ones), which includes WLASL's
+own metadata. It needs the Kaggle API token from the Kaggle ASL Signs section below:
+
+```sh
+uvx kaggle datasets download -d risangbaskoro/wlasl-processed -p data/raw
+unzip -q data/raw/wlasl-processed.zip -d data/raw/wlasl
+```
+
+The mirror on Hugging Face ([Voxel51/WLASL](https://huggingface.co/datasets/Voxel51/WLASL)) has the
+same videos as single files, but downloading 11,880 of them runs into rate limiting.
+
+Then extract the landmarks into `data/processed/wlasl/` (about two hours; run it in `tmux`, and run
+it again to resume). `--signs N` extracts a sample into a separate store instead:
+
+```sh
+uv run python -m isolated_sign_validation.datasets.wlasl
+uv run python -m isolated_sign_validation.datasets.wlasl --signs 20
+```
+
 ### Downloading ASL-LEX
 
 [ASL-LEX 2.0](https://osf.io/zpha4/) (CC BY 4.0) describes the phonology of the ASL signs that ASL Citizen's glosses are coded against (handshape, location, movement, ...). Its sign data (2 MB) is public:
