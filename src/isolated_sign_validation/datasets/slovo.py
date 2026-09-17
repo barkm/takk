@@ -12,6 +12,7 @@ Run from the repo root:
 """
 
 import argparse
+import re
 from collections.abc import Iterator, Sequence
 from pathlib import Path
 
@@ -41,6 +42,17 @@ def read_videos(raw_dir: Path) -> pl.DataFrame:
         signer=pl.lit(f"{DATASET}:") + pl.col("user_id"),
         path=pl.lit(f"{raw_dir}/") + folder + "/" + pl.col("attachment_id") + ".mp4",
     )
+
+
+def is_single_sign(label: str) -> bool:
+    """Whether a Slovo label denotes a single sign, rather than a phrase signed as several signs.
+
+    A label is one or more glosses separated by semicolons, each possibly with a parenthesized note
+    ("кусок; тонкими слоями", "пока (что)"). It counts as a single sign if any of its glosses is a
+    single word; multi-word labels such as "С днем рождения" are phrases (see ROADMAP.md).
+    """
+    glosses = [re.sub(r"\(.*?\)", "", gloss).strip() for gloss in label.split(";")]
+    return any(" " not in gloss for gloss in glosses if gloss)
 
 
 def extract_clips(videos: Sequence[dict]) -> Iterator[tuple[dict, np.ndarray]]:

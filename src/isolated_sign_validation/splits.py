@@ -10,7 +10,8 @@ Clips of test signers performing non-test signs, and of other signers performing
 to no split.
 
 Datasets of other sign languages are used for training only (assign_training_only), without their
-signs that match a held-out sign by label.
+signs that match a held-out sign by label, or for evaluation only (assign_evaluation_only), in which
+case they are never trained on and all of their signs are unseen.
 """
 
 import hashlib
@@ -61,3 +62,12 @@ def assign_training_only(clips: pl.DataFrame, excluded_signs: Collection[str]) -
     be lookalikes of held-out signs (see matching_signs).
     """
     return clips.with_columns(split=pl.when(~pl.col("sign").is_in(list(excluded_signs))).then(pl.lit("train")))
+
+
+def assign_evaluation_only(clips: pl.DataFrame) -> pl.DataFrame:
+    """Add a `split` column for a dataset used only for evaluation: "test" for every clip.
+
+    Used for datasets of another sign language that are never trained on (Slovo), so that all of
+    their signs are unseen by construction and no sign-level hold-out is needed.
+    """
+    return clips.with_columns(split=pl.lit("test"))
