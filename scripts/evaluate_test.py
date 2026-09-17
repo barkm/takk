@@ -4,8 +4,11 @@ Prints each run's metrics with 95% bootstrap CIs over signs, and each run's gain
 paired over signs (mean per-sign difference in top-1, with a bootstrap CI). The test split is for final
 numbers and important comparisons; model decisions are made on validation.
 
+With `--prepared` and `--name` it evaluates another prepared set of held-out signs the same way,
+e.g. the Slovo cross-language evaluation set.
+
 Run from the repo root: uv run scripts/evaluate_test.py gru_hide_low gru_auslan
-Writes outputs/runs/<run>/test_summary.parquet and test_per_sign.parquet.
+Writes outputs/runs/<run>/<name>_summary.parquet and <name>_per_sign.parquet.
 """
 
 import argparse
@@ -27,19 +30,20 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("runs", nargs="+", help="runs to evaluate; gains are relative to the first")
     parser.add_argument("--prepared", type=Path, default=Path("data/prepared") / f"asl_citizen-{PrepConfig().id()}")
+    parser.add_argument("--name", default="test", help="name of the evaluated set, used in the output file names")
     args = parser.parse_args()
 
     data = PreparedData(args.prepared)
     test = SignDataset(data, "test")
     clips = data.clips[test.positions]
-    print(f"test: {len(clips)} clips, {clips['sign'].n_unique()} signs, {clips['signer'].n_unique()} signers")
+    print(f"{args.name}: {len(clips)} clips, {clips['sign'].n_unique()} signs, {clips['signer'].n_unique()} signers")
 
     per_sign = {}
     for run in args.runs:
         _, model = load_run(RUNS_DIR / run, data)
         summary, per_sign[run] = evaluate(cosine_similarity(embed(model.to("cuda"), test, "cuda")), clips)
-        summary.write_parquet(RUNS_DIR / run / "test_summary.parquet")
-        per_sign[run].write_parquet(RUNS_DIR / run / "test_per_sign.parquet")
+        summary.write_parquet(RUNS_DIR / run / f"{args.name}_summary.parquet")
+        per_sign[run].write_parquet(RUNS_DIR / run / f"{args.name}_per_sign.parquet")
         print(f"\n{run}:")
         for k, group in summary.group_by("k", maintain_order=True):
             values = {m: f"{v:.4f} [{low:.4f}, {high:.4f}]" for m, v, low, high in group.select("metric", "value", "ci_low", "ci_high").iter_rows()}
