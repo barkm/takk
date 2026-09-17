@@ -30,8 +30,9 @@ Baselines:
 | [Kaggle ASL Signs](https://www.kaggle.com/competitions/asl-signs/data) | MediaPipe Holistic landmarks | 250 | 21 | ~94k |
 | [WLASL](https://dxli94.github.io/WLASL/) | Video | 2,000 | ~119 | ~21k |
 | [MM-WLAuslan](https://uq-cvlab.github.io/MM-WLAuslan-Dataset/) (Australian Sign Language) | Video (4 cameras) | 3,215 | 73 | ~283k |
+| [Slovo](https://github.com/hukenovs/slovo) (Russian Sign Language) | Video | 1,000 | 194 | ~20k |
 
-ASL Citizen is the primary dataset: its large vocabulary matters most for generalizing to unseen signs, it is recorded with webcams with both hands free, and since it is video we extract the landmarks ourselves with the same setup the system will use in practice. Sem-Lex is the candidate second source (aligned with ASL Citizen through ASL-LEX, and annotated with phonological features). Kaggle ASL Signs comes from PopSign, which is one-handed smartphone signing (the other hand holds the phone), and its landmarks come from a MediaPipe version that is no longer available; it is kept only as an optional extra. MM-WLAuslan adds training signs from another sign language (all new classes); it has no signer ids. ASL Citizen and WLASL are licensed for non-commercial use only, MM-WLAuslan under CC BY-NC-SA 4.0.
+ASL Citizen is the primary dataset: its large vocabulary matters most for generalizing to unseen signs, it is recorded with webcams with both hands free, and since it is video we extract the landmarks ourselves with the same setup the system will use in practice. Sem-Lex is the candidate second source (aligned with ASL Citizen through ASL-LEX, and annotated with phonological features). Kaggle ASL Signs comes from PopSign, which is one-handed smartphone signing (the other hand holds the phone), and its landmarks come from a MediaPipe version that is no longer available; it is kept only as an optional extra. MM-WLAuslan adds training signs from another sign language (all new classes); it has no signer ids. Slovo is the opposite: it is never trained on, but has signer ids, so it serves as a held-out cross-language evaluation set that measures how well the model transfers to a sign language it has never seen (relevant for Swedish Sign Language later). ASL Citizen and WLASL are licensed for non-commercial use only, MM-WLAuslan under CC BY-NC-SA 4.0 and Slovo under a variant of CC BY-SA 4.0.
 
 The data pipeline is dataset-agnostic: each dataset has an adapter that converts it into a common format (a landmark array per clip, plus metadata: dataset, sign, signer). All video datasets are run through one fixed MediaPipe setup that outputs the common landmark layout. Sign labels have to be normalized when datasets are combined.
 
@@ -78,6 +79,22 @@ uv run python -m isolated_sign_validation.datasets.mm_wlauslan
 uv run python -m isolated_sign_validation.datasets.mm_wlauslan --subsets Valid --signs 30
 ```
 
+### Downloading Slovo
+
+No registration is needed. The trimmed videos and their annotations are a single ~16 GB zip:
+
+```sh
+wget -c -P data/raw https://rndml-team-cv.obs.ru-moscow-1.hc.sbercloud.ru/datasets/slovo/slovo.zip
+unzip -q data/raw/slovo.zip -d data/raw/slovo
+```
+
+Then extract the landmarks of the 20,000 videos into `data/processed/slovo/` (about 3 hours; run it
+in `tmux`, and run it again to resume). The 400 `no_event` videos hold no signing and are left out:
+
+```sh
+uv run python -m isolated_sign_validation.datasets.slovo
+```
+
 ### Downloading ASL-LEX
 
 [ASL-LEX 2.0](https://osf.io/zpha4/) (CC BY 4.0) describes the phonology of the ASL signs that ASL Citizen's glosses are coded against (handshape, location, movement, ...). Its sign data (2 MB) is public:
@@ -103,6 +120,12 @@ MM-WLAuslan is prepared as extra training data: all its clips are training clips
 
 ```sh
 uv run scripts/prepare_mm_wlauslan.py
+```
+
+Slovo is prepared as an evaluation set instead: every clip is a `test` clip, and its sign labels get the prefix `rsl:`. Classes whose label is a phrase rather than a single sign are left out, since the task is validating one sign. It writes `data/prepared/slovo-<config id>/`:
+
+```sh
+uv run scripts/prepare_slovo.py
 ```
 
 ### Downloading Kaggle ASL Signs
@@ -164,6 +187,13 @@ Model decisions are made on validation; the test split is for final numbers and 
 
 ```sh
 uv run scripts/evaluate_test.py gru_hide_low gru_auslan  # writes outputs/runs/<run>/test_*.parquet
+```
+
+The same script evaluates the Slovo cross-language set, which measures k-shot verification of Russian
+signs the model was never trained on, with references by other signers as everywhere else:
+
+```sh
+uv run scripts/evaluate_test.py gru_auslan_phonpool1 --prepared data/prepared/slovo-<config id> --name slovo
 ```
 
 Threshold selection and sensitivity analysis come later.
