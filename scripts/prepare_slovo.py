@@ -56,7 +56,7 @@ def main() -> None:
         print(f"{long.height} classes take a median of over {args.max_median_seconds} s to sign and are left out:")
         print(long)
         if long.height:  # prepare again without them, so their frames are not kept either
-            prepare_store(args.store, clips.filter(~pl.col("sign").is_in(long["sign"])), config, out)
+            prepare_store(args.store, clips.filter(~pl.col("sign").is_in(long["sign"].to_list())), config, out)
 
     data = PreparedData(out)
     print(
