@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sign recording</title>
+    <style>
+      :root { color-scheme: dark; --bg: #16181d; --card: #23262e; --line: #363a45; --text: #e8eaee; --dim: #a0a6b2; --ok: #4ade80; --bad: #f87171; --accent: #60a5fa; }
+      * { box-sizing: border-box; }
+      body { margin: 0; padding: 24px 16px; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, sans-serif; }
+      main { max-width: 900px; margin: 0 auto; }
+      .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+      h1 { font-size: 20px; margin: 0 0 16px; }
+      h2 { font-size: 32px; margin: 0; letter-spacing: 0.02em; }
+      p { margin: 8px 0; }
+      .dim { color: var(--dim); font-size: 14px; }
+      label { display: block; margin: 12px 0 4px; font-size: 14px; color: var(--dim); }
+      input[type="text"] { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 16px; }
+      button { padding: 10px 18px; border-radius: 8px; border: 1px solid var(--line); background: var(--accent); color: #0b1220; font-size: 16px; font-weight: 600; cursor: pointer; }
+      button.secondary { background: transparent; color: var(--text); }
+      button:disabled { opacity: 0.5; cursor: default; }
+      .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+      .videos { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+      .videos video { width: 180px; border-radius: 8px; background: #000; }
+      #camera { width: 100%; max-width: 560px; border-radius: 8px; background: #000; transform: scaleX(-1); }
+      .recording { outline: 3px solid var(--bad); }
+      .ok { color: var(--ok); }
+      .bad { color: var(--bad); }
+      .hidden { display: none; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section id="start" class="card">
+        <h1>Record yourself signing</h1>
+        <p class="dim">
+          You will be shown a sign performed by a few different signers, and record yourself signing it.
+          Watch the clips as often as you like before recording. No score is shown and nothing is judged:
+          the recordings are only used to evaluate a model later.
+        </p>
+        <label for="signer">Your name or initials</label>
+        <input id="signer" type="text" autocomplete="off" />
+        <label>Which hand do you sign with?</label>
+        <div class="row">
+          <label class="row"><input type="radio" name="handedness" value="right" checked /> &nbsp;Right</label>
+          <label class="row"><input type="radio" name="handedness" value="left" /> &nbsp;Left</label>
+        </div>
+        <p><button id="begin">Start</button></p>
+        <p id="startError" class="bad"></p>
+      </section>
+
+      <section id="prompt" class="card hidden">
+        <p class="dim"><span id="progress"></span></p>
+        <h2 id="sign"></h2>
+        <p id="instruction" class="dim"></p>
+        <div id="references" class="videos"></div>
+      </section>
+
+      <section id="recorder" class="card hidden">
+        <video id="camera" autoplay muted playsinline></video>
+        <p class="row">
+          <button id="record">Record</button>
+          <span id="timer" class="dim"></span>
+        </p>
+        <p id="result"></p>
+        <div id="after" class="row hidden">
+          <button id="keep">Keep and continue</button>
+          <button id="retake" class="secondary">Record again</button>
+          <label class="row"><input id="confident" type="checkbox" checked /> &nbsp;I signed this one confidently</label>
+        </div>
+      </section>
+
+      <section id="done" class="card hidden">
+        <h1>All done — thank you!</h1>
+        <p class="dim">You can close this page.</p>
+      </section>
+    </main>
+
+    <script>
+      const el = (id) => document.getElementById(id);
+      let prompts = [], maxSeconds = 4, index = 0, stream = null, recorder = null, clipId = null;
+
+      const show = (id, visible) => el(id).classList.toggle("hidden", !visible);
+
+      async function begin() {
+        const signer = el("signer").value.trim();
+        if (!signer) return (el("startError").textContent = "Please enter a name.");
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
+            audio: false,
+          });
+        } catch (error) {
+          return (el("startError").textContent = "No access to the camera: " + error.message);
+        }
+        el("camera").srcObject = stream;
+        window.session = `${signer.replace(/[^A-Za-z0-9-]/g, "_")}_${new Date().toISOString().slice(0, 19).replace(/[:T-]/g, "")}`;
+        window.signer = signer;
+        window.handedness = document.querySelector("input[name=handedness]:checked").value;
+        show("start", false);
+        showPrompt();
+      }
+
+      function showPrompt() {
+        if (index >= prompts.length) {
+          stream.getTracks().forEach((track) => track.stop());
+          show("prompt", false), show("recorder", false), show("done", true);
+          return;
+        }
+        const prompt = prompts[index];
+        el("progress").textContent = `Recording ${index + 1} of ${prompts.length}`;
+        el("sign").textContent = prompt.instruction ? "Don't sign" : prompt.sign;
+        el("instruction").textContent = prompt.instruction || "Sign this, then stop recording.";
+        el("references").innerHTML = prompt.references
+          .map((name) => `<video src="/api/reference/${encodeURIComponent(name)}" autoplay loop muted playsinline controls></video>`)
+          .join("");
+        el("result").textContent = "";
+        show("after", false);
+        show("prompt", true), show("recorder", true);
+        el("record").disabled = false;
+      }
+
+      function record() {
+        const chunks = [];
+        const types = ["video/webm;codecs=vp9", "video/webm", "video/mp4"];
+        const mimeType = types.find((type) => MediaRecorder.isTypeSupported(type));
+        recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+        recorder.ondataavailable = (event) => chunks.push(event.data);
+        recorder.onstop = () => upload(new Blob(chunks, { type: recorder.mimeType }));
+        recorder.start();
+        el("camera").classList.add("recording");
+        el("record").textContent = "Stop";
+        el("result").textContent = "";
+        const started = Date.now();
+        window.ticker = setInterval(() => {
+          const seconds = (Date.now() - started) / 1000;
+          el("timer").textContent = `${seconds.toFixed(1)} s`;
+          if (seconds > maxSeconds) stopRecording();
+        }, 100);
+      }
+
+      function stopRecording() {
+        clearInterval(window.ticker);
+        el("camera").classList.remove("recording");
+        el("record").textContent = "Record";
+        el("record").disabled = true;
+        if (recorder && recorder.state !== "inactive") recorder.stop();
+      }
+
+      async function upload(blob) {
+        el("result").textContent = "Checking the recording...";
+        const body = new FormData();
+        body.append("video", blob, "clip.webm");
+        body.append("session", window.session);
+        body.append("signer", window.signer);
+        body.append("handedness", window.handedness);
+        body.append("sign", prompts[index].sign);
+        const response = await fetch("/api/recordings", { method: "POST", body });
+        if (!response.ok) {
+          el("result").className = "bad";
+          el("result").textContent = "Upload failed. Please record again.";
+          el("record").disabled = false;
+          return;
+        }
+        const result = await response.json();
+        clipId = result.clip_id;
+        el("result").className = result.usable ? "ok" : "bad";
+        el("result").textContent = result.note;
+        el("keep").disabled = !result.usable;
+        show("after", true);
+      }
+
+      async function keep() {
+        const body = new FormData();
+        body.append("clip_id", clipId);
+        body.append("confident", el("confident").checked);
+        await fetch("/api/keep", { method: "POST", body });
+        el("confident").checked = true;
+        index += 1;
+        showPrompt();
+      }
+
+      el("begin").onclick = begin;
+      el("record").onclick = () => (recorder && recorder.state === "recording" ? stopRecording() : record());
+      el("retake").onclick = () => (show("after", false), (el("record").disabled = false), (el("result").textContent = ""));
+      el("keep").onclick = keep;
+
+      fetch("/api/prompts")
+        .then((response) => response.json())
+        .then((data) => ((prompts = data.prompts), (maxSeconds = data.max_seconds)));
+    </script>
+  </body>
+</html>
