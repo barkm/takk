@@ -198,6 +198,37 @@ uv run scripts/evaluate_test.py gru_auslan_phonpool1 --prepared data/prepared/sl
 
 Threshold selection and sensitivity analysis come later.
 
+## Recording your own clips
+
+The deployment setting is a user copying a dictionary clip in front of their own camera, which no
+public dataset covers. `scripts/collect.py` serves a small web app that collects exactly that: it
+shows reference clips of a held-out ASL Citizen sign by a few different signers and records the
+signer's attempt with their webcam.
+
+```sh
+uv run scripts/collect.py --signs 25 --takes 3   # then open http://localhost:8000
+```
+
+The browser only gives access to the camera on `localhost` or over https, so forward the port when
+the machine is remote. The sign list follows from `--signs` and `--seed`, so several people can
+record the same signs, which is what lets the k-shot protocol draw references from other signers.
+
+No score is ever shown. The recordings are only checked for whether they are *usable* — whether
+preparation would keep the clip, and how steadily a hand was detected while signing — so that a
+session cannot turn out to be unusable after the fact, and so that the signer cannot retake until
+the model happens to agree, which would bias the set toward clips the model already likes. Every
+take is stored, including the discarded ones, along with the signer, their handedness and whether
+they felt sure of the sign. Landmarks are extracted on the server by `extraction.py`, the same setup
+every dataset went through, so the recordings are not a second, subtly different extractor. The
+session also collects a few `no_event` clips of not signing, as negatives that look like real usage.
+
+Recordings land in `data/raw/recordings/` (videos plus `clips.csv`) and are converted like any other
+dataset, using the kept takes only:
+
+```sh
+uv run python -m isolated_sign_validation.datasets.recordings  # -> data/processed/recordings/
+```
+
 ## Future
 
 - Validate Swedish Sign Language signs from [Svenskt teckenspråkslexikon](https://teckensprakslexikon.su.se/), which have little training data.

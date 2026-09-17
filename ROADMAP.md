@@ -70,6 +70,13 @@ Status of the work and the plan ahead. Update this file when a step is finished,
    - Evaluate the best model on it (`scripts/evaluate_test.py --prepared ... --name slovo`), as a baseline for transfer to an unseen sign language.
    - Next: check the per-sign metrics for classes whose clips disagree with each other (a sign of mixed or multi-sign recordings), and view a few in the clip viewer.
 
+10. **Self-recorded evaluation set (the deployment setting)** — in progress
+   - Collection tool (`collection.py`, `scripts/collect.py`, `web/collect.html`): a web app that shows reference clips of a held-out ASL Citizen sign by several signers and records the signer's attempt with their webcam. Every take is stored with the signer, their handedness, whether they kept it and whether they felt sure of the sign; only the clip's validity is reported back, never a score (see decisions). — done
+   - Adapter (`datasets/recordings.py`) converting the kept takes into a landmark store with the same extractor. — done
+   - Record sessions: several signers recording the same signs, spread over more than one sitting (different day, lighting, camera placement), so the k-shot protocol can draw references by other signers. — next
+   - Preparation as an evaluation set (`splits.assign_evaluation_only`, like `scripts/prepare_slovo.py`) and evaluation, once there are recordings to prepare.
+   - The product setting itself — references from the ASL Citizen dictionary, queries from the recordings — needs a query/reference variant of `evaluation.py`, which only scores clips of one prepared set against each other. Not designed yet.
+
 Later: sensitivity analysis and threshold selection, including score normalization (see the baseline findings); Swedish Sign Language signs from teckensprakslexikon.su.se.
 
 ## Decisions
@@ -106,6 +113,10 @@ Later: sensitivity analysis and threshold selection, including score normalizati
 
 - **Slovo is used as a held-out cross-language evaluation set**, never as training data. Unlike MM-WLAuslan it has signer ids, so it can be evaluated k-shot with references by other signers (999 of its 1,000 signs have at least 6 signers, median 10). Until now every number came from ASL Citizen alone, so it measures nothing about transfer to another sign language; Slovo gives an independent benchmark of a different language, vocabulary and recording setup (crowdsourced phone video), which is the closest available proxy for the Swedish Sign Language goal. As training data it would be worth little: by the vocabulary scaling and the MM-WLAuslan result (cross-language signs are worth ~10-20% of ASL signs), its 1,000 signs on top of the current 4,790 predict +0.2 to +0.4 points top-1, far inside the confidence intervals.
 - **Slovo phrase classes are left out of the benchmark:** the task is validating one sign, and a class that is a whole utterance tests matching a sequence of signs, which is a different and generally easier problem. Left out are classes without a single-word gloss (62 of 1,000, e.g. `С днем рождения`, `время от 0 ночи до 12 дня`; a parenthesized note or a semicolon-separated synonym doesn't count as a second word, so `пока (что)` and `кусок; тонкими слоями` stay) and classes whose median clip takes over 3 s to sign, which catches phrases the label doesn't reveal. They stay in the landmark store.
+
+- **The collection tool never shows a score.** It reports only whether a recording is usable: whether `preparation.prepare_clip` would keep it, and the share of frames with a hand detected between the first and last frame with a hand (0.76-1.00 on ASL Citizen clips, median ~0.98; measured over the whole clip it would be ~0.4 even for a clean recording, because the rest before and after the sign has no hands in view). A visible score would let the signer retake until the model agrees, biasing the set toward clips the model already likes, and the validity check is what keeps a whole session from turning out unusable afterwards.
+- **Recordings are extracted on the server with `extraction.py`**, not in the browser with MediaPipe's JavaScript build. A different extractor build would confound the thing the set is meant to measure (a new signer, camera and room) with a change of extractor, against the project's one-fixed-extractor constraint. The cost is ~2 s per clip, which is acceptable for record-then-check. The uploads are transcoded to a constant 30 fps with ffmpeg first: the browser's MediaRecorder writes variable frame rate video, and preparation needs one meaningful frame rate per clip.
+- **Reference clips come from several signers** (default 3) rather than one: copying a single clip makes the recording partly a mimicry of that one performance, which would inflate its similarity to that reference. Copying a dictionary clip at all is realistic, since that is what a user of the system does.
 
 ## Open decisions
 
