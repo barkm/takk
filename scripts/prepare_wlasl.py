@@ -3,8 +3,12 @@
 WLASL is ASL, so its glosses are mapped onto ASL Citizen's labels (`wlasl.map_signs`, see ROADMAP.md):
 a gloss matching one ASL Citizen gloss joins that class, a gloss matching several variants of one
 gloss, a held-out sign, or a new sign the hash split doesn't put in train is left out of training
-(prepared with a null split and a "wlasl:" label). Clips that join an ASL Citizen class get that
-sign's ASL-LEX phonological features, like the ASL Citizen clips do.
+(prepared with a null split and a "wlasl:" label). So is a gloss that shares a source video with a
+held-out sign, since it may be that sign under another word. Clips that join an ASL Citizen class get
+that sign's ASL-LEX phonological features, like the ASL Citizen clips do.
+
+The pairs of sign labels that share a source video (`wlasl.twin_pairs`, one sign form under several
+words) are written to twins.csv, so that training doesn't push them apart.
 
 Run from the repo root: uv run scripts/prepare_wlasl.py
 Writes data/prepared/<store name>-<preparation config id>/.
@@ -25,9 +29,13 @@ def main() -> None:
     parser.add_argument("--store", type=Path, default=wlasl.STORE_DIR)
     args = parser.parse_args()
 
-    clips = LandmarkStore(args.store).clips.with_row_index("row")
+    urls = wlasl.read_videos(wlasl.RAW_DIR).select("clip_id", "url")
+    clips = LandmarkStore(args.store).clips.with_row_index("row").join(urls, on="clip_id", how="left", maintain_order="left")
     asl_citizen_signs = LandmarkStore(asl_citizen.STORE_DIR).clips["sign"].unique().to_list()
-    mapping = wlasl.map_signs(clips["sign"].unique().to_list(), asl_citizen_signs)
+    glosses = clips["sign"].unique().to_list()
+    labels = pl.col("sign").replace_strict(wlasl.sign_labels(glosses, asl_citizen_signs), return_dtype=pl.String)
+    twins = wlasl.twin_pairs(clips.with_columns(label=labels))
+    mapping = wlasl.map_signs(glosses, asl_citizen_signs, twins)
     mapped = pl.col("sign").replace_strict(mapping, return_dtype=pl.String)
     clips = (
         clips.with_columns(mapped=mapped)
@@ -49,6 +57,8 @@ def main() -> None:
     config = PrepConfig()
     out = Path("data/prepared") / f"{args.store.name}-{config.id()}"
     prepare_store(args.store, clips, config, out)
+    pl.DataFrame(sorted(twins), schema=["sign_a", "sign_b"], orient="row").write_csv(out / "twins.csv")
+    print(f"{len(twins)} twin pairs of sign labels that share a video")
 
     data = PreparedData(out)
     print(

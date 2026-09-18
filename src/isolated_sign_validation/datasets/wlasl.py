@@ -36,7 +36,8 @@ METADATA_FILE = "WLASL_v0.3.json"
 
 
 def read_videos(raw_dir: Path) -> pl.DataFrame:
-    """The instances the mirror has: columns clip_id (the video id), sign (the gloss), signer and path."""
+    """The instances the mirror has: columns clip_id (the video id), sign (the gloss), signer, url (the
+    source video) and path."""
     paths = {path.stem: path for path in raw_dir.rglob("*.mp4")}
     glosses = json.loads((raw_dir / METADATA_FILE).read_text())
     rows = [
@@ -44,6 +45,7 @@ def read_videos(raw_dir: Path) -> pl.DataFrame:
             "clip_id": instance["video_id"],
             "sign": gloss["gloss"],
             "signer": f"{DATASET}:{instance['signer_id']}",
+            "url": instance["url"],
             "path": str(paths[instance["video_id"]]),
         }
         for gloss in glosses
@@ -58,27 +60,47 @@ def _canonical(label: str) -> str:
     return normalize_label(label).replace(" ", "").upper()
 
 
-def map_signs(wlasl_signs: Collection[str], asl_citizen_signs: Collection[str]) -> dict[str, str | None]:
-    """Each WLASL gloss's sign label for training, or None if the gloss is not used (see ROADMAP.md).
-
-    WLASL is ASL, so a gloss that matches exactly one ASL Citizen gloss becomes that gloss and both
-    datasets' clips share the class. A gloss matching several variants of one gloss (drink ->
-    DRINK1/DRINK2) is None, since the label doesn't say which variant was signed. A gloss whose sign
-    is held out, and a new gloss the hash split doesn't put in train, are None as well.
-    """
+def sign_labels(wlasl_signs: Collection[str], asl_citizen_signs: Collection[str]) -> dict[str, str]:
+    """Each WLASL gloss's sign label, whatever its split: the ASL Citizen gloss it matches, or its own
+    label if it matches none. A gloss matching several variants of one gloss gets them all joined by
+    "|" (drink -> "DRINK1|DRINK2"), since the label doesn't say which variant was signed."""
     by_label = defaultdict(set)
     for sign in asl_citizen_signs:
         by_label[_canonical(sign)].add(sign)
-    mapping: dict[str, str | None] = {}
-    for gloss in wlasl_signs:
-        matched = by_label.get(_canonical(gloss), set())
-        if len(matched) > 1:  # variants of one gloss, told apart by a number ASL Citizen's label has
-            mapping[gloss] = None
-            continue
-        sign = next(iter(matched)) if matched else _canonical(gloss)
-        mapping[gloss] = sign if sign_split(sign) == "train" else None
-    return mapping
+    # several matches are variants of one gloss, told apart by a number ASL Citizen's label has
+    return {gloss: "|".join(sorted(by_label.get(_canonical(gloss)) or {_canonical(gloss)})) for gloss in wlasl_signs}
 
+def twin_pairs(clips: pl.DataFrame) -> set[tuple[str, str]]:
+    """Pairs of sign labels (sorted within each pair) that share a source video: WLASL files one
+    dictionary video under every word the sign translates to (see ROADMAP.md), so such labels are
+    one sign form. `clips` has columns `label` (see `sign_labels`) and `url`."""
+    pairs = set()
+    for labels in clips.group_by("url").agg(pl.col("label").unique().sort())["label"]:
+        pairs |= {(a, b) for i, a in enumerate(labels) for b in labels[i + 1 :]}
+    return pairs
+
+
+def map_signs(
+    wlasl_signs: Collection[str], asl_citizen_signs: Collection[str], twins: Collection[tuple[str, str]] = ()
+) -> dict[str, str | None]:
+    """Each WLASL gloss's sign label for training, or None if the gloss is not used (see ROADMAP.md).
+
+    WLASL is ASL, so a gloss that matches exactly one ASL Citizen gloss becomes that gloss and both
+    datasets' clips share the class. A gloss matching several variants of one gloss is None (see
+    `sign_labels`). A gloss whose sign is held out, a new gloss the hash split doesn't put in train,
+    and a gloss that is a twin (`twin_pairs`) of a held-out sign are None as well, the last because
+    its clips may show the held-out sign under another word.
+    """
+
+    def held_out(label: str) -> bool:  # any variant held out, for a gloss matching several
+        return any(sign_split(variant) != "train" for variant in label.split("|"))
+
+    labels = sign_labels(wlasl_signs, asl_citizen_signs)
+    near_held_out = {a for pair in twins for a in pair if any(held_out(b) for b in pair)}
+    return {
+        gloss: None if "|" in label or held_out(label) or label in near_held_out else label
+        for gloss, label in labels.items()
+    }
 
 def extract_clips(videos: Sequence[dict]) -> Iterator[tuple[dict, np.ndarray]]:
     """Extract (metadata, landmarks) for `videos` (rows of read_videos), in order."""
