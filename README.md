@@ -133,24 +133,22 @@ Each phase skips what an earlier run already has, so an interrupted crawl resume
 uv run scripts/download_sts_lexikon.py
 ```
 
-By default it downloads only the clips of the sign classes (the entries that share their form with
-another entry); `--all_videos` takes the whole vocabulary instead, which is useful as a negative
-pool. The crawl of 2026-09-18 took about 50 minutes and found 21,692 entries with a sign video
-(16.2 GB with `--all_videos`), 2,476 of which form sign classes of at least two clips (8,138 clips).
+The crawl of 2026-09-18 took about 50 minutes and found 21,692 entries with a sign video (16.2 GB).
 The lexicon is updated continuously, so note the crawl date.
 
-Then extract the landmarks into `data/processed/sts_lexikon/`. `--signs N` extracts a sample into a
-separate store instead:
+Then extract the landmarks of every entry into `data/processed/sts_lexikon/` (about 6 hours on the
+CPU; run it again to resume). `--signs N` extracts a sample into a separate store instead:
 
 ```sh
 uv run python -m isolated_sign_validation.datasets.sts_lexikon
 uv run python -m isolated_sign_validation.datasets.sts_lexikon --signs 20
 ```
 
-The dictionary publishes one recording per entry and no signer ids, so a sign class is a group of
-entries the lexicon marks as sharing a sign form ("Teckenformen kan också betyda"): separate
-recordings of one form under different Swedish meanings, usually by different model signers. Only
-groups with at least two clips become classes. See ROADMAP.md for what this does and doesn't buy.
+The dictionary publishes one recording per entry and no signer ids. Entries the lexicon marks as
+sharing a sign form ("Teckenformen kan också betyda") are one sign, a class of separate recordings of
+that form under different Swedish meanings, usually by different model signers: 2,476 classes of
+8,138 clips. Every other entry is a sign with a single clip. See ROADMAP.md for what this does and
+doesn't buy.
 
 ### Downloading ASL-LEX
 
@@ -186,8 +184,8 @@ uv run scripts/prepare_slovo.py
 ```
 
 Svenskt teckenspråkslexikon is prepared the same way, as an evaluation set whose labels get the
-prefix `sts:`. Nothing is filtered out: the store already holds only the classes with at least two
-recordings. It writes `data/prepared/sts_lexikon-<config id>/`:
+prefix `sts:`. Nothing is filtered out. It writes `data/prepared/sts_lexikon-<config id>/`, the
+glossary for recording Swedish signs (see Recording your own clips):
 
 ```sh
 uv run scripts/prepare_sts_lexikon.py
@@ -276,16 +274,21 @@ Threshold selection and sensitivity analysis come later.
 
 The deployment setting is a user copying a dictionary clip in front of their own camera, which no
 public dataset covers. `scripts/collect.py` serves a small web app that collects exactly that: it
-shows reference clips of a held-out ASL Citizen sign by a few different signers and records the
-signer's attempt with their webcam.
+shows reference clips of a sign from a glossary, any prepared evaluation set, by a few different
+signers, and records the signer's attempt with their webcam. The default glossary is the held-out
+test signs of ASL Citizen; the prepared Svenskt teckenspråkslexikon gives Swedish signs, in a
+language the model has never seen:
 
 ```sh
 uv run scripts/collect.py --signs 25 --takes 3   # then open http://localhost:8000
+uv run scripts/collect.py --glossary data/prepared/sts_lexikon-<config id> --signs 25 --takes 3
 ```
 
 The browser only gives access to the camera on `localhost` or over https, so forward the port when
-the machine is remote. The sign list follows from `--signs` and `--seed`, so several people can
-record the same signs, which is what lets the k-shot protocol draw references from other signers.
+the machine is remote (VS Code's Remote-SSH does it in its Ports tab). The sign list follows from
+`--glossary`, `--signs` and `--seed`, so several people can record the same signs, which is what lets
+the k-shot protocol draw references from other signers. A glossary without signer ids, like the
+lexicon, shows one reference clip per sign.
 
 No score is ever shown. The recordings are only checked for whether they are *usable* — whether
 preparation would keep the clip, and how steadily a hand was detected while signing — so that a
@@ -296,41 +299,26 @@ they felt sure of the sign. Landmarks are extracted on the server by `extraction
 every dataset went through, so the recordings are not a second, subtly different extractor. The
 session also collects a few `no_event` clips of not signing, as negatives that look like real usage.
 
-Recordings land in `data/raw/recordings/` (videos plus `clips.csv`) and are converted like any other
-dataset, using the kept takes only:
+Recordings of every glossary land in `data/raw/recordings/` (videos plus `clips.csv`, which also
+lists the clips each take was shown) and are converted like any other dataset, using the kept takes
+only:
 
 ```sh
 uv run python -m isolated_sign_validation.datasets.recordings  # -> data/processed/recordings/
 uv run scripts/prepare_recordings.py                          # -> data/prepared/recordings-<config id>/
 ```
 
-They are then evaluated in the setting they were collected for: the ASL Citizen dictionary as the
-references, the recordings as the queries. This needs no separate protocol, since `evaluation.evaluate`
-takes a query mask and the recordings' signer is not an ASL Citizen signer, so the references of a
-recording are dictionary clips by different signers as everywhere else:
+They are then evaluated in the setting they were collected for: the glossary as the references, the
+recordings of its signs as the queries. This needs no separate protocol, since `evaluation.evaluate`
+takes a query mask and the recordings' signer is never a glossary signer, so the references of a
+recording are dictionary clips by other people as everywhere else. Every result comes twice:
+*copied*, against the whole glossary including the clips the recording was shown, which is the
+product; and *uncopied*, without them, which asks whether the model knows the sign rather than the
+one performance that was copied (a lexicon entry with a single clip has no uncopied trial):
 
 ```sh
 uv run scripts/evaluate_recordings.py --run gru_auslan_phonpool1
-```
-
-### Recording Swedish signs
-
-With `--lexicon` the app shows Swedish Sign Language signs from Svenskt teckenspråkslexikon instead,
-and stores the recordings apart, in `data/raw/recordings_sts/`. This needs the crawled and prepared
-lexicon (see Downloading Svenskt teckenspråkslexikon). The model has never seen the language.
-
-Only the lexicon's sign classes are offered, the entries with several recordings of one sign form:
-the app shows one of them (the lowest lexicon id) and the recording is scored against the others,
-never against the clip it copied. So it shows one reference clip rather than several signers'. The
-lexicon has no signer ids, but your recordings are never by a lexicon signer, so every trial compares
-two different people:
-
-```sh
-uv run scripts/collect.py --lexicon --signs 25 --takes 3
-uv run python -m isolated_sign_validation.datasets.recordings --raw_dir data/raw/recordings_sts --store_dir data/processed/recordings_sts
-uv run scripts/prepare_recordings.py --store data/processed/recordings_sts
-uv run scripts/evaluate_recordings.py --name recordings_sts --prepared data/prepared/recordings_sts-<config id> \
-    --references data/prepared/sts_lexikon-<config id>
+uv run scripts/evaluate_recordings.py --name recordings_sts --glossary data/prepared/sts_lexikon-<config id>
 ```
 
 It also prints each recording with the rank of its own sign among the whole glossary and the signs it
