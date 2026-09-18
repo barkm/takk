@@ -58,6 +58,19 @@ def test_arcface_adds_margin_to_the_true_class_only():
     torch.testing.assert_close(logit, torch.tensor(10.0 * math.cos(0.5)), atol=1e-4, rtol=1e-4)
 
 
+def test_arcface_twins_are_not_pushed_apart():
+    head = ArcFace(8, 3)
+    embeddings = torch.nn.functional.normalize(torch.randn(2, 8), dim=1)
+    labels = torch.tensor([0, 2])
+    twins = torch.zeros(3, 3, dtype=torch.bool)
+    twins[0, 1] = twins[1, 0] = True
+    logits = head(embeddings, labels, twins)
+    assert logits[0, 1] == float("-inf") and torch.isfinite(logits[1]).all()  # class 2 has no twin
+    # the clip of class 0 moves no weight of its twin class 1, but still pushes class 2 away
+    torch.nn.functional.cross_entropy(logits[:1], labels[:1]).backward()
+    assert (head.weight.grad[1] == 0).all() and (head.weight.grad[2] != 0).any()
+
+
 def test_training_step_reduces_loss():
     torch.manual_seed(0)
     model, head = GRUEncoder(N, HANDS, hidden=32, embedding_dim=16), ArcFace(16, 2, margin=0.2)

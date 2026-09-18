@@ -120,8 +120,10 @@ class ArcFace(nn.Module):
         self.weight = nn.Parameter(torch.randn(n_classes, embedding_dim) * 0.01)
         self.scale, self.margin = scale, margin
 
-    def forward(self, embeddings: torch.Tensor, labels: torch.Tensor | None = None) -> torch.Tensor:
-        """Logits; with `labels`, the true class gets the margin (for the training loss)."""
+    def forward(self, embeddings: torch.Tensor, labels: torch.Tensor | None = None, twins: torch.Tensor | None = None) -> torch.Tensor:
+        """Logits; with `labels`, the true class gets the margin (for the training loss). `twins`, a
+        boolean (n_classes, n_classes) matrix of classes known to be one sign form, sets each clip's
+        twin classes to -inf, so the loss neither pushes the twins apart nor pulls them together."""
         cos = F.linear(embeddings, F.normalize(self.weight, dim=1)).float()
         if labels is None:
             return self.scale * cos
@@ -130,4 +132,5 @@ class ArcFace(nn.Module):
         # beyond theta = pi - margin, cos(theta + margin) stops decreasing; use a linear penalty there instead
         with_margin = torch.where(cos > -math.cos(self.margin), with_margin, cos - self.margin * math.sin(self.margin))
         target = F.one_hot(labels, cos.shape[1]).bool()
-        return self.scale * torch.where(target, with_margin, cos)
+        logits = self.scale * torch.where(target, with_margin, cos)
+        return logits if twins is None else logits.masked_fill(twins[labels], float("-inf"))
