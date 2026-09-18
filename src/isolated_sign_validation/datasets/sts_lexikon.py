@@ -2,11 +2,11 @@
 
 Svenskt teckenspråkslexikon is the Swedish Sign Language dictionary and the goal vocabulary, so it
 is an evaluation set only and is never trained on (see ROADMAP.md). It is a dictionary rather than a
-dataset: one recording per entry and no signer ids. A sign class therefore comes from the entries
-the lexicon marks as sharing a sign form ("Teckenformen kan också betyda"), which are separate
-recordings of one form under different Swedish meanings, usually by different model signers. Only
-classes with at least two clips are kept, since a class needs two clips for a verification trial;
-the entries outside them are still part of the crawl and can serve as negatives.
+dataset: one recording per entry and no signer ids. Every entry with a sign video is extracted.
+Entries the lexicon marks as sharing a sign form ("Teckenformen kan också betyda") are one sign, a
+class of separate recordings of that form under different Swedish meanings, usually by different
+model signers; every other entry is a sign with a single clip. A self-recorded clip can be scored
+against any entry, but a trial of the lexicon against itself needs a class.
 
 `signer` is null: the lexicon publishes no signer ids, and the pseudo ids by face clustering are a
 separate step (see ROADMAP.md). Until they exist, a trial may draw its reference from the same model
@@ -14,7 +14,7 @@ signer as the query.
 
 Expects the crawl in data/raw/sts-lexikon (`scripts/download_sts_lexikon.py`, see README).
 Run from the repo root:
-    uv run python -m isolated_sign_validation.datasets.sts_lexikon             # all clips of the classes
+    uv run python -m isolated_sign_validation.datasets.sts_lexikon             # every entry
     uv run python -m isolated_sign_validation.datasets.sts_lexikon --signs 20  # a sample
 """
 
@@ -115,30 +115,23 @@ def sign_classes(entries: pl.DataFrame, groups: Sequence[Sequence[str]]) -> dict
 
 
 def read_videos(raw_dir: Path) -> pl.DataFrame:
-    """The clips of the signs with at least two recordings: columns clip_id, sign, signer and path."""
+    """Every entry with a sign video: columns clip_id, sign, signer and path.
+
+    The clips of a sign class are labeled by the class (`sign_classes`); any other entry is a sign of
+    its own, labeled the same way by its word and lexicon id ("kärlek-01855").
+    """
     entries = pl.read_ndjson(raw_dir / ENTRIES_FILE).filter(pl.col("video").is_not_null())
     groups = pl.read_ndjson(raw_dir / GROUPS_FILE)["members"].to_list()
     classes = sign_classes(entries, groups)
     return (
-        entries.filter(pl.col("id").is_in(list(classes)))
-        .select(
+        entries.select(
             clip_id=pl.col("id"),
-            sign=pl.col("id").replace_strict(classes, return_dtype=pl.String),
+            sign=pl.col("id").replace_strict(classes, default=pl.col("word") + "-" + pl.col("id"), return_dtype=pl.String),
             signer=pl.lit(None, dtype=pl.String),
             path=pl.lit(f"{raw_dir}/") + pl.col("video").str.strip_prefix("/"),
         )
         .sort("sign", "clip_id")
     )
-
-
-def shown_clips(clips: pl.DataFrame) -> list[str]:
-    """The clip of each sign class that the collection app shows a signer to copy: its lowest lexicon id.
-
-    `clips` needs clip_id and sign columns (rows of read_videos, or prepared clips). A recording is
-    never scored against the clip it copied (see `collection.lexicon_prompts`), so these clips are
-    left out of the glossary when recordings are evaluated.
-    """
-    return clips.group_by("sign").agg(pl.col("clip_id").min())["clip_id"].to_list()
 
 
 def mixed_transcriptions(raw_dir: Path) -> pl.DataFrame:

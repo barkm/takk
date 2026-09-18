@@ -3,14 +3,13 @@
 The lexicon is Swedish Sign Language and the goal vocabulary, and is never trained on (see
 ROADMAP.md), so every clip is a "test" clip and all of its signs are unseen by construction. Sign
 labels get the prefix "sts:", since a Swedish sign is a different sign from an ASL sign with the
-same meaning. The store already holds only the clips of classes with at least two recordings, so
-nothing is filtered out here; the clips are studio citation form, which makes this an optimistic
-bound relative to webcam signing.
+same meaning. Nothing is filtered out: the store holds every entry, a sign class of several clips
+or a sign of its own (see `datasets/sts_lexikon.py`). The clips are studio citation form.
 
-The clips have no signer ids yet (see ROADMAP.md), which blocks the evaluation rather than merely
-weakening it: `evaluation.py` draws every reference from a signer other than the query's, so with
-one null signer for all clips no query gets a reference and every score is NaN. The pseudo signer
-ids by face clustering have to come first.
+The set serves as the glossary for self-recorded Swedish clips (`scripts/evaluate_recordings.py`).
+Evaluating the lexicon against itself is blocked until it has signer ids (see ROADMAP.md):
+`evaluation.py` draws every reference from a signer other than the query's, so with one null signer
+for all clips no lexicon clip gets a reference.
 
 Run from the repo root: uv run scripts/prepare_sts_lexikon.py
 Writes data/prepared/<store name>-<preparation config id>/.
@@ -63,8 +62,7 @@ def main() -> None:
     )
     clips_per_sign = data.clips.group_by("sign").len()["len"]
     print(f"clips per sign: min {clips_per_sign.min()}, median {clips_per_sign.median()}, max {clips_per_sign.max()}")
-    # a broken clip can leave a class with one clip, which gives no trial at all
-    print(f"{(clips_per_sign == 1).sum()} signs are left with a single clip after the excluded clips")
+    print(f"{(clips_per_sign > 1).sum()} signs have several clips, {(clips_per_sign == 1).sum()} a single one")
     print("the signs that take longest to sign, which may be compounds rather than one sign:")
     print(longest_signs(data, 10))
     print(f"{data.frames.nbytes / 2**30:.2f} GB of frames")

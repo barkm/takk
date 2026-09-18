@@ -7,8 +7,8 @@ which skips what an earlier run already has, so an interrupted run resumes when 
    an id that is not a published entry is recorded with null fields so it is not fetched again).
 2. `/ord/<id>/kan-aven-betyda` for every entry that shares its sign form with others, appended to
    `groups.jsonl`. These groups become the sign classes (see `datasets/sts_lexikon.py`).
-3. The `-tecken.mp4` of every entry in a class of at least two clips, into `movies/`, mirroring the
-   paths on the site. `--all_videos` downloads the whole vocabulary instead (~21,700 clips, ~15 GB).
+3. The `-tecken.mp4` of every entry, into `movies/`, mirroring the paths on the site (~21,700
+   clips, ~16 GB).
 
 The lexicon is CC BY-NC-SA 4.0 and its robots.txt allows crawling; keep `--workers` modest anyway.
 The site is updated continuously, so note the crawl date when reporting results.
@@ -23,7 +23,7 @@ import json
 import time
 import urllib.error
 import urllib.request
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -104,15 +104,6 @@ def crawl_groups(raw_dir: Path, workers: int) -> None:
     crawl(todo, members, workers, out, "groups")
 
 
-def video_paths(raw_dir: Path, all_videos: bool) -> Iterator[str]:
-    """The site paths of the videos to download: the sign classes' clips, or the whole vocabulary."""
-    entries = pl.read_ndjson(raw_dir / ENTRIES_FILE).filter(pl.col("video").is_not_null())
-    if all_videos:
-        return iter(entries["video"])
-    classes = sign_classes(entries, pl.read_ndjson(raw_dir / GROUPS_FILE)["members"].to_list())
-    return iter(entries.filter(pl.col("id").is_in(list(classes)))["video"])
-
-
 def download_video(video: str, raw_dir: Path) -> None:
     """Download the sign video at the site path `video` into `raw_dir`, unless it is already there."""
     path = raw_dir / video.lstrip("/")
@@ -127,9 +118,10 @@ def download_video(video: str, raw_dir: Path) -> None:
     partial.rename(path)
 
 
-def download_videos(raw_dir: Path, all_videos: bool, workers: int) -> None:
-    """Download the videos that are not in `raw_dir` yet."""
-    videos = [video for video in video_paths(raw_dir, all_videos) if not (raw_dir / video.lstrip("/")).exists()]
+def download_videos(raw_dir: Path, workers: int) -> None:
+    """Download the sign videos of every entry that are not in `raw_dir` yet."""
+    entries = pl.read_ndjson(raw_dir / ENTRIES_FILE).filter(pl.col("video").is_not_null())
+    videos = [video for video in entries["video"] if not (raw_dir / video.lstrip("/")).exists()]
     print(f"{len(videos)} videos to download")
     with ThreadPoolExecutor(workers) as pool:
         for _ in tqdm(pool.map(lambda video: download_video(video, raw_dir), videos), total=len(videos), unit="clip"):
@@ -141,12 +133,11 @@ def main() -> None:
     parser.add_argument("--raw_dir", type=Path, default=RAW_DIR)
     parser.add_argument("--max_id", type=int, default=MAX_ID, help="the highest lexicon id to try")
     parser.add_argument("--workers", type=int, default=8, help="parallel requests")
-    parser.add_argument("--all_videos", action="store_true", help="download every entry's video, not only the classes'")
     args = parser.parse_args()
 
     crawl_entries(args.raw_dir, args.max_id, args.workers)
     crawl_groups(args.raw_dir, args.workers)
-    download_videos(args.raw_dir, args.all_videos, args.workers)
+    download_videos(args.raw_dir, args.workers)
 
     entries = pl.read_ndjson(args.raw_dir / ENTRIES_FILE).filter(pl.col("video").is_not_null())
     classes = sign_classes(entries, pl.read_ndjson(args.raw_dir / GROUPS_FILE)["members"].to_list())
