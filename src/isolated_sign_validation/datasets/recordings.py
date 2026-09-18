@@ -20,7 +20,7 @@ import numpy as np
 import polars as pl
 from tqdm import tqdm
 
-from isolated_sign_validation.collection import RAW_DIR, SCHEMA
+from isolated_sign_validation.collection import RAW_DIR, read_clips
 from isolated_sign_validation.extraction import download_model, extract_landmarks, silence_native_logs
 from isolated_sign_validation.landmarks import write_store_resumable
 from isolated_sign_validation.parallel import parallel_map
@@ -33,7 +33,7 @@ MAX_WORKERS = 8
 
 def read_videos(raw_dir: Path) -> pl.DataFrame:
     """The takes the signer kept: columns clip_id, sign, signer and path."""
-    clips = pl.read_csv(raw_dir / "clips.csv", schema=SCHEMA)
+    clips = read_clips(raw_dir / "clips.csv")
     return clips.filter(pl.col("kept")).select(
         "clip_id",
         "sign",

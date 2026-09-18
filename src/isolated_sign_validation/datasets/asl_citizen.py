@@ -26,8 +26,12 @@ MAX_WORKERS = 8
 
 
 def read_videos(raw_dir: Path) -> pl.DataFrame:
-    """All videos listed in the official train, val and test splits."""
-    return pl.concat([pl.read_csv(raw_dir / "splits" / f"{split}.csv") for split in ("train", "val", "test")])
+    """All videos listed in the official train, val and test splits: their columns, plus clip_id and
+    path as the other adapters give them."""
+    videos = pl.concat([pl.read_csv(raw_dir / "splits" / f"{split}.csv") for split in ("train", "val", "test")])
+    return videos.with_columns(
+        clip_id=pl.col("Video file").str.strip_suffix(".mp4"), path=pl.lit(f"{raw_dir}/videos/") + pl.col("Video file")
+    )
 
 
 def official_test_signers(raw_dir: Path) -> set[str]:

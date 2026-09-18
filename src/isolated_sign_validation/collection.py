@@ -1,8 +1,9 @@
 """Collecting self-recorded clips of known signs, for evaluation in the deployment setting.
 
-A small web app (`scripts/collect.py`) shows a signer reference clips of a sign from ASL Citizen, or
-from Svenskt teckenspråkslexikon with `--lexicon`, and records their attempt with their webcam. The recordings are a held-out evaluation set of the setting
-the system is meant for: a user copying a dictionary clip, filmed with their own camera in their own
+A small web app (`scripts/collect.py`) shows a signer reference clips of a sign from a glossary, any
+prepared evaluation set (ASL Citizen's test split, Svenskt teckenspråkslexikon, ...), and records
+their attempt with their webcam. The recordings are a held-out evaluation set of the setting the
+system is meant for: a user copying a dictionary clip, filmed with their own camera in their own
 room. No score is ever shown, so the signer cannot retake until the model happens to agree, which
 would bias the set toward clips the model already likes.
 
@@ -10,7 +11,8 @@ Recordings are stored as a raw dataset, ready for `datasets/recordings.py`:
 
 - ``videos/<clip id>.mp4``: the recording, transcoded to a constant frame rate (the browser's
   MediaRecorder writes variable frame rate video, whose frame rate the extractor cannot read).
-- ``clips.csv``: one row per recording, including the takes the signer discarded (`kept`).
+- ``clips.csv``: one row per recording, including the takes the signer discarded (`kept`), and the
+  glossary clips the signer was shown (`references`).
 
 Only the clip's validity is checked and reported back, by running the usual extraction and
 preparation: whether it would survive `preparation.prepare_clip` at all, and in how many of its
@@ -18,6 +20,7 @@ frames a hand is detected. Otherwise a whole session can turn out to be unusable
 """
 
 import datetime as dt
+import importlib
 import random
 import re
 import shutil
@@ -30,10 +33,8 @@ import polars as pl
 from fastapi import FastAPI, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
-from isolated_sign_validation.datasets import asl_citizen, sts_lexikon
 from isolated_sign_validation.extraction import extract_landmarks
 from isolated_sign_validation.preparation import PrepConfig, hand_presence, hide_low_hands, prepare_clip
-from isolated_sign_validation.splits import sign_split
 
 DATASET = "recordings"
 RAW_DIR = Path("data/raw") / DATASET
@@ -59,65 +60,51 @@ SCHEMA = {
     "hand_share": pl.Float64,
     "kept": pl.Boolean,  # whether the signer kept this take rather than recording the sign again
     "confident": pl.Boolean,  # whether the signer felt sure of the sign, to separate fumbled attempts
+    "references": pl.String,  # the glossary clips shown to copy, joined by ";"; null in older rows
 }
 
 
-def session_prompts(raw_dir: Path, n_signs: int, takes: int, n_references: int, seed: int) -> list[dict]:
-    """What to record, in order: `takes` prompts for each of `n_signs` held-out signs, plus no_event prompts.
+def session_prompts(glossary: pl.DataFrame, n_signs: int, takes: int, n_references: int, seed: int) -> list[dict]:
+    """What to record, in order: `takes` prompts for each of `n_signs` signs of `glossary`, plus no_event prompts.
 
-    Signs are drawn from the test split of the ASL Citizen glosses, so they are unseen by the model.
-    Each prompt carries reference clips of the sign by `n_references` different signers: copying a
-    single clip would make the recording a mimicry of that one performance.
-
-    The reference clips are never clips of the official test split, which is the glossary a recording
-    is scored against; a recording would otherwise be compared against the very clip it copied. Clips
-    of a held-out sign by other signers belong to no split (`splits.assign_splits`), so they are
-    neither trained on nor scored against.
+    `glossary` holds the clips a recording is scored against (clip_id, sign and signer columns): the
+    test split of a prepared evaluation set, so its signs are unseen by the model. Each prompt carries
+    up to `n_references` of those clips by different signers (a dataset without signer ids counts as
+    one signer), since copying a single clip makes the recording partly a mimicry of that one
+    performance. The shown clips stay in the glossary, as copying the dictionary clip is what a user
+    does; they are stored with every take (`references`), so an evaluation can also leave them out.
     """
-    videos = asl_citizen.read_videos(raw_dir)
-    held_out = sorted(sign for sign in videos["Gloss"].unique() if sign_split(sign) == "test")
     rng = random.Random(seed)
-    signs = sorted(rng.sample(held_out, n_signs))
-    scored = pl.read_csv(raw_dir / "splits" / "test.csv")["Video file"]
-    videos = videos.filter(~pl.col("Video file").is_in(scored))
-
-    by_signer: dict[str, dict[str, list[str]]] = {sign: {} for sign in signs}
-    for row in videos.filter(pl.col("Gloss").is_in(signs)).sort("Video file").iter_rows(named=True):
-        by_signer[row["Gloss"]].setdefault(row["Participant ID"], []).append(row["Video file"])
+    signs = sorted(rng.sample(sorted(glossary["sign"].unique()), n_signs))
+    by_signer: dict[str, dict[str | None, list[str]]] = {sign: {} for sign in signs}
+    for row in glossary.filter(pl.col("sign").is_in(signs)).sort("clip_id").iter_rows(named=True):
+        by_signer[row["sign"]].setdefault(row["signer"], []).append(row["clip_id"])
     prompts = []
     for sign in signs:
-        signers = rng.sample(sorted(by_signer[sign]), min(n_references, len(by_signer[sign])))
+        signers = rng.sample(sorted(by_signer[sign], key=str), min(n_references, len(by_signer[sign])))
         references = [rng.choice(by_signer[sign][signer]) for signer in signers]
         prompts += [{"sign": sign, "instruction": None, "references": references}] * takes
-    return with_no_event(prompts)
-
-
-def lexicon_prompts(raw_dir: Path, n_signs: int, takes: int, seed: int) -> list[dict]:
-    """What to record, in order: `takes` prompts for each of `n_signs` Swedish Sign Language signs from
-    Svenskt teckenspråkslexikon, plus no_event prompts. The model has never seen the language.
-
-    Only the lexicon's sign classes can be recorded, since each has several recordings of one sign
-    form (`sts_lexikon.sign_classes`): the prompt shows one of them (`sts_lexikon.shown_clips`) and
-    the recording is scored against the others, never against the clip it copied. An entry with a
-    single clip would be both. So one reference clip is shown, not several signers' as for ASL
-    Citizen: most classes have only two clips. References are paths below `raw_dir`.
-    """
-    videos = sts_lexikon.read_videos(raw_dir)
-    shown = videos.filter(pl.col("clip_id").is_in(sts_lexikon.shown_clips(videos))).sort("sign")
-    rng = random.Random(seed)
-    prompts = []
-    for row in sorted(rng.sample(shown.to_dicts(), n_signs), key=lambda row: row["sign"]):
-        reference = str(Path(row["path"]).relative_to(raw_dir))
-        prompts += [{"sign": sts_lexikon.LABEL_PREFIX + row["sign"], "instruction": None, "references": [reference]}] * takes
-    return with_no_event(prompts)
-
-
-def with_no_event(prompts: list[dict]) -> list[dict]:
-    """`prompts` with the no_event prompts spread through them."""
     for i, instruction in enumerate(NO_EVENT_PROMPTS):
         position = max(1, round((i + 1) * len(prompts) / (len(NO_EVENT_PROMPTS) + 1)))
         prompts.insert(position + i, {"sign": NO_EVENT, "instruction": instruction, "references": []})
     return prompts
+
+
+def video_paths(clips: pl.DataFrame) -> dict[str, str]:
+    """The video file of each of `clips` (clip_id and dataset columns), from its dataset's adapter."""
+    paths = {}
+    for dataset in clips["dataset"].unique():
+        adapter = importlib.import_module(f"isolated_sign_validation.datasets.{dataset}")
+        videos = adapter.read_videos(adapter.RAW_DIR)
+        paths |= dict(zip(videos["clip_id"], videos["path"]))
+    return {clip_id: str(paths[clip_id]) for clip_id in clips["clip_id"]}
+
+
+def read_clips(path: Path) -> pl.DataFrame:
+    """A clips.csv; columns added to SCHEMA after the file was written are null."""
+    clips = pl.read_csv(path, schema_overrides={column: dtype for column, dtype in SCHEMA.items()})
+    missing = [pl.lit(None, dtype).alias(column) for column, dtype in SCHEMA.items() if column not in clips.columns]
+    return clips.with_columns(missing).select(list(SCHEMA))
 
 
 def transcode(source: Path, target: Path, fps: float) -> None:
@@ -169,7 +156,7 @@ class Recordings:
         self.videos = raw_dir / "videos"
         self.videos.mkdir(parents=True, exist_ok=True)
         self.path = raw_dir / "clips.csv"
-        self.clips = pl.read_csv(self.path, schema=SCHEMA) if self.path.exists() else pl.DataFrame(schema=SCHEMA)
+        self.clips = read_clips(self.path) if self.path.exists() else pl.DataFrame(schema=SCHEMA)
         self.lock = threading.Lock()
 
     def _write(self) -> None:
@@ -197,11 +184,11 @@ class Recordings:
             self._write()
 
 
-def create_app(prompts: list[dict], recordings: Recordings, reference_dir: Path, config: PrepConfig) -> FastAPI:
-    """The collection app: the page, the prompts with their reference clips (paths below
-    `reference_dir`), and the uploads."""
+def create_app(prompts: list[dict], recordings: Recordings, reference_videos: dict[str, str], config: PrepConfig) -> FastAPI:
+    """The collection app: the page, the prompts with their reference clips (video files by clip id,
+    see video_paths), and the uploads."""
     app = FastAPI()
-    reference_videos = {reference for prompt in prompts for reference in prompt["references"]}
+    shown = {prompt["sign"]: prompt["references"] for prompt in prompts}
 
     @app.get("/")
     def page() -> FileResponse:
@@ -211,11 +198,11 @@ def create_app(prompts: list[dict], recordings: Recordings, reference_dir: Path,
     def get_prompts() -> dict:
         return {"prompts": prompts, "max_seconds": config.max_frames / config.fps}
 
-    @app.get("/api/reference/{name:path}")
+    @app.get("/api/reference/{name}")
     def reference(name: str) -> FileResponse:
-        if name not in reference_videos:  # also keeps requests inside reference_dir
+        if name not in reference_videos:
             raise HTTPException(404, "unknown reference clip")
-        return FileResponse(reference_dir / name)
+        return FileResponse(reference_videos[name])
 
     @app.post("/api/recordings")
     async def add_recording(video: UploadFile, session: str = Form(), signer: str = Form(), handedness: str = Form(), sign: str = Form()) -> dict:  # fmt: skip
@@ -235,6 +222,7 @@ def create_app(prompts: list[dict], recordings: Recordings, reference_dir: Path,
                 "clip_id": clip_id, "session": session, "signer": signer, "handedness": handedness,
                 "sign": sign, "take": take, "recorded_at": dt.datetime.now().isoformat(timespec="seconds"),
                 "usable": usable, "note": note, "hand_share": round(hand_share, 3), "kept": False, "confident": False,
+                "references": ";".join(shown.get(sign, [])),
             }
         )  # fmt: skip
         return {"clip_id": clip_id, "usable": usable, "note": note, "hand_share": hand_share}
