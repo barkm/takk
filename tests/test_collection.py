@@ -1,8 +1,12 @@
+import numpy as np
 import polars as pl
 import pytest
 from fastapi import HTTPException
 
-from isolated_sign_validation.collection import NO_EVENT, NO_EVENT_PROMPTS, SCHEMA, Recordings, create_app, read_clips, session_prompts
+from isolated_sign_validation import collection
+from isolated_sign_validation.collection import NO_EVENT, NO_EVENT_PROMPTS, SCHEMA, Recordings, check_clip, create_app, read_clips, session_prompts
+from isolated_sign_validation.extraction import VideoInfo
+from isolated_sign_validation.landmarks import N_LANDMARKS
 from isolated_sign_validation.preparation import PrepConfig
 
 
@@ -100,3 +104,11 @@ def test_reference_route_serves_only_shown_clips(tmp_path):
     assert str(route.endpoint("00001").path) == str(tmp_path / "b-00001.mp4")
     with pytest.raises(HTTPException):
         route.endpoint("00002")
+
+
+def test_check_clip_accepts_not_signing_without_hands(tmp_path, monkeypatch):
+    no_hands = np.full((60, N_LANDMARKS, 3), np.nan, dtype=np.float32)  # someone sitting still, hands out of view
+    monkeypatch.setattr(collection, "extract_landmarks", lambda video: (no_hands, VideoInfo(30.0, 640, 480)))
+
+    assert check_clip(tmp_path / "clip.mp4", PrepConfig()) == (False, "No hands were detected. Are your hands inside the frame while signing?", 0.0)
+    assert check_clip(tmp_path / "clip.mp4", PrepConfig(), signing=False) == (True, "Recorded.", 0.0)

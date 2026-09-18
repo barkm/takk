@@ -117,8 +117,11 @@ def transcode(source: Path, target: Path, fps: float) -> None:
     subprocess.run(command, check=True, capture_output=True)
 
 
-def check_clip(video: Path, config: PrepConfig) -> tuple[bool, str, float]:
+def check_clip(video: Path, config: PrepConfig, signing: bool = True) -> tuple[bool, str, float]:
     """Whether a recording can be used, why not, and how steadily a hand was detected while signing.
+
+    A clip of not signing (`signing` false, the no_event prompts) only has to hold a recording: no
+    hands, or hands moving for longer than any sign, is what it is meant to show.
 
     Runs the extraction and preparation the clip would go through later, so that an unusable
     recording is caught while the signer can still redo it. The hand share is measured over the
@@ -135,6 +138,8 @@ def check_clip(video: Path, config: PrepConfig) -> tuple[bool, str, float]:
     hand_share = float(present[with_hands[0] : with_hands[-1] + 1].mean()) if len(with_hands) else 0.0
     if not len(landmarks):
         return False, "The recording is empty.", 0.0
+    if not signing:
+        return True, "Recorded.", hand_share
     if not len(with_hands):
         return False, "No hands were detected. Are your hands inside the frame while signing?", hand_share
     if seconds < config.min_hands:
@@ -216,7 +221,7 @@ def create_app(prompts: list[dict], recordings: Recordings, reference_videos: di
             transcode(upload, path, config.fps)
         finally:
             upload.unlink()
-        usable, note, hand_share = check_clip(path, config)
+        usable, note, hand_share = check_clip(path, config, signing=sign != NO_EVENT)
         recordings.add(
             {
                 "clip_id": clip_id, "session": session, "signer": signer, "handedness": handedness,
