@@ -37,19 +37,25 @@ def sample_references(signers: np.ndarray, query_signer: int, k: int, rng: np.ra
     return candidates[np.sort(first)[:k]]
 
 
-def draw_scores(similarity: np.ndarray, signs: np.ndarray, signers: np.ndarray, k: int, rng: np.random.Generator) -> np.ndarray:
-    """Scores of every clip (as query) for every sign, shape (n_clips, n_signs); NaN if no references.
+def draw_scores(
+    similarity: np.ndarray, signs: np.ndarray, signers: np.ndarray, k: int, rng: np.random.Generator, rows: np.ndarray | None = None
+) -> np.ndarray:
+    """Scores of the clips at positions `rows` (default: every clip) as queries for every sign, shape
+    (len(rows), n_signs); NaN if no references.
 
-    `signs` and `signers` are integer codes per clip. References are drawn once per query signer and sign.
+    `signs` and `signers` are integer codes per clip. References are drawn once per query signer and
+    sign, from all clips, and the same way whatever `rows` is; `rows` only saves the memory of the
+    scores nobody asked for, which with a whole dictionary as the glossary is most of them.
     """
-    scores = np.full((len(signs), signs.max() + 1), np.nan)
+    rows = np.arange(len(signs)) if rows is None else rows
+    scores = np.full((len(rows), signs.max() + 1), np.nan)
     by_sign = [np.flatnonzero(signs == sign) for sign in range(signs.max() + 1)]
     for signer in np.unique(signers):
-        queries = np.flatnonzero(signers == signer)
+        queries = np.flatnonzero(signers[rows] == signer)
         for sign, clips in enumerate(by_sign):
             references = clips[sample_references(signers[clips], signer, k, rng)]
-            if len(references):
-                scores[queries, sign] = similarity[np.ix_(queries, references)].mean(axis=1)
+            if len(references) and len(queries):
+                scores[queries, sign] = similarity[np.ix_(rows[queries], references)].mean(axis=1)
     return scores
 
 
@@ -91,23 +97,22 @@ def evaluate(
     for a, b in twins:
         if a in index and b in index:
             is_twin[index[a], index[b]] = is_twin[index[b], index[a]] = True
+    query_rows = np.arange(len(signs)) if queries is None else np.flatnonzero(queries)
     summary, per_sign = [], []
     for k in ks:
         pos, neg, rank = [], [], []  # per query and draw
         for _ in range(n_draws):
-            scores = draw_scores(similarity, signs, signers, k, rng)
-            own = scores[np.arange(len(signs)), signs]
+            scores = draw_scores(similarity, signs, signers, k, rng, query_rows)
+            own = scores[np.arange(len(query_rows)), signs[query_rows]]
             others = scores.copy()
-            others[np.arange(len(signs)), signs] = np.nan
-            others[is_twin[signs]] = np.nan
+            others[np.arange(len(query_rows)), signs[query_rows]] = np.nan
+            others[is_twin[signs[query_rows]]] = np.nan
             pos.append(own)
             neg.append(others)
             rank.append((others > own[:, None]).sum(axis=1) + (others == own[:, None]).sum(axis=1) / 2)
         pos, neg, rank = np.concatenate(pos), np.concatenate(neg), np.concatenate(rank)
-        query_signs = np.tile(signs, n_draws)
+        query_signs = np.tile(signs[query_rows], n_draws)
         valid = ~np.isnan(pos)  # queries whose own sign has references by other signers
-        if queries is not None:
-            valid &= np.tile(queries, n_draws)
 
         edges = np.unique(np.nanquantile(np.concatenate([pos[valid], neg[valid].ravel()]), np.linspace(0, 1, N_BINS + 1)))
         n_signs = len(sign_names)
@@ -134,6 +139,7 @@ def evaluate(
             summary.append({"k": k, "metric": name, "value": value, "ci_low": low, "ci_high": high})
         for sign in range(n_signs):
             if counts[2, sign]:
-                one_hot = np.eye(n_signs)[sign]
+                one_hot = np.zeros(n_signs)
+                one_hot[sign] = 1
                 per_sign.append({"k": k, "sign": sign_names[sign], "queries": int(counts[2, sign] / n_draws)} | metrics(one_hot))
     return pl.DataFrame(summary), pl.DataFrame(per_sign)
