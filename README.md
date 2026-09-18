@@ -196,6 +196,15 @@ signs the model was never trained on, with references by other signers as everyw
 uv run scripts/evaluate_test.py gru_auslan_phonpool1 --prepared data/prepared/slovo-<config id> --name slovo
 ```
 
+A query is scored against every sign of the evaluated set, so top-1 and top-5 drop as the set holds
+more signs and cannot be compared between sets of different sizes. `--signs` evaluates random subsets
+of a given number of signs instead (5 draws, metrics averaged), which matches Slovo's 935 signs to the
+test split's 269:
+
+```sh
+uv run scripts/evaluate_test.py gru_auslan_phonpool1 --prepared data/prepared/slovo-<config id> --name slovo --signs 269
+```
+
 Threshold selection and sensitivity analysis come later.
 
 ## Recording your own clips
