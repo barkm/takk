@@ -64,3 +64,23 @@ def test_perfect_and_random_similarities():
     summary, _ = evaluate(cosine_similarity(rng.normal(size=(len(signs), 64))), clips, n_bootstrap=100)
     for row in summary.filter(pl.col("metric") == "auc").iter_rows(named=True):
         assert 0.4 < row["value"] < 0.6 and row["ci_low"] <= row["value"] <= row["ci_high"]
+
+
+def test_evaluate_with_a_query_mask_bootstraps_over_the_scored_signs():
+    """With a query mask the other signs carry no trials, so resampling them would give empty draws."""
+    rng = np.random.default_rng(0)
+    n_signs, n_signers = 8, 4
+    clips = pl.DataFrame(
+        {
+            "sign": [f"S{sign}" for sign in range(n_signs) for _ in range(n_signers)],
+            "signer": [f"P{signer}" for _ in range(n_signs) for signer in range(n_signers)],
+        }
+    )
+    embeddings = rng.normal(size=(n_signs * n_signers, 16))
+    queries = np.zeros(len(clips), dtype=bool)
+    queries[clips["sign"].is_in(["S0", "S1"]).to_numpy()] = True
+
+    summary, per_sign = evaluate(cosine_similarity(embeddings), clips, ks=(1,), n_draws=1, n_bootstrap=20, queries=queries)
+
+    assert per_sign["sign"].to_list() == ["S0", "S1"]  # only the scored signs
+    assert summary["ci_low"].is_finite().all() and summary["ci_high"].is_finite().all()

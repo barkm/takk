@@ -114,7 +114,9 @@ def evaluate(
             return _metrics(weights @ pos_hist, weights @ neg_hist, *(counts @ weights))
 
         estimate = metrics(np.ones(n_signs))
-        boot = [metrics(np.bincount(rng.integers(0, n_signs, n_signs), minlength=n_signs).astype(float)) for _ in range(n_bootstrap)]
+        # Resample the signs that have queries; with `queries`, the others carry no trials to resample.
+        scored = np.flatnonzero(counts[2])
+        boot = [metrics(np.bincount(scored[rng.integers(0, len(scored), len(scored))], minlength=n_signs).astype(float)) for _ in range(n_bootstrap)]
         for name, value in estimate.items():
             low, high = np.percentile([b[name] for b in boot], [2.5, 97.5]) if boot else (np.nan, np.nan)
             summary.append({"k": k, "metric": name, "value": value, "ci_low": low, "ci_high": high})
