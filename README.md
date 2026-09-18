@@ -261,7 +261,20 @@ dataset, using the kept takes only:
 
 ```sh
 uv run python -m isolated_sign_validation.datasets.recordings  # -> data/processed/recordings/
+uv run scripts/prepare_recordings.py                          # -> data/prepared/recordings-<config id>/
 ```
+
+They are then evaluated in the setting they were collected for: the ASL Citizen dictionary as the
+references, the recordings as the queries. This needs no separate protocol, since `evaluation.evaluate`
+takes a query mask and the recordings' signer is not an ASL Citizen signer, so the references of a
+recording are dictionary clips by different signers as everywhere else:
+
+```sh
+uv run scripts/evaluate_recordings.py --run gru_auslan_phonpool1
+```
+
+It also prints each recording with the rank of its own sign among the whole glossary and the signs it
+scored highest, which is what a handful of clips can actually say something about.
 
 ## Future
 
