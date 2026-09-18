@@ -136,8 +136,8 @@ uv run scripts/download_sts_lexikon.py
 The crawl of 2026-09-18 took about 50 minutes and found 21,692 entries with a sign video (16.2 GB).
 The lexicon is updated continuously, so note the crawl date.
 
-Then extract the landmarks of every entry into `data/processed/sts_lexikon/` (about 6 hours on the
-CPU; run it again to resume). `--signs N` extracts a sample into a separate store instead:
+Then extract the landmarks of every entry into `data/processed/sts_lexikon/` (16 GB, about 5.5 hours
+on the CPU; run it again to resume). `--signs N` extracts a sample into a separate store instead:
 
 ```sh
 uv run python -m isolated_sign_validation.datasets.sts_lexikon
@@ -184,8 +184,9 @@ uv run scripts/prepare_slovo.py
 ```
 
 Svenskt teckenspråkslexikon is prepared the same way, as an evaluation set whose labels get the
-prefix `sts:`. Nothing is filtered out. It writes `data/prepared/sts_lexikon-<config id>/`, the
-glossary for recording Swedish signs (see Recording your own clips):
+prefix `sts:`. Nothing is filtered out. It writes `data/prepared/sts_lexikon-<config id>/` (21,689
+clips of 16,030 signs, 0.71 GB), the glossary for recording Swedish signs (see Recording your own
+clips):
 
 ```sh
 uv run scripts/prepare_sts_lexikon.py
