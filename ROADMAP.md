@@ -62,13 +62,13 @@ Status of the work and the plan ahead. Update this file when a step is finished,
    - Sem-Lex (blocked: no access to the Drive files yet): adapter with the same extractor; sign labels normalized with ASL Citizen via ASL-LEX. Its phonological feature annotations (handshape, location, movement) could serve as auxiliary training targets.
    - Optionally Kaggle ASL Signs, keeping in mind it is one-handed signing from a different extractor.
 
-9. **Cross-language evaluation set (Slovo)** — in progress
+9. **Cross-language evaluation set (Slovo)** — done, not yet evaluated
    - Download (16 GB zip, no registration) and inspect: 20,000 clips of 1,000 Russian Sign Language signs by 194 signers, plus 400 `no_event` clips. — done (see findings)
    - Adapter (`datasets/slovo.py`). — done
-   - Full extraction into `data/processed/slovo/` (~4 h). — in progress
-   - Preparation as an evaluation set (`scripts/prepare_slovo.py`, `splits.assign_evaluation_only`): every clip is a `test` clip, labels prefixed `rsl:`, phrase classes left out (see decisions). — done, not yet run
-   - Evaluate the best model on it (`scripts/evaluate_test.py --prepared ... --name slovo`), as a baseline for transfer to an unseen sign language.
-   - Next: check the per-sign metrics for classes whose clips disagree with each other (a sign of mixed or multi-sign recordings), and view a few in the clip viewer.
+   - Full extraction into `data/processed/slovo/` (20,000 clips, 6.5 GB, 5.5 h). — done
+   - Preparation as an evaluation set (`scripts/prepare_slovo.py`, `splits.assign_evaluation_only`): every clip is a `test` clip, labels prefixed `rsl:`, phrase classes left out (see decisions). — done: 935 of the 1,000 signs, 18,563 clips, 189 signers, 0.4 GB (see findings)
+   - Next: evaluate the best model on it (`scripts/evaluate_test.py --prepared data/prepared/slovo-d314433a --name slovo`), as a baseline for transfer to an unseen sign language.
+   - Then: check the per-sign metrics for classes whose clips disagree with each other (a sign of mixed or multi-sign recordings), and view a few in the clip viewer.
 
 10. **Self-recorded evaluation set (the deployment setting)** — in progress
    - Collection tool (`collection.py`, `scripts/collect.py`, `web/collect.html`): a web app that shows reference clips of a held-out ASL Citizen sign by several signers and records the signer's attempt with their webcam. Every take is stored with the signer, their handedness, whether they kept it and whether they felt sure of the sign; only the clip's validity is reported back, never a score (see decisions). — done
@@ -184,6 +184,8 @@ Slovo:
 - Single ~16 GB zip from the authors' object storage, no registration; license a variant of CC BY-SA 4.0. Layout: `train/<attachment id>.mp4` (15,300), `test/<attachment id>.mp4` (5,100) and a tab-separated `annotations.csv` with columns `attachment_id`, `text` (the Russian label), `user_id`, `height`, `width`, `length` and `train`. The videos are already trimmed to the gesture; the `begin`/`end` frame columns of the documentation belong to the untrimmed 105 GB release.
 - 20,400 clips: 1,000 signs with exactly 20 clips each, plus 400 `no_event` clips (no signing). 194 signers, very unevenly: median 13 clips per signer, max 3,692. Mostly portrait phone video (1080x1920 for half the clips, 45 different frame sizes in all); 50 frames on average (median 47, max 270).
 - Usable k-shot: 999 of the 1,000 signs have at least 6 distinct signers (median 10, min 4), and one signer contributes a median of 4 of a sign's 20 clips, so k = 1, 3 and 5 references by different signers than the query's all work. Slovo's own train/test split is not signer-disjoint (92 of its 174 test signers also appear in train), which doesn't matter as we never train on it.
+- Prepared (`slovo-d314433a`): 935 of the 1,000 signs kept (62 phrase labels and 3 long classes left out, `дятел`, `сторона` and `миграция`), 18,563 of 18,700 clips (137, or 0.7%, excluded as broken, in line with the other datasets), 189 signers, median 45 prepared frames (1.5 s, against ASL Citizen's 41).
+- The dominant hand is on the left in 39% of the clips, against ~10% for ASL Citizen, and it is consistent within a signer for 78% of the signers (the second largest signer, 3,264 clips, is 97% left). So it is the signers' front cameras mirroring the video rather than left-handedness, and the preparation's dominant-hand mirroring absorbs it.
 - Some classes are phrases, not single signs: 63 of the 1,000 labels are multi-word, and those run ~30% longer than the rest (median 61 vs 46.5 frames). They mix genuine single signs whose Russian gloss needs several words (`летучая мышь` bat, `восход солнца` sunrise, `паучья сеть` spiderweb) with real multi-sign utterances (`время от 0 ночи до 12 дня`, 155 frames; `С днем рождения`; `в восемь пятнадцать`; `две/три/четыре тысячи`). The label only reveals declared phrases: `сторона` ("side") has an ordinary one-word label and the longest clips of all (median 194 frames), so a duration rule is needed as well (see decisions).
 
 Other datasets (for more training signs; signs of other sign languages are all new classes):

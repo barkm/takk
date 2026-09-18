@@ -5,7 +5,8 @@ ROADMAP.md), so its own train/test split is ignored and only the signer ids matt
 `no_event` clips (no signing) are not clips of a sign and are left out. Expects the downloaded zip
 unzipped in place, e.g. data/raw/slovo/train/<attachment id>.mp4.
 
-Extraction takes about 2 hours; an interrupted run resumes where it left off when run again.
+Extraction takes 5.5 hours (the videos are large, mostly 1080x1920 phone video); an interrupted
+run resumes where it left off when run again.
 Run from the repo root:
     uv run python -m isolated_sign_validation.datasets.slovo             # all videos
     uv run python -m isolated_sign_validation.datasets.slovo --signs 10  # all videos of 10 random signs

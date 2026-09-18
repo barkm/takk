@@ -88,7 +88,7 @@ wget -c -P data/raw https://rndml-team-cv.obs.ru-moscow-1.hc.sbercloud.ru/datase
 unzip -q data/raw/slovo.zip -d data/raw/slovo
 ```
 
-Then extract the landmarks of the 20,000 videos into `data/processed/slovo/` (about 3 hours; run it
+Then extract the landmarks of the 20,000 videos into `data/processed/slovo/` (5.5 hours; run it
 in `tmux`, and run it again to resume). The 400 `no_event` videos hold no signing and are left out:
 
 ```sh
@@ -122,7 +122,7 @@ MM-WLAuslan is prepared as extra training data: all its clips are training clips
 uv run scripts/prepare_mm_wlauslan.py
 ```
 
-Slovo is prepared as an evaluation set instead: every clip is a `test` clip, and its sign labels get the prefix `rsl:`. Classes whose label is a phrase rather than a single sign are left out, since the task is validating one sign. It writes `data/prepared/slovo-<config id>/`:
+Slovo is prepared as an evaluation set instead: every clip is a `test` clip, and its sign labels get the prefix `rsl:`. Classes whose label is a phrase rather than a single sign are left out, since the task is validating one sign, as are classes whose median clip takes longer than `--max_median_seconds` (3 s) to sign, which catches phrases the label doesn't reveal. It writes `data/prepared/slovo-<config id>/` (935 signs, 18,563 clips, 0.4 GB):
 
 ```sh
 uv run scripts/prepare_slovo.py
