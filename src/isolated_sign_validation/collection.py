@@ -68,11 +68,18 @@ def session_prompts(raw_dir: Path, n_signs: int, takes: int, n_references: int, 
     Signs are drawn from the test split of the ASL Citizen glosses, so they are unseen by the model.
     Each prompt carries reference clips of the sign by `n_references` different signers: copying a
     single clip would make the recording a mimicry of that one performance.
+
+    The reference clips are never clips of the official test split, which is the glossary a recording
+    is scored against; a recording would otherwise be compared against the very clip it copied. Clips
+    of a held-out sign by other signers belong to no split (`splits.assign_splits`), so they are
+    neither trained on nor scored against.
     """
     videos = asl_citizen.read_videos(raw_dir)
     held_out = sorted(sign for sign in videos["Gloss"].unique() if sign_split(sign) == "test")
     rng = random.Random(seed)
     signs = sorted(rng.sample(held_out, n_signs))
+    scored = pl.read_csv(raw_dir / "splits" / "test.csv")["Video file"]
+    videos = videos.filter(~pl.col("Video file").is_in(scored))
 
     by_signer: dict[str, dict[str, list[str]]] = {sign: {} for sign in signs}
     for row in videos.filter(pl.col("Gloss").is_in(signs)).sort("Video file").iter_rows(named=True):
