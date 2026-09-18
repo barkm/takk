@@ -7,11 +7,19 @@ by k different ASL Citizen signers (`evaluation.evaluate` with a query mask: ref
 all clips, but only the recordings are scored as queries, and references never come from the query's
 own signer, which here excludes every recording).
 
+With `--references` set to the prepared Svenskt teckenspråkslexikon and `--prepared` to recordings
+made with `collect.py --lexicon`, the glossary is the lexicon instead. The clip each recording copied
+(`sts_lexikon.shown_clips`) is then left out of it, as ASL Citizen's shown clips are outside its test
+split. The lexicon has no signer ids, so every reference counts as one signer and k > 1 still draws
+a single reference per sign.
+
 Beside the pooled metrics it prints each recording with the rank of its own sign among the whole
 glossary and the signs it scored highest, which is what few clips can actually say something about.
 
 Run from the repo root: uv run scripts/evaluate_recordings.py --run gru_auslan_phonpool1
-Writes outputs/runs/<run>/recordings_{summary,per_sign,per_clip}.parquet
+    uv run scripts/evaluate_recordings.py --name recordings_sts --prepared data/prepared/recordings_sts-<id> \
+        --references data/prepared/sts_lexikon-<id>
+Writes outputs/runs/<run>/<name>_{summary,per_sign,per_clip}.parquet
 """
 
 import argparse
@@ -21,6 +29,7 @@ import numpy as np
 import polars as pl
 
 from isolated_sign_validation.dataset import SignDataset
+from isolated_sign_validation.datasets import sts_lexikon
 from isolated_sign_validation.evaluation import cosine_similarity, draw_scores, evaluate
 from isolated_sign_validation.preparation import PrepConfig, PreparedData
 from isolated_sign_validation.training import embed, load_run
@@ -55,15 +64,22 @@ def main() -> None:
     parser.add_argument("--run", default="gru_auslan_phonpool1", help="training run whose model embeds both sets")
     parser.add_argument("--prepared", type=Path, default=Path("data/prepared") / f"recordings-{PrepConfig().id()}")
     parser.add_argument("--references", type=Path, default=Path("data/prepared") / f"asl_citizen-{PrepConfig().id()}")
+    parser.add_argument("--name", default="recordings", help="name of the evaluation, used in the output file names")
     parser.add_argument("--k", type=int, default=5, help="reference clips per sign in the per-clip listing")
     parser.add_argument("--device", default="cpu", help="the GPU is shared; embedding a few thousand clips is cheap on the CPU")
     args = parser.parse_args()
 
     recordings, dictionary = PreparedData(args.prepared), PreparedData(args.references)
+    shown = []
+    if (dictionary.clips["dataset"] == sts_lexikon.DATASET).any():
+        # the clips the recordings copied, from the same source as the app, belong to no split
+        shown = sts_lexikon.shown_clips(sts_lexikon.read_videos(sts_lexikon.RAW_DIR))
+        copied = (pl.col("dataset") == sts_lexikon.DATASET) & pl.col("clip_id").is_in(shown)
+        dictionary.clips = dictionary.clips.with_columns(split=pl.when(~copied).then("split"))
     queries, references = SignDataset(recordings, "test"), SignDataset(dictionary, "test")
     query_clips, reference_clips = recordings.clips[queries.positions], dictionary.clips[references.positions]
     print(f"queries: {len(query_clips)} recordings, {query_clips['sign'].n_unique()} signs, {query_clips['signer'].n_unique()} signers")
-    print(f"glossary: {len(reference_clips)} ASL Citizen clips, {reference_clips['sign'].n_unique()} signs, {reference_clips['signer'].n_unique()} signers")
+    print(f"glossary: {len(reference_clips)} clips ({len(shown)} shown lexicon clips left out), {reference_clips['sign'].n_unique()} signs, {reference_clips['signer'].n_unique()} signers")
 
     _, model = load_run(RUNS_DIR / args.run, dictionary)
     model = model.to(args.device)
@@ -77,9 +93,9 @@ def main() -> None:
     per_clip = top_signs(similarity, clips, is_query, args.k, 5, seed=0)
     out = RUNS_DIR / args.run
     for name, table in [("summary", summary), ("per_sign", per_sign), ("per_clip", per_clip)]:
-        table.write_parquet(out / f"recordings_{name}.parquet")
+        table.write_parquet(out / f"{args.name}_{name}.parquet")
 
-    print(f"\n{args.run}, references by ASL Citizen signers:")
+    print(f"\n{args.run}, references from {args.references.name}:")
     for k, group in summary.group_by("k", maintain_order=True):
         values = {m: f"{v:.3f} [{low:.3f}, {high:.3f}]" for m, v, low, high in group.select("metric", "value", "ci_low", "ci_high").iter_rows()}
         print(f"  k={k[0]}: " + "  ".join(f"{m} {values[m]}" for m in METRICS))
