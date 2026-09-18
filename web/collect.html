@@ -24,6 +24,7 @@
       .videos video { width: 180px; border-radius: 8px; background: #000; }
       #camera { width: 100%; max-width: 560px; border-radius: 8px; background: #000; transform: scaleX(-1); }
       .recording { outline: 3px solid var(--bad); }
+      .take { font-size: 18px; margin: 4px 0 0; }
       .ok { color: var(--ok); }
       .bad { color: var(--bad); }
       .hidden { display: none; }
@@ -51,7 +52,9 @@
 
       <section id="prompt" class="card hidden">
         <p class="dim"><span id="progress"></span></p>
+        <p id="saved" class="ok"></p>
         <h2 id="sign"></h2>
+        <p id="take" class="take"></p>
         <p id="instruction" class="dim"></p>
         <div id="references" class="videos"></div>
       </section>
@@ -66,6 +69,7 @@
         <div id="after" class="row hidden">
           <button id="keep">Keep and continue</button>
           <button id="retake" class="secondary">Record again</button>
+          <button id="skip" class="secondary">Skip this one</button>
           <label class="row"><input id="confident" type="checkbox" checked /> &nbsp;I signed this one confidently</label>
         </div>
       </section>
@@ -78,7 +82,7 @@
 
     <script>
       const el = (id) => document.getElementById(id);
-      let prompts = [], maxSeconds = 4, index = 0, stream = null, recorder = null, clipId = null;
+      let prompts = [], maxSeconds = 4, index = 0, stream = null, recorder = null, clipId = null, saved = "";
 
       const show = (id, visible) => el(id).classList.toggle("hidden", !visible);
 
@@ -101,6 +105,16 @@
         showPrompt();
       }
 
+      // Which take of the sign this prompt is: consecutive prompts of one sign ask for repeated takes,
+      // and without this the screen looks unchanged from one take to the next.
+      function run(i) {
+        if (prompts[i].instruction) return { take: 1, takes: 1 };
+        let start = i, end = i;
+        while (start > 0 && prompts[start - 1].sign === prompts[i].sign) start -= 1;
+        while (end + 1 < prompts.length && prompts[end + 1].sign === prompts[i].sign) end += 1;
+        return { take: i - start + 1, takes: end - start + 1 };
+      }
+
       function showPrompt() {
         if (index >= prompts.length) {
           stream.getTracks().forEach((track) => track.stop());
@@ -108,8 +122,11 @@
           return;
         }
         const prompt = prompts[index];
+        const { take, takes } = run(index);
         el("progress").textContent = `Recording ${index + 1} of ${prompts.length}`;
+        el("saved").textContent = saved;
         el("sign").textContent = prompt.instruction ? "Don't sign" : prompt.sign;
+        el("take").textContent = takes > 1 ? `Take ${take} of ${takes} of this sign` : "";
         el("instruction").textContent = prompt.instruction || "Sign this, then stop recording.";
         el("references").innerHTML = prompt.references
           .map((name) => `<video src="/api/reference/${encodeURIComponent(name)}" autoplay loop muted playsinline controls></video>`)
@@ -128,6 +145,8 @@
         recorder.ondataavailable = (event) => chunks.push(event.data);
         recorder.onstop = () => upload(new Blob(chunks, { type: recorder.mimeType }));
         recorder.start();
+        saved = "";
+        el("saved").textContent = "";
         el("camera").classList.add("recording");
         el("record").textContent = "Stop";
         el("result").textContent = "";
@@ -176,6 +195,13 @@
         body.append("confident", el("confident").checked);
         await fetch("/api/keep", { method: "POST", body });
         el("confident").checked = true;
+        const { take, takes } = run(index);
+        const what = prompts[index].instruction ? "the clip without signing" : prompts[index].sign;
+        saved = `Saved ${what}${takes > 1 ? `, take ${take} of ${takes}` : ""}.`;
+        next();
+      }
+
+      function next() {
         index += 1;
         showPrompt();
       }
@@ -184,6 +210,7 @@
       el("record").onclick = () => (recorder && recorder.state === "recording" ? stopRecording() : record());
       el("retake").onclick = () => (show("after", false), (el("record").disabled = false), (el("result").textContent = ""));
       el("keep").onclick = keep;
+      el("skip").onclick = () => ((saved = "Skipped."), next());
 
       fetch("/api/prompts")
         .then((response) => response.json())
