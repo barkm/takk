@@ -1,7 +1,11 @@
+import json
+
 import polars as pl
 import pytest
+from fastapi import HTTPException
 
-from isolated_sign_validation.collection import NO_EVENT, NO_EVENT_PROMPTS, Recordings, session_prompts
+from isolated_sign_validation.collection import NO_EVENT, NO_EVENT_PROMPTS, Recordings, create_app, lexicon_prompts, session_prompts
+from isolated_sign_validation.preparation import PrepConfig
 from isolated_sign_validation.splits import sign_split
 
 
@@ -76,3 +80,39 @@ def test_recordings_keep_survives_a_restart(tmp_path):
 def test_recordings_keep_rejects_an_unknown_clip(tmp_path):
     with pytest.raises(KeyError):
         Recordings(tmp_path).keep("nope", confident=False)
+
+
+def write_lexicon(raw_dir):
+    """A stand-in for the crawled lexicon: classes of 3 and 2 clips, and an entry of its own."""
+    entries = [
+        {"id": entry_id, "word": word, "video": f"/movies/00/{word}-{entry_id}-tecken.mp4", "same_form": True}
+        for entry_id, word in [("00003", "a"), ("00001", "b"), ("00002", "c"), ("00007", "d"), ("00005", "e"), ("00009", "f")]
+    ]
+    groups = [{"id": "00001", "members": ["00001", "00002", "00003"]}, {"id": "00005", "members": ["00005", "00007"]}]
+    (raw_dir / "entries.jsonl").write_text("\n".join(json.dumps(entry) for entry in entries))
+    (raw_dir / "groups.jsonl").write_text("\n".join(json.dumps(group) for group in groups))
+
+
+def test_lexicon_prompts(tmp_path):
+    write_lexicon(tmp_path)
+
+    prompts = lexicon_prompts(tmp_path, n_signs=2, takes=3, seed=0)
+
+    signs = [prompt for prompt in prompts if prompt["sign"] != NO_EVENT]
+    assert len(signs) == 6 and len(prompts) == 6 + len(NO_EVENT_PROMPTS)
+    # one clip shown per class, its lowest id; the class's other clips are what it is scored against
+    assert {prompt["sign"]: prompt["references"][0] for prompt in signs} == {
+        "sts:b-00001": "movies/00/b-00001-tecken.mp4",
+        "sts:e-00005": "movies/00/e-00005-tecken.mp4",
+    }
+
+
+def test_reference_route_serves_only_shown_clips(tmp_path):
+    prompts = [{"sign": "sts:b-00001", "instruction": None, "references": ["movies/00/b-00001-tecken.mp4"]}]
+    app = create_app(prompts, Recordings(tmp_path / "recordings"), tmp_path, PrepConfig())
+    route = next(route for route in app.routes if getattr(route, "path", "").startswith("/api/reference/"))
+
+    assert route.path_regex.match("/api/reference/movies/00/b-00001-tecken.mp4")  # a nested path is one name
+    assert str(route.endpoint("movies/00/b-00001-tecken.mp4").path) == str(tmp_path / "movies/00/b-00001-tecken.mp4")
+    with pytest.raises(HTTPException):
+        route.endpoint("../outside.mp4")

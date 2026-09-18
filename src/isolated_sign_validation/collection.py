@@ -1,7 +1,7 @@
 """Collecting self-recorded clips of known signs, for evaluation in the deployment setting.
 
-A small web app (`scripts/collect.py`) shows a signer reference clips of a sign from ASL Citizen and
-records their attempt with their webcam. The recordings are a held-out evaluation set of the setting
+A small web app (`scripts/collect.py`) shows a signer reference clips of a sign from ASL Citizen, or
+from Svenskt teckenspråkslexikon with `--lexicon`, and records their attempt with their webcam. The recordings are a held-out evaluation set of the setting
 the system is meant for: a user copying a dictionary clip, filmed with their own camera in their own
 room. No score is ever shown, so the signer cannot retake until the model happens to agree, which
 would bias the set toward clips the model already likes.
@@ -30,7 +30,7 @@ import polars as pl
 from fastapi import FastAPI, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
-from isolated_sign_validation.datasets import asl_citizen
+from isolated_sign_validation.datasets import asl_citizen, sts_lexikon
 from isolated_sign_validation.extraction import extract_landmarks
 from isolated_sign_validation.preparation import PrepConfig, hand_presence, hide_low_hands, prepare_clip
 from isolated_sign_validation.splits import sign_split
@@ -89,6 +89,31 @@ def session_prompts(raw_dir: Path, n_signs: int, takes: int, n_references: int, 
         signers = rng.sample(sorted(by_signer[sign]), min(n_references, len(by_signer[sign])))
         references = [rng.choice(by_signer[sign][signer]) for signer in signers]
         prompts += [{"sign": sign, "instruction": None, "references": references}] * takes
+    return with_no_event(prompts)
+
+
+def lexicon_prompts(raw_dir: Path, n_signs: int, takes: int, seed: int) -> list[dict]:
+    """What to record, in order: `takes` prompts for each of `n_signs` Swedish Sign Language signs from
+    Svenskt teckenspråkslexikon, plus no_event prompts. The model has never seen the language.
+
+    Only the lexicon's sign classes can be recorded, since each has several recordings of one sign
+    form (`sts_lexikon.sign_classes`): the prompt shows one of them (`sts_lexikon.shown_clips`) and
+    the recording is scored against the others, never against the clip it copied. An entry with a
+    single clip would be both. So one reference clip is shown, not several signers' as for ASL
+    Citizen: most classes have only two clips. References are paths below `raw_dir`.
+    """
+    videos = sts_lexikon.read_videos(raw_dir)
+    shown = videos.filter(pl.col("clip_id").is_in(sts_lexikon.shown_clips(videos))).sort("sign")
+    rng = random.Random(seed)
+    prompts = []
+    for row in sorted(rng.sample(shown.to_dicts(), n_signs), key=lambda row: row["sign"]):
+        reference = str(Path(row["path"]).relative_to(raw_dir))
+        prompts += [{"sign": sts_lexikon.LABEL_PREFIX + row["sign"], "instruction": None, "references": [reference]}] * takes
+    return with_no_event(prompts)
+
+
+def with_no_event(prompts: list[dict]) -> list[dict]:
+    """`prompts` with the no_event prompts spread through them."""
     for i, instruction in enumerate(NO_EVENT_PROMPTS):
         position = max(1, round((i + 1) * len(prompts) / (len(NO_EVENT_PROMPTS) + 1)))
         prompts.insert(position + i, {"sign": NO_EVENT, "instruction": instruction, "references": []})
@@ -172,8 +197,9 @@ class Recordings:
             self._write()
 
 
-def create_app(prompts: list[dict], recordings: Recordings, asl_citizen_dir: Path, config: PrepConfig) -> FastAPI:
-    """The collection app: the page, the prompts with their reference clips, and the uploads."""
+def create_app(prompts: list[dict], recordings: Recordings, reference_dir: Path, config: PrepConfig) -> FastAPI:
+    """The collection app: the page, the prompts with their reference clips (paths below
+    `reference_dir`), and the uploads."""
     app = FastAPI()
     reference_videos = {reference for prompt in prompts for reference in prompt["references"]}
 
@@ -185,11 +211,11 @@ def create_app(prompts: list[dict], recordings: Recordings, asl_citizen_dir: Pat
     def get_prompts() -> dict:
         return {"prompts": prompts, "max_seconds": config.max_frames / config.fps}
 
-    @app.get("/api/reference/{name}")
+    @app.get("/api/reference/{name:path}")
     def reference(name: str) -> FileResponse:
-        if name not in reference_videos:
+        if name not in reference_videos:  # also keeps requests inside reference_dir
             raise HTTPException(404, "unknown reference clip")
-        return FileResponse(asl_citizen_dir / "videos" / name)
+        return FileResponse(reference_dir / name)
 
     @app.post("/api/recordings")
     async def add_recording(video: UploadFile, session: str = Form(), signer: str = Form(), handedness: str = Form(), sign: str = Form()) -> dict:  # fmt: skip

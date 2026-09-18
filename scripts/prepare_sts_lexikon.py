@@ -26,8 +26,6 @@ from isolated_sign_validation.landmarks import LandmarkStore
 from isolated_sign_validation.preparation import PrepConfig, PreparedData, prepare_store
 from isolated_sign_validation.splits import assign_evaluation_only
 
-LABEL_PREFIX = "sts:"
-
 
 def longest_signs(data: PreparedData, n: int) -> pl.DataFrame:
     """The `n` signs whose median clip takes longest to sign, longest first.
@@ -45,7 +43,7 @@ def main() -> None:
     args = parser.parse_args()
 
     clips = assign_evaluation_only(LandmarkStore(args.store).clips.with_row_index("row"))
-    clips = clips.with_columns(sign=LABEL_PREFIX + pl.col("sign"))
+    clips = clips.with_columns(sign=sts_lexikon.LABEL_PREFIX + pl.col("sign"))
 
     config = PrepConfig()
     out = Path("data/prepared") / f"{args.store.name}-{config.id()}"

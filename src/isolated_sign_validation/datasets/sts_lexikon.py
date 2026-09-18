@@ -40,6 +40,8 @@ MAX_WORKERS = 8
 BASE_URL = "https://teckensprakslexikon.su.se"
 ENTRIES_FILE = "entries.jsonl"  # one line per crawled lexicon id, written by scripts/download_sts_lexikon.py
 GROUPS_FILE = "groups.jsonl"  # one line per crawled same-form group
+# A Swedish sign is a different sign from an ASL sign with the same meaning (prepared labels, recordings)
+LABEL_PREFIX = "sts:"
 
 
 def _text(match: re.Match | None) -> str | None:
@@ -127,6 +129,16 @@ def read_videos(raw_dir: Path) -> pl.DataFrame:
         )
         .sort("sign", "clip_id")
     )
+
+
+def shown_clips(clips: pl.DataFrame) -> list[str]:
+    """The clip of each sign class that the collection app shows a signer to copy: its lowest lexicon id.
+
+    `clips` needs clip_id and sign columns (rows of read_videos, or prepared clips). A recording is
+    never scored against the clip it copied (see `collection.lexicon_prompts`), so these clips are
+    left out of the glossary when recordings are evaluated.
+    """
+    return clips.group_by("sign").agg(pl.col("clip_id").min())["clip_id"].to_list()
 
 
 def mixed_transcriptions(raw_dir: Path) -> pl.DataFrame:

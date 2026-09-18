@@ -2,7 +2,7 @@ import json
 
 import polars as pl
 
-from isolated_sign_validation.datasets.sts_lexikon import parse_entry, parse_group, read_videos, sign_classes
+from isolated_sign_validation.datasets.sts_lexikon import parse_entry, parse_group, read_videos, shown_clips, sign_classes
 
 # the markup of an /ord/<id> page, cut down to the parts the adapter reads
 ENTRY_PAGE = """
@@ -117,3 +117,9 @@ def test_read_videos(tmp_path):
     assert videos["sign"].to_list() == ["a-00001", "a-00001"]
     assert videos["signer"].to_list() == [None, None]  # the lexicon publishes no signer ids
     assert videos["path"].to_list() == [f"{tmp_path}/movies/00/a-00001-tecken.mp4", f"{tmp_path}/movies/00/b-00002-tecken.mp4"]  # fmt: skip
+
+
+def test_shown_clips():
+    clips = pl.DataFrame({"clip_id": ["00003", "00001", "00002", "00007", "00005"], "sign": ["a", "a", "a", "b", "b"]})
+
+    assert sorted(shown_clips(clips)) == ["00001", "00005"]  # the lowest lexicon id of each class
