@@ -31,8 +31,9 @@ Baselines:
 | [WLASL](https://dxli94.github.io/WLASL/) | Video | 2,000 | ~119 | ~21k |
 | [MM-WLAuslan](https://uq-cvlab.github.io/MM-WLAuslan-Dataset/) (Australian Sign Language) | Video (4 cameras) | 3,215 | 73 | ~283k |
 | [Slovo](https://github.com/hukenovs/slovo) (Russian Sign Language) | Video | 1,000 | 194 | ~20k |
+| [Svenskt teckenspråkslexikon](https://teckensprakslexikon.su.se/) (Swedish Sign Language) | Video | ~21,700 | a few (not labeled) | ~21.7k |
 
-ASL Citizen is the primary dataset: its large vocabulary matters most for generalizing to unseen signs, it is recorded with webcams with both hands free, and since it is video we extract the landmarks ourselves with the same setup the system will use in practice. Sem-Lex is the candidate second source (aligned with ASL Citizen through ASL-LEX, and annotated with phonological features). Kaggle ASL Signs comes from PopSign, which is one-handed smartphone signing (the other hand holds the phone), and its landmarks come from a MediaPipe version that is no longer available; it is kept only as an optional extra. MM-WLAuslan adds training signs from another sign language (all new classes); it has no signer ids. Slovo is the opposite: it is never trained on, but has signer ids, so it serves as a held-out cross-language evaluation set that measures how well the model transfers to a sign language it has never seen (relevant for Swedish Sign Language later). ASL Citizen and WLASL are licensed for non-commercial use only, MM-WLAuslan under CC BY-NC-SA 4.0 and Slovo under a variant of CC BY-SA 4.0.
+ASL Citizen is the primary dataset: its large vocabulary matters most for generalizing to unseen signs, it is recorded with webcams with both hands free, and since it is video we extract the landmarks ourselves with the same setup the system will use in practice. Sem-Lex is the candidate second source (aligned with ASL Citizen through ASL-LEX, and annotated with phonological features). Kaggle ASL Signs comes from PopSign, which is one-handed smartphone signing (the other hand holds the phone), and its landmarks come from a MediaPipe version that is no longer available; it is kept only as an optional extra. MM-WLAuslan adds training signs from another sign language (all new classes); it has no signer ids. Slovo is the opposite: it is never trained on, but has signer ids, so it serves as a held-out cross-language evaluation set that measures how well the model transfers to a sign language it has never seen (relevant for Swedish Sign Language later). Svenskt teckenspråkslexikon is the Swedish Sign Language dictionary and the goal vocabulary: one recording per entry, so it is an evaluation set only, with classes built from the entries that share a sign form. ASL Citizen and WLASL are licensed for non-commercial use only, MM-WLAuslan under CC BY-NC-SA 4.0 and Slovo under a variant of CC BY-SA 4.0.
 
 The data pipeline is dataset-agnostic: each dataset has an adapter that converts it into a common format (a landmark array per clip, plus metadata: dataset, sign, signer). All video datasets are run through one fixed MediaPipe setup that outputs the common landmark layout. Sign labels have to be normalized when datasets are combined.
 
@@ -119,6 +120,35 @@ store instead:
 uv run python -m isolated_sign_validation.datasets.wlasl
 uv run python -m isolated_sign_validation.datasets.wlasl --signs 20
 ```
+
+### Downloading Svenskt teckenspråkslexikon
+
+[Svenskt teckenspråkslexikon](https://teckensprakslexikon.su.se/) (CC BY-NC-SA 4.0) is the Swedish
+Sign Language dictionary and the goal vocabulary, so it is an evaluation set only and never trained
+on. It has no bulk download and no registration either: `scripts/download_sts_lexikon.py` crawls the
+entry pages, the same-form groups they link to, and the sign videos, into `data/raw/sts-lexikon/`.
+Each phase skips what an earlier run already has, so an interrupted crawl resumes when run again:
+
+```sh
+uv run scripts/download_sts_lexikon.py
+```
+
+By default it downloads only the clips of the sign classes (the entries that share their form with
+another entry, a few GB); `--all_videos` takes the whole vocabulary instead (~21,700 clips, ~15 GB),
+which is useful as a negative pool. The lexicon is updated continuously, so note the crawl date.
+
+Then extract the landmarks into `data/processed/sts_lexikon/`. `--signs N` extracts a sample into a
+separate store instead:
+
+```sh
+uv run python -m isolated_sign_validation.datasets.sts_lexikon
+uv run python -m isolated_sign_validation.datasets.sts_lexikon --signs 20
+```
+
+The dictionary publishes one recording per entry and no signer ids, so a sign class is a group of
+entries the lexicon marks as sharing a sign form ("Teckenformen kan också betyda"): separate
+recordings of one form under different Swedish meanings, usually by different model signers. Only
+groups with at least two clips become classes. See ROADMAP.md for what this does and doesn't buy.
 
 ### Downloading ASL-LEX
 
