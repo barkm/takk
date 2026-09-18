@@ -13,7 +13,7 @@ of that checkpoint.
 import dataclasses
 import json
 import time
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -99,6 +99,19 @@ def phonology_targets(clips: pl.DataFrame, signs: Sequence[str]) -> tuple[np.nda
     return np.array(targets, dtype=np.int64).T.reshape(len(signs), len(columns)), n_classes
 
 
+def twin_matrix(twins: Collection[tuple[str, str]], signs: Sequence[str]) -> torch.Tensor | None:
+    """Boolean (n_signs, n_signs) matrix of the `twins` pairs among `signs` (for ArcFace), or None if
+    none of the pairs has both signs among them."""
+    index = {sign: i for i, sign in enumerate(signs)}
+    pairs = [(index[a], index[b]) for a, b in twins if a in index and b in index]
+    if not pairs:
+        return None
+    matrix = torch.zeros(len(signs), len(signs), dtype=torch.bool)
+    for i, j in pairs:
+        matrix[i, j] = matrix[j, i] = True
+    return matrix
+
+
 @torch.no_grad()
 def embed(model: nn.Module, dataset: SignDataset, device: str, batch_size: int = 512) -> np.ndarray:
     """Embeddings of all clips of a (non-augmented) dataset, in order."""
@@ -156,6 +169,10 @@ def train(config: TrainConfig, data: PreparedData, run_dir: Path, device: str = 
     if config.phonology_weight and not n_classes:
         raise ValueError("phonology_weight is set, but the prepared clips have no phonology columns")
     targets = torch.from_numpy(targets).to(device)
+    twins = twin_matrix(data.twins, train_set.signs)
+    if twins is not None:
+        print(f"{int(twins.sum()) // 2} twin pairs among the training signs")
+        twins = twins.to(device)
     if config.phonology_input not in ("embedding", "pooled"):
         raise ValueError(f"unknown phonology_input {config.phonology_input}")
     head_input = model.head.in_features if config.phonology_input == "pooled" else config.embedding_dim
@@ -175,7 +192,7 @@ def train(config: TrainConfig, data: PreparedData, run_dir: Path, device: str = 
             labels = batch["labels"].to(device)
             with torch.autocast(device, dtype=torch.bfloat16):
                 embeddings, pooled = model(batch["frames"].to(device), batch["hands"].to(device), batch["mask"].to(device), return_pooled=True)
-                logits = head(embeddings, labels)
+                logits = head(embeddings, labels, twins)
             loss = arcface_loss = F.cross_entropy(logits, labels)
             if phonology_heads:
                 features, inputs = targets[labels], (pooled if config.phonology_input == "pooled" else embeddings).float()
@@ -190,7 +207,10 @@ def train(config: TrainConfig, data: PreparedData, run_dir: Path, device: str = 
             optimizer.step()
             schedule.step()
             losses.append(arcface_loss.item())
-            correct += (head(embeddings.detach()).argmax(dim=1) == labels).sum().item()
+            predicted = head(embeddings.detach())
+            if twins is not None:  # a twin of the true class is neither right nor wrong
+                predicted = predicted.masked_fill(twins[labels], float("-inf"))
+            correct += (predicted.argmax(dim=1) == labels).sum().item()
             seen += len(labels)
         row = {"epoch": epoch, "loss": float(np.mean(losses)), "train_accuracy": correct / seen, "lr": schedule.get_last_lr()[0]}
         if phonology_losses:
