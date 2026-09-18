@@ -136,6 +136,10 @@ def test_prepared_data_combines_directories(tmp_path):
     assert data.clips["sign"].to_list() == ["x", "y", "z"]
     assert [len(data[i]) for i in range(3)] == [3, 2, 4]
     assert (data[1] == 1.0).all() and (data[2] == 2.0).all()
+    assert data.twins == set()
+
+    (tmp_path / "b" / "twins.csv").write_text("sign_a,sign_b\nx,z\n")
+    assert PreparedData(tmp_path / "a", tmp_path / "b").twins == {("x", "z")}
 
     write_prepared(tmp_path / "c", ["w"], [1], 3.0, dataclasses.replace(CONFIG, fps=25.0))
     with pytest.raises(ValueError):

@@ -220,7 +220,9 @@ def prepare_store(store_path: Path, clips: pl.DataFrame, config: PrepConfig, out
 
 class PreparedData:
     """Clips written by prepare_store, from one or more directories prepared with the same config (e.g.
-    of different datasets); the frames are loaded into memory."""
+    of different datasets); the frames are loaded into memory. `twins` holds the pairs of sign labels
+    known to be one sign form, from the directories' twins.csv files (e.g. WLASL's words sharing a
+    video), which training must not push apart."""
 
     def __init__(self, *paths: Path):
         configs = [json.loads((path / "config.json").read_text()) for path in paths]
@@ -234,6 +236,8 @@ class PreparedData:
             how="diagonal_relaxed",
         )
         self.frames = np.concatenate(frames) if len(frames) > 1 else frames[0]
+        twin_files = [path / "twins.csv" for path in paths if (path / "twins.csv").exists()]
+        self.twins = {pair for file in twin_files for pair in pl.read_csv(file).iter_rows()}
         self._offsets = self.clips["offset"].to_numpy()
         self._n_frames = self.clips["n_frames"].to_numpy()
 
