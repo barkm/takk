@@ -163,6 +163,9 @@ Later: sensitivity analysis and threshold selection, including score normalizati
 
 - Fingerspelled MM-WLAuslan signs (letters and fingerspelled words): keep or drop. They can't be counted from the landmarks (see findings); the 24 letters are 1% of the Auslan training signs. Proposed: keep.
 
+- How the lexicon's resting pose is handled. It sits on the `max_hand_y` boundary, so today the rule fires for 56% of its clips and not the rest, splitting half of the classes (see findings); no height cutoff separates its rest from its low signing. Proposed: leave the global default at 1.0, prepare the lexicon with `max_hand_y = 1.2` so the rest is kept uniformly at almost no cost to the sign (0.3% of signing frames), and settle the question by measurement once the pseudo signer ids make the benchmark runnable — preparing at 1.0, 1.2 and 0.8 costs a couple of minutes each. A per-dataset value is compatible with everything except loading that set together with another in one `PreparedData`, which an evaluation-only set doesn't need.
+- Whether the framing difference belongs in training instead. About 29% of the lexicon's signing frames are deeper than ASL Citizen's frame bottom (0.69 shoulder widths), so they are articulations the model has never seen in training, whatever the lexicon's cutoff. Proposed, if the sweep shows it matters: a training augmentation that hides hands below a randomly sampled depth, which makes the model robust to framing generally rather than special-casing one dataset.
+
 ## Findings
 
 Kaggle ASL Signs:
