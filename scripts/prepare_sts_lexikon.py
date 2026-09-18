@@ -7,9 +7,10 @@ same meaning. The store already holds only the clips of classes with at least tw
 nothing is filtered out here; the clips are studio citation form, which makes this an optimistic
 bound relative to webcam signing.
 
-The clips have no signer ids yet (see ROADMAP.md), so a k-shot evaluation on this set cannot
-require the reference clips to come from another signer, and a class recorded twice by the same
-model gives an easier trial than the protocol intends.
+The clips have no signer ids yet (see ROADMAP.md), which blocks the evaluation rather than merely
+weakening it: `evaluation.py` draws every reference from a signer other than the query's, so with
+one null signer for all clips no query gets a reference and every score is NaN. The pseudo signer
+ids by face clustering have to come first.
 
 Run from the repo root: uv run scripts/prepare_sts_lexikon.py
 Writes data/prepared/<store name>-<preparation config id>/.
@@ -64,6 +65,8 @@ def main() -> None:
     )
     clips_per_sign = data.clips.group_by("sign").len()["len"]
     print(f"clips per sign: min {clips_per_sign.min()}, median {clips_per_sign.median()}, max {clips_per_sign.max()}")
+    # a broken clip can leave a class with one clip, which gives no trial at all
+    print(f"{(clips_per_sign == 1).sum()} signs are left with a single clip after the excluded clips")
     print("the signs that take longest to sign, which may be compounds rather than one sign:")
     print(longest_signs(data, 10))
     print(f"{data.frames.nbytes / 2**30:.2f} GB of frames")
