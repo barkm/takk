@@ -313,6 +313,26 @@ recording are dictionary clips by different signers as everywhere else:
 uv run scripts/evaluate_recordings.py --run gru_auslan_phonpool1
 ```
 
+### Recording Swedish signs
+
+With `--lexicon` the app shows Swedish Sign Language signs from Svenskt teckenspråkslexikon instead,
+and stores the recordings apart, in `data/raw/recordings_sts/`. This needs the crawled and prepared
+lexicon (see Downloading Svenskt teckenspråkslexikon). The model has never seen the language.
+
+Only the lexicon's sign classes are offered, the entries with several recordings of one sign form:
+the app shows one of them (the lowest lexicon id) and the recording is scored against the others,
+never against the clip it copied. So it shows one reference clip rather than several signers'. The
+lexicon has no signer ids, but your recordings are never by a lexicon signer, so every trial compares
+two different people:
+
+```sh
+uv run scripts/collect.py --lexicon --signs 25 --takes 3
+uv run python -m isolated_sign_validation.datasets.recordings --raw_dir data/raw/recordings_sts --store_dir data/processed/recordings_sts
+uv run scripts/prepare_recordings.py --store data/processed/recordings_sts
+uv run scripts/evaluate_recordings.py --name recordings_sts --prepared data/prepared/recordings_sts-<config id> \
+    --references data/prepared/sts_lexikon-<config id>
+```
+
 It also prints each recording with the rank of its own sign among the whole glossary and the signs it
 scored highest, which is what a handful of clips can actually say something about.
 
