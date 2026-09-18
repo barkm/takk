@@ -111,8 +111,9 @@ unzip -q data/raw/wlasl-processed.zip -d data/raw/wlasl
 The mirror on Hugging Face ([Voxel51/WLASL](https://huggingface.co/datasets/Voxel51/WLASL)) has the
 same videos as single files, but downloading 11,880 of them runs into rate limiting.
 
-Then extract the landmarks into `data/processed/wlasl/` (about two hours; run it in `tmux`, and run
-it again to resume). `--signs N` extracts a sample into a separate store instead:
+Then extract the landmarks of the 11,980 videos into `data/processed/wlasl/` (5.1 GB, about 4.5
+hours; run it in `tmux`, and run it again to resume). `--signs N` extracts a sample into a separate
+store instead:
 
 ```sh
 uv run python -m isolated_sign_validation.datasets.wlasl
