@@ -30,6 +30,12 @@ def cosine_similarity(embeddings: np.ndarray) -> np.ndarray:
     return normalized @ normalized.T
 
 
+def signer_codes(clips: pl.DataFrame) -> np.ndarray:
+    """Integer codes of the clips' signers. Clips without a signer id count as one signer, also next to
+    clips that have one (a glossary without signer ids and recordings that have them)."""
+    return np.unique(clips["signer"].fill_null("").to_numpy(), return_inverse=True)[1]
+
+
 def sample_references(signers: np.ndarray, query_signer: int, k: int, rng: np.random.Generator) -> np.ndarray:
     """Positions of up to k clips (among clips by `signers`) by different signers other than `query_signer`."""
     candidates = rng.permutation(np.flatnonzero(signers != query_signer))
@@ -91,7 +97,7 @@ def evaluate(
     """
     rng = np.random.default_rng(seed)
     sign_names, signs = np.unique(clips["sign"].to_numpy(), return_inverse=True)
-    _, signers = np.unique(clips["signer"].to_numpy(), return_inverse=True)
+    signers = signer_codes(clips)
     index = {sign: i for i, sign in enumerate(sign_names)}
     is_twin = np.zeros((len(sign_names), len(sign_names)), dtype=bool)
     for a, b in twins:

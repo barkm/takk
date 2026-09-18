@@ -16,7 +16,7 @@ import numpy as np
 import polars as pl
 
 from isolated_sign_validation.dataset import SignDataset
-from isolated_sign_validation.evaluation import cosine_similarity, draw_scores
+from isolated_sign_validation.evaluation import cosine_similarity, draw_scores, signer_codes
 from isolated_sign_validation.preparation import PrepConfig, PreparedData
 from isolated_sign_validation.training import embed, load_run
 
@@ -57,7 +57,7 @@ def main() -> None:
     dataset = SignDataset(data, args.split)
     clips = data.clips[dataset.positions]
     sign_names, signs = np.unique(clips["sign"].to_numpy(), return_inverse=True)
-    _, signers = np.unique(clips["signer"].to_numpy(), return_inverse=True)
+    signers = signer_codes(clips)
     minimal = near_minimal_pairs(clips, sign_names, args.max_differences)
     print(f"{args.split}: {len(sign_names)} signs, {minimal.sum() // 2} near-minimal pairs (at most {args.max_differences} of the "
           f"ASL-LEX features differ) among {minimal.any(axis=1).sum()} signs; threshold rejects {args.rejected:.0%} of correct attempts")  # fmt: skip

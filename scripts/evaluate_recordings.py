@@ -33,7 +33,7 @@ import polars as pl
 
 from isolated_sign_validation.collection import RAW_DIR, read_clips
 from isolated_sign_validation.dataset import SignDataset
-from isolated_sign_validation.evaluation import cosine_similarity, draw_scores, evaluate
+from isolated_sign_validation.evaluation import cosine_similarity, draw_scores, evaluate, signer_codes
 from isolated_sign_validation.preparation import PrepConfig, PreparedData
 from isolated_sign_validation.training import embed, load_run
 
@@ -44,7 +44,7 @@ METRICS = ["auc", "eer", "top1", "top5"]
 def top_signs(similarity: np.ndarray, clips: pl.DataFrame, queries: np.ndarray, k: int, n: int, seed: int) -> pl.DataFrame:
     """For every query clip, the rank of its own sign and the `n` signs it scored highest."""
     sign_names, signs = np.unique(clips["sign"].to_numpy(), return_inverse=True)
-    _, signers = np.unique(clips["signer"].to_numpy(), return_inverse=True)
+    signers = signer_codes(clips)
     query_rows = np.flatnonzero(queries)
     scores = draw_scores(similarity, signs, signers, k, np.random.default_rng(seed), query_rows)
     own = scores[np.arange(len(query_rows)), signs[query_rows]]

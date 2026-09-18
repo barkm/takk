@@ -2,7 +2,7 @@ import numpy as np
 import polars as pl
 import pytest
 
-from isolated_sign_validation.evaluation import _metrics, cosine_similarity, draw_scores, evaluate, sample_references
+from isolated_sign_validation.evaluation import _metrics, cosine_similarity, draw_scores, evaluate, sample_references, signer_codes
 
 
 def test_metrics_from_histograms():
@@ -99,3 +99,12 @@ def test_twins_are_not_trials():
 
     assert top1(counted) < 0.9 and auc(counted) < 1.0  # S4 and S5 confused with each other
     assert top1(skipped) == 1.0 and auc(skipped) == pytest.approx(1.0)
+
+
+def test_signer_codes_with_and_without_signer_ids():
+    clips = pl.DataFrame({"signer": ["rec:A", None, None, "rec:B", "rec:A"]}, schema={"signer": pl.String})
+
+    codes = signer_codes(clips)
+
+    assert codes[1] == codes[2]  # clips without a signer id are one signer
+    assert len({codes[0], codes[1], codes[3]}) == 3 and codes[0] == codes[4]
