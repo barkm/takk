@@ -74,8 +74,8 @@ Status of the work and the plan ahead. Update this file when a step is finished,
 10. **Self-recorded evaluation set (the deployment setting)** — in progress
    - Collection tool (`collection.py`, `scripts/collect.py`, `web/collect.html`): a web app that shows reference clips of a held-out ASL Citizen sign by several signers and records the signer's attempt with their webcam. Every take is stored with the signer, their handedness, whether they kept it and whether they felt sure of the sign; only the clip's validity is reported back, never a score (see decisions). — done
    - Adapter (`datasets/recordings.py`) converting the kept takes into a landmark store with the same extractor. — done
-   - Record sessions: several signers recording the same signs, spread over more than one sitting (different day, lighting, camera placement), so the k-shot protocol can draw references by other signers. — next
-   - Preparation as an evaluation set (`splits.assign_evaluation_only`, like `scripts/prepare_slovo.py`) and evaluation, once there are recordings to prepare.
+   - Record sessions: several signers recording the same signs, spread over more than one sitting (different day, lighting, camera placement), so the k-shot protocol can draw references by other signers. — first session done (17 kept clips, 5 signs, 1 signer; see findings), far from enough to evaluate on.
+   - Preparation as an evaluation set (`scripts/prepare_recordings.py`, `splits.assign_evaluation_only`); the `no_event` clips are left out, since every clip's sign becomes a class of the evaluation. — done
    - The product setting itself — references from the ASL Citizen dictionary, queries from the recordings — needs a query/reference variant of `evaluation.py`, which only scores clips of one prepared set against each other. Not designed yet.
 
 Later: sensitivity analysis and threshold selection, including score normalization (see the baseline findings); Swedish Sign Language signs from teckensprakslexikon.su.se.
@@ -232,3 +232,9 @@ MediaPipe extraction speed (machine: Ryzen 9 5950X, 16 cores / 32 threads; RTX 3
 
 MediaPipe:
 - MediaPipe 1.0 has removed the legacy Holistic API that the Kaggle landmarks were extracted with. Its Tasks API has a `HolisticLandmarker` (model: `https://storage.googleapis.com/mediapipe-models/holistic_landmarker/holistic_landmarker/float16/latest/holistic_landmarker.task`) as well as separate face, hand and pose landmarkers. The Tasks API also provides the landmark connection definitions (`FaceLandmarksConnections`, `HandLandmarksConnections`, `PoseLandmarksConnections`).
+
+Self-recorded clips (first session, 17 kept clips of 5 signs by 1 signer):
+- All 17 survived preparation. Clips are slightly longer than ASL Citizen's (median 50 prepared frames against 43 for the same signs, 41 overall), as expected from a learner signing more slowly; well inside ASL Citizen's spread (p10-p90 30-65).
+- Not mirrored, so the browser's CSS-only preview mirroring works as intended: the `right_hand` wrist has mean x 0.40 (ASL Citizen 0.37) and the `left_hand` wrist 0.65 (0.65), i.e. the signer's right hand is on the image's left in both.
+- Both hands are detected less often than in ASL Citizen clips of the same signs: 47% of clips count as two-handed against 79%. Worth watching as more clips come in; it would make the recordings systematically different from the training data.
+- Preparation does not use the signer's recorded handedness. `preparation.add_dominant_hands` derives it from the signer's one-handed clips, and with no one-handed clip among the 17 it fell back to "right", which happens to be correct here. For a left-handed signer with only two-handed clips it would be wrong, and every clip would be mirrored the wrong way. The handedness is in `data/raw/recordings/clips.csv`; using it would mean changing `prepare_store`, which all datasets share.
