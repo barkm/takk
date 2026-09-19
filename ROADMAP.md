@@ -46,8 +46,9 @@ Status of the work and the plan ahead. Update this file when a step is finished,
      - Auxiliary heads and loss on the embedding (`TrainConfig.phonology_weight`), trained on ASL Citizen + MM-WLAuslan (Auslan clips without labels), weights 0.3 / 1 / 3 (`gru_auslan_phon*`) vs `gru_auslan`. — done: fewer false accepts of random wrong signs, more of near-minimal pairs (see findings)
      - The same with the heads on the pooled encoder output instead (`phonology_input=pooled`, `gru_auslan_phonpool*`), leaving the embedding free. — done: the best model so far, +1.2 points top-1 (see findings)
      - Test split check of `gru_auslan_phonpool1`. — done: the gain holds (see findings)
-     - Next: consider targeting near-minimal pairs directly (e.g. an extra margin between training signs that are near-minimal pairs).
+     - An extra margin between training signs that are near-minimal pairs (`iv07_minpair`). — done: worse on val (see the validation accuracy search in findings)
    - Conv + transformer encoder with heavy augmentation.
+   - Validation accuracy search (`prompts/improve_val.md`, `scripts/compare_val.py`): inputs, augmentation, loss, architecture and optimization changes, each paired against the current best. — in progress (see findings)
    - Experiments: landmark groups (hands only / + body / + face), loss (ArcFace vs supervised contrastive), sequence length.
 
 8. **More data**
