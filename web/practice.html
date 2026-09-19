@@ -46,6 +46,7 @@
 
       <section id="recorder" class="card hidden">
         <video id="camera" autoplay muted playsinline></video>
+        <p id="tracking" class="dim"></p>
         <p class="row">
           <button id="record" disabled>Record</button>
           <span id="timer" class="dim"></span>
@@ -57,8 +58,9 @@
     </main>
 
     <script type="module">
-      // Landmarks are extracted here, with the same HolisticLandmarker setup as extraction.py (CPU,
-      // VIDEO mode, a new landmarker per clip), and only they are sent to the server.
+      // Landmarks are extracted here, live, while the camera runs: MediaPipe's HolisticLandmarker in
+      // VIDEO mode on the GPU (the CPU if the GPU is unavailable), with the same version and model as
+      // extraction.py. Only the landmarks of a recording are sent to the server.
       import { FilesetResolver, HolisticLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.mjs";
 
       // LANDMARK_SLICES in landmarks.py: [result field, first index, number of points]
@@ -69,13 +71,12 @@
         ["rightHandLandmarks", 522, 21],
       ];
       const N_LANDMARKS = 543;
+      const SLOW_FPS = 20; // below this the extractor skips so many camera frames that results suffer
 
       const el = (id) => document.getElementById(id);
       const show = (id, visible) => el(id).classList.toggle("hidden", !visible);
       const word = (sign) => sign.replace(/^sts:/, "").replace(/-\d+$/, "");
-      let signs = [], sign = null, fps = 30, maxSeconds = 4, stream = null, frames = null, busy = false;
-
-      const files = FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm");
+      let signs = [], sign = null, fps = 30, maxSeconds = 4, stream = null, landmarker = null, recorded = null;
 
       function search() {
         const query = el("search").value.trim().toLowerCase();
@@ -99,38 +100,67 @@
           .join("");
         el("verdict").textContent = el("detail").textContent = "";
         show("prompt", true), show("recorder", true);
-        if (!stream) {
-          try {
-            stream = await navigator.mediaDevices.getUserMedia({
-              video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
-              audio: false,
-            });
-          } catch (error) {
-            return (el("verdict").textContent = "No access to the camera: " + error.message);
-          }
-          el("camera").srcObject = stream;
+        if (!stream) await startCamera();
+      }
+
+      async function startCamera() {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
+            audio: false,
+          });
+        } catch (error) {
+          return (el("verdict").textContent = "No access to the camera: " + error.message);
         }
+        el("camera").srcObject = stream;
+        el("tracking").textContent = "Loading the landmark model...";
+        const files = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm");
+        let delegate = "GPU";
+        try {
+          landmarker = await HolisticLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: "/api/model", delegate }, runningMode: "VIDEO" });
+        } catch {
+          delegate = "CPU";
+          landmarker = await HolisticLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: "/api/model", delegate }, runningMode: "VIDEO" });
+        }
+        track(delegate);
         el("record").disabled = false;
       }
 
-      // While recording, every camera frame is kept with its capture time. They are only processed
-      // afterwards, since extraction is slower than real time on the CPU.
-      // ponytail: frames are held at full resolution (~3.7 MB each at 720p, ~0.5 GB for the longest
-      // clip); downscale or process while recording if that is too much on phones.
-      function captureFrames() {
+      // The landmarks of one result in the common layout, NaN where a part was not detected.
+      function layout(result) {
+        const landmarks = new Float32Array(N_LANDMARKS * 3).fill(NaN);
+        for (const [field, first, count] of PARTS) {
+          const points = result[field][0];
+          if (!points) continue;
+          for (let k = 0; k < count; k++) landmarks.set([points[k].x, points[k].y, points[k].z], (first + k) * 3);
+        }
+        return landmarks;
+      }
+
+      // Run the landmarker on every camera frame it can keep up with; frames that arrive while it is
+      // busy are skipped. While recording, each result is kept with its frame's capture time.
+      function track(delegate) {
         const video = el("camera");
+        let last = -1, count = 0, since = performance.now();
         const next = (now, metadata) => {
-          if (!frames) return;
-          const time = (metadata.captureTime ?? now) / 1000;
-          frames.push(createImageBitmap(video).then((bitmap) => ({ time, bitmap })));
+          const time = metadata.captureTime ?? now;
+          last = Math.max(last + 1, Math.round(time)); // VIDEO mode needs increasing timestamps
+          const result = landmarker.detectForVideo(video, last);
+          if (recorded) recorded.push({ time: time / 1000, landmarks: layout(result) });
+          count += 1;
+          if (now - since > 1000) {
+            const rate = (count * 1000) / (now - since);
+            const slow = rate < SLOW_FPS ? " — slower than the camera, so results are less reliable" : "";
+            el("tracking").textContent = `Tracking live on the ${delegate} at ${rate.toFixed(0)} fps${slow}`;
+            (count = 0), (since = now);
+          }
           video.requestVideoFrameCallback(next);
         };
         video.requestVideoFrameCallback(next);
       }
 
       function record() {
-        frames = [];
-        captureFrames();
+        recorded = [];
         el("camera").classList.add("recording");
         el("record").textContent = "Stop";
         el("verdict").textContent = el("detail").textContent = "";
@@ -143,60 +173,42 @@
       }
 
       async function stop() {
-        if (!frames) return; // the time limit and the button can both stop a recording
+        if (!recorded) return; // the time limit and the button can both stop a recording
         clearInterval(window.ticker);
-        const captured = await Promise.all(frames);
-        frames = null;
+        const frames = recorded;
+        recorded = null;
         el("camera").classList.remove("recording");
         el("record").textContent = "Record";
         el("record").disabled = true;
-        busy = true;
         try {
-          await score(captured.sort((a, b) => a.time - b.time));
+          await score(frames);
         } finally {
-          captured.forEach(({ bitmap }) => bitmap.close());
-          busy = false;
           el("record").disabled = false;
         }
       }
 
-      // Landmarks at the preparation's constant frame rate: at every 1 / fps seconds the latest camera
-      // frame, as the collection app's transcode does before the Python extraction.
-      async function extract(captured) {
-        const landmarker = await HolisticLandmarker.createFromOptions(await files, {
-          baseOptions: { modelAssetPath: "/api/model", delegate: "CPU" },
-          runningMode: "VIDEO",
-        });
-        const start = captured[0].time;
-        const n = Math.floor((captured.at(-1).time - start) * fps) + 1;
-        const landmarks = new Float32Array(n * N_LANDMARKS * 3).fill(NaN);
+      // The landmarks at the preparation's constant frame rate: at every 1 / fps seconds the latest
+      // tracked frame, as the collection app's transcode picks video frames.
+      function resample(frames) {
+        const start = frames[0].time;
+        const n = Math.floor((frames.at(-1).time - start) * fps) + 1;
+        const landmarks = new Float32Array(n * N_LANDMARKS * 3);
         for (let i = 0, j = 0; i < n; i++) {
-          while (j + 1 < captured.length && captured[j + 1].time <= start + i / fps) j++;
-          const result = landmarker.detectForVideo(captured[j].bitmap, Math.round((i * 1000) / fps));
-          for (const [field, first, count] of PARTS) {
-            const points = result[field][0];
-            if (!points) continue;
-            for (let k = 0; k < count; k++) landmarks.set([points[k].x, points[k].y, points[k].z], (i * N_LANDMARKS + first + k) * 3);
-          }
-          if (i % 5 === 0) {
-            el("detail").textContent = `Analyzing frame ${i + 1} of ${n}...`;
-            await new Promise(requestAnimationFrame); // let the page show the progress
-          }
+          while (j + 1 < frames.length && frames[j + 1].time <= start + i / fps) j++;
+          landmarks.set(frames[j].landmarks, i * N_LANDMARKS * 3);
         }
-        landmarker.close();
         return landmarks;
       }
 
-      async function score(captured) {
-        if (captured.length < 2) return (el("verdict").textContent = "The recording is empty.");
-        const landmarks = await extract(captured);
+      async function score(frames) {
+        if (frames.length < 2) return (el("verdict").textContent = "The recording is empty.");
         el("detail").textContent = "Scoring...";
         const body = new FormData();
-        body.append("landmarks", new Blob([landmarks.buffer]), "landmarks.f32");
+        body.append("landmarks", new Blob([resample(frames).buffer]), "landmarks.f32");
         body.append("sign", sign.sign);
         body.append("handedness", document.querySelector("input[name=handedness]:checked").value);
-        body.append("width", captured[0].bitmap.width);
-        body.append("height", captured[0].bitmap.height);
+        body.append("width", el("camera").videoWidth);
+        body.append("height", el("camera").videoHeight);
         const response = await fetch("/api/attempt", { method: "POST", body });
         if (!response.ok) {
           el("verdict").className = "bad";
@@ -217,12 +229,12 @@
       }
 
       el("search").oninput = search;
-      el("record").onclick = () => (frames ? stop() : record());
+      el("record").onclick = () => (recorded ? stop() : record());
       // Space toggles recording; preventDefault also stops it clicking whichever button has focus.
       document.addEventListener("keydown", (event) => {
         if (event.code !== "Space" || event.target.type === "search") return;
         event.preventDefault();
-        if (!event.repeat && !el("record").disabled && !busy) el("record").click();
+        if (!event.repeat && !el("record").disabled) el("record").click();
       });
 
       fetch("/api/signs")
