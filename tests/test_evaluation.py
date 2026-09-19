@@ -84,3 +84,18 @@ def test_evaluate_with_a_query_mask_bootstraps_over_the_scored_signs():
 
     assert per_sign["sign"].to_list() == ["S0", "S1"]  # only the scored signs
     assert summary["ci_low"].is_finite().all() and summary["ci_high"].is_finite().all()
+
+
+def test_twins_are_not_trials():
+    clips = clips_table(6, 5)
+    _, signs = np.unique(clips["sign"].to_numpy(), return_inverse=True)
+    form = np.minimum(signs, 4)  # S4 and S5 are one sign form
+    embeddings = np.eye(6)[form] + 0.01 * np.random.default_rng(0).normal(size=(len(signs), 6))
+    top1 = lambda summary: summary.filter(pl.col("metric") == "top1")["value"][0]  # noqa: E731
+    auc = lambda summary: summary.filter(pl.col("metric") == "auc")["value"][0]  # noqa: E731
+
+    counted, _ = evaluate(cosine_similarity(embeddings), clips, ks=(1,), n_bootstrap=0)
+    skipped, _ = evaluate(cosine_similarity(embeddings), clips, ks=(1,), n_bootstrap=0, twins={("S4", "S5")})
+
+    assert top1(counted) < 0.9 and auc(counted) < 1.0  # S4 and S5 confused with each other
+    assert top1(skipped) == 1.0 and auc(skipped) == pytest.approx(1.0)

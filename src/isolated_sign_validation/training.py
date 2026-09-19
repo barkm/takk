@@ -127,7 +127,7 @@ def embed(model: nn.Module, dataset: SignDataset, device: str, batch_size: int =
 def quick_validation(model: nn.Module, val: SignDataset, device: str) -> dict[str, float]:
     """Cheap validation metrics for checks during training: k = 1 and 5, one draw of references, no bootstrap."""
     similarity = cosine_similarity(embed(model, val, device))
-    summary, _ = evaluate(similarity, val.data.clips[val.positions], ks=(1, 5), n_draws=1, n_bootstrap=0)
+    summary, _ = evaluate(similarity, val.data.clips[val.positions], ks=(1, 5), n_draws=1, n_bootstrap=0, twins=val.data.twins)
     return {f"{metric}_k{k}": value for k, metric, value in summary.select("k", "metric", "value").iter_rows()}
 
 
@@ -229,7 +229,7 @@ def train(config: TrainConfig, data: PreparedData, run_dir: Path, device: str = 
         plot_curves(metrics, run_dir / "curves.png")
 
     model.load_state_dict(torch.load(run_dir / "best.pt")["model"])
-    summary, per_sign = evaluate(cosine_similarity(embed(model, val_set, device)), val_set.data.clips[val_set.positions])
+    summary, per_sign = evaluate(cosine_similarity(embed(model, val_set, device)), val_set.data.clips[val_set.positions], twins=data.twins)
     summary.write_parquet(run_dir / "val_summary.parquet")
     per_sign.write_parquet(run_dir / "val_per_sign.parquet")
     print(summary.pivot(on="metric", index="k", values="value"))

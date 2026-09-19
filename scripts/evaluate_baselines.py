@@ -39,7 +39,7 @@ def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     for name, similarity in [("hand_features", hand_features), ("dtw", dtw)]:
         start = time.time()
-        summary, per_sign = evaluate(similarity(), clips)
+        summary, per_sign = evaluate(similarity(), clips, twins=data.twins)
         summary.write_parquet(OUT_DIR / f"{name}_{args.split}_summary.parquet")
         per_sign.write_parquet(OUT_DIR / f"{name}_{args.split}_per_sign.parquet")
         table = summary.with_columns(

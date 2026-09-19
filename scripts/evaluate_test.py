@@ -1,8 +1,9 @@
 """Evaluate training runs on the test split: held-out signs performed by held-out signers.
 
 Prints each run's metrics with 95% bootstrap CIs over signs, and each run's gain over the first run,
-paired over signs (mean per-sign difference in top-1, with a bootstrap CI). The test split is for final
-numbers and important comparisons; model decisions are made on validation.
+paired over signs (mean per-sign difference in top-1, with a bootstrap CI). Twin signs (the prepared
+set's twins.csv) are not scored against each other. The test split is for final numbers and important
+comparisons; model decisions are made on validation.
 
 With `--prepared` and `--name` it evaluates another prepared set of held-out signs the same way,
 e.g. the Slovo cross-language evaluation set. `--signs` then matches its vocabulary size to another
@@ -28,7 +29,7 @@ METRICS = ["auc", "eer", "top1", "top5"]
 SUBSET_DRAWS = 5  # sign subsets drawn for --signs
 
 
-def evaluate_set(embeddings: np.ndarray, clips: pl.DataFrame, signs: int | None) -> tuple[pl.DataFrame, pl.DataFrame]:
+def evaluate_set(embeddings: np.ndarray, clips: pl.DataFrame, signs: int | None, twins: set[tuple[str, str]]) -> tuple[pl.DataFrame, pl.DataFrame]:
     """Evaluate all the clips, or, with `signs`, random subsets of that many signs, averaged over draws.
 
     A query is scored against every sign of the set, so top-1 and top-5 drop as the set holds more
@@ -36,13 +37,13 @@ def evaluate_set(embeddings: np.ndarray, clips: pl.DataFrame, signs: int | None)
     ROADMAP.md). The subsets are drawn the same way for every run.
     """
     if not signs:
-        return evaluate(cosine_similarity(embeddings), clips)
+        return evaluate(cosine_similarity(embeddings), clips, twins=twins)
     rng = np.random.default_rng(0)
     all_signs = clips["sign"].unique().sort().to_numpy()
     draws = []
     for _ in range(SUBSET_DRAWS):
         kept = clips["sign"].is_in(list(rng.choice(all_signs, signs, replace=False))).to_numpy()
-        draws.append(evaluate(cosine_similarity(embeddings[kept]), clips.filter(kept)))
+        draws.append(evaluate(cosine_similarity(embeddings[kept]), clips.filter(kept), twins=twins))
     summary = pl.concat([summary for summary, _ in draws]).group_by("k", "metric", maintain_order=True).mean()
     per_sign = pl.concat([per_sign for _, per_sign in draws]).group_by("k", "sign", maintain_order=True).mean()
     return summary, per_sign
@@ -67,7 +68,7 @@ def main() -> None:
     per_sign = {}
     for run in args.runs:
         _, model = load_run(RUNS_DIR / run, data)
-        summary, per_sign[run] = evaluate_set(embed(model.to("cuda"), test, "cuda"), clips, args.signs)
+        summary, per_sign[run] = evaluate_set(embed(model.to("cuda"), test, "cuda"), clips, args.signs, data.twins)
         summary.write_parquet(RUNS_DIR / run / f"{name}_summary.parquet")
         per_sign[run].write_parquet(RUNS_DIR / run / f"{name}_per_sign.parquet")
         print(f"\n{run}:")

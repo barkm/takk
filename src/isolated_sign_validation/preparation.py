@@ -222,7 +222,7 @@ class PreparedData:
     """Clips written by prepare_store, from one or more directories prepared with the same config (e.g.
     of different datasets); the frames are loaded into memory. `twins` holds the pairs of sign labels
     known to be one sign form, from the directories' twins.csv files (e.g. WLASL's words sharing a
-    video), which training must not push apart."""
+    video), which training must not push apart and the evaluation doesn't score against each other."""
 
     def __init__(self, *paths: Path):
         configs = [json.loads((path / "config.json").read_text()) for path in paths]

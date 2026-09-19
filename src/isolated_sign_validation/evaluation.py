@@ -6,15 +6,18 @@ each sign of the split, k reference clips of that sign are drawn from k differen
 from the query's signer, and the query's score for the sign is its mean similarity to them.
 
 - Verification: the query's score for its own sign is a positive trial, its scores for all other
-  signs are negative trials. ROC-AUC and equal error rate (EER) are computed over all trials pooled,
+  signs are negative trials, except for its sign's twins (signs known to be the same sign form),
+  which are neither. ROC-AUC and equal error rate (EER) are computed over all trials pooled,
   i.e. for a single global threshold.
 - Identification: the share of queries whose own sign scores highest (top-1) or among the five
-  highest (top-5) among all signs of the split.
+  highest (top-5) among all signs of the split but its sign's twins.
 
 Metrics are pooled over several random draws of references, with 95% bootstrap confidence intervals
 over signs. Scores are binned into per-sign histograms, which makes resampling signs cheap; AUC and
 EER are therefore exact up to the bin resolution.
 """
+
+from collections.abc import Collection
 
 import numpy as np
 import polars as pl
@@ -70,8 +73,11 @@ def evaluate(
     n_bootstrap: int = 1000,
     seed: int = 0,
     queries: np.ndarray | None = None,
+    twins: Collection[tuple[str, str]] = (),
 ) -> tuple[pl.DataFrame, pl.DataFrame]:
     """Evaluate a similarity matrix between `clips` (with `sign` and `signer` columns).
+
+    `twins` are pairs of signs known to be one sign form, whose scores for each other are not trials.
 
     With `queries` (a boolean mask over the clips), only those clips are scored as queries; references
     are still drawn from all clips. Returns a summary with one row per k and metric (estimate and
@@ -80,6 +86,11 @@ def evaluate(
     rng = np.random.default_rng(seed)
     sign_names, signs = np.unique(clips["sign"].to_numpy(), return_inverse=True)
     _, signers = np.unique(clips["signer"].to_numpy(), return_inverse=True)
+    index = {sign: i for i, sign in enumerate(sign_names)}
+    is_twin = np.zeros((len(sign_names), len(sign_names)), dtype=bool)
+    for a, b in twins:
+        if a in index and b in index:
+            is_twin[index[a], index[b]] = is_twin[index[b], index[a]] = True
     summary, per_sign = [], []
     for k in ks:
         pos, neg, rank = [], [], []  # per query and draw
@@ -88,6 +99,7 @@ def evaluate(
             own = scores[np.arange(len(signs)), signs]
             others = scores.copy()
             others[np.arange(len(signs)), signs] = np.nan
+            others[is_twin[signs]] = np.nan
             pos.append(own)
             neg.append(others)
             rank.append((others > own[:, None]).sum(axis=1) + (others == own[:, None]).sum(axis=1) / 2)
