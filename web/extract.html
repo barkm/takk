@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Browser landmark extraction</title>
+  </head>
+  <body>
+    <p id="status">Loading MediaPipe…</p>
+    <script type="module">
+      // Landmark extraction in the browser with the same HolisticLandmarker setup as extraction.py
+      // (same MediaPipe version and model, CPU, VIDEO mode), into the common landmark layout.
+      // scripts/compare_browser_extraction.py drives it and compares it with the Python extraction.
+      import { FilesetResolver, HolisticLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.mjs";
+
+      // LANDMARK_SLICES in landmarks.py: [result field, first index, number of points]
+      const PARTS = [
+        ["faceLandmarks", 0, 468], // the face model's 10 iris points after these are dropped
+        ["leftHandLandmarks", 468, 21],
+        ["poseLandmarks", 489, 33],
+        ["rightHandLandmarks", 522, 21],
+      ];
+      const N_LANDMARKS = 543;
+
+      const files = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm");
+      const options = {
+        baseOptions: { modelAssetPath: new URLSearchParams(location.search).get("model"), delegate: "CPU" },
+        runningMode: "VIDEO",
+      };
+      document.getElementById("status").textContent = "Ready";
+
+      const video = document.createElement("video");
+      video.muted = true;
+
+      // Seek to `time` and resolve with the presented frame's media time once it is shown.
+      function seek(time) {
+        return new Promise((resolve) => {
+          video.requestVideoFrameCallback((_, metadata) => resolve(metadata.mediaTime));
+          video.currentTime = time;
+        });
+      }
+
+      // Landmarks of `nFrames` frames of the video at `url`, one every 1 / fps seconds, as base64 of
+      // float32 (nFrames, N_LANDMARKS, 3), NaN where a part is undetected; with the frame size and
+      // the media time of every frame, to check that each frame was a new one.
+      window.extractLandmarks = async (url, fps, nFrames) => {
+        video.src = URL.createObjectURL(await (await fetch(url)).blob()); // a blob seeks without range requests
+        await new Promise((resolve) => (video.onloadeddata = resolve));
+        // a new landmarker per video, as in extraction.py: no tracking state carries over between clips
+        const landmarker = await HolisticLandmarker.createFromOptions(files, options);
+        const landmarks = new Float32Array(nFrames * N_LANDMARKS * 3).fill(NaN);
+        const mediaTimes = [];
+        for (let i = 0; i < nFrames; i++) {
+          mediaTimes.push(await seek((i + 0.5) / fps));
+          const result = landmarker.detectForVideo(video, Math.round((i * 1000) / fps));
+          for (const [field, start, count] of PARTS) {
+            const points = result[field][0];
+            if (!points) continue;
+            for (let j = 0; j < count; j++) {
+              landmarks.set([points[j].x, points[j].y, points[j].z], ((i * N_LANDMARKS) + start + j) * 3);
+            }
+          }
+        }
+        landmarker.close();
+        URL.revokeObjectURL(video.src);
+        const bytes = new Uint8Array(landmarks.buffer);
+        let binary = "";
+        for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+        return { landmarks: btoa(binary), width: video.videoWidth, height: video.videoHeight, mediaTimes };
+      };
+    </script>
+  </body>
+</html>
