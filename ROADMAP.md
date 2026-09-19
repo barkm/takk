@@ -384,3 +384,4 @@ Validation accuracy search (`prompts/improve_val.md`, started 2026-09-19). All n
 - More dropout for the wider GRU (`iv13_h384_d05`, dropout 0.5 instead of 0.4): no gain, top-1 79.15%, −0.34 points (−0.86 to +0.17), EER +0.06 (−0.12 to +0.21). Validation still peaks around epoch 16 and declines afterwards.
 - Shorter training for the wider GRU (`iv14_h384_e20`, 20 epochs instead of 30, so the cosine schedule anneals near the validation peak): the same result at two thirds of the compute, top-1 79.50%, +0.01 points (−0.41 to +0.43), EER −0.04 (−0.20 to +0.07). Not a gain, but later runs use 20 epochs and pair against it.
 - Attention pooling (`iv15_attnpool`, an attention-weighted mean of the GRU outputs next to the mean and max): no gain, top-1 79.58%, +0.08 points (−0.51 to +0.68), EER +0.31 (+0.11 to +0.49).
+- A larger ArcFace margin (`iv16_margin04`, 0.4 instead of 0.3): worse, top-1 78.88%, −0.62 points (−1.05 to −0.17), EER +0.14 (−0.03 to +0.30).
