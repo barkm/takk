@@ -37,7 +37,7 @@
         <p class="dim">
           You will be shown a sign performed by a few different signers, and record yourself signing it.
           Watch the clips as often as you like before recording. No score is shown and nothing is judged:
-          the recordings are only used to evaluate a model later.
+          the recordings are only used to evaluate a model later. Press space to start and stop recording.
         </p>
         <label for="signer">Your name or initials</label>
         <input id="signer" type="text" autocomplete="off" />
@@ -209,6 +209,12 @@
       el("begin").onclick = begin;
       el("record").onclick = () => (recorder && recorder.state === "recording" ? stopRecording() : record());
       el("retake").onclick = () => (show("after", false), (el("record").disabled = false), (el("result").textContent = ""));
+      // Space toggles recording; preventDefault also stops it clicking whichever button has focus.
+      document.addEventListener("keydown", (event) => {
+        if (event.code !== "Space" || event.target.type === "text") return;
+        event.preventDefault();
+        if (!event.repeat && !el("record").disabled) el("record").click();
+      });
       el("keep").onclick = keep;
       el("skip").onclick = () => ((saved = "Skipped."), next());
 
