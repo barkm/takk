@@ -355,19 +355,23 @@ scored highest, which is what a handful of clips can actually say something abou
 
 `scripts/practice.py` serves the product itself as a small web app: search the Swedish lexicon for a
 word, watch its clip, sign it to the webcam, and learn whether it was that sign. The landmarks are
-extracted in the browser, with the same MediaPipe version, model and settings as `extraction.py`, and
-only they are sent to the server; the video never leaves the device. The server checks and prepares
-the attempt like a recording, embeds it with the run's model, and accepts it when its mean cosine
-similarity to the sign's lexicon clips reaches `--threshold` (a provisional 0.38, see ROADMAP.md):
+extracted in the browser, live on the GPU while the camera runs (the CPU if there is no GPU), with the
+same MediaPipe version and model as `extraction.py`, and drawn over the camera image; only the
+landmarks of a recording are sent to the server, the video never leaves the device. The server checks
+and prepares the attempt like a recording, embeds it with the run's model, and accepts it when its
+mean cosine similarity to the sign's lexicon clips reaches `--threshold` (a provisional 0.38, see
+ROADMAP.md). It also names the closest sign of the whole lexicon:
 
 ```sh
 uv run scripts/practice.py   # then open http://localhost:8002
 ```
 
-Extraction runs on the CPU after recording, since it is slower than real time (about 2–3 s per
-second of video on a desktop CPU). As with the collection app, forward the port when the machine is
-remote. `scripts/compare_browser_extraction.py` compares the browser's landmarks with the Python
-extraction on the recordings.
+The page shows the rate the landmarks are tracked at. Below 20 fps it skips so many camera frames
+that the answer is less reliable, since the model was trained on every frame. The lexicon's
+embeddings are cached in `outputs/runs/<run>/`, so only the first start takes about a minute. As with
+the collection app, forward the port when the machine is remote.
+`scripts/compare_browser_extraction.py` compares the browser's landmarks with the Python extraction
+on the recordings.
 
 ## Future
 
