@@ -9,9 +9,13 @@ references. The attempt counts as the sign when the score reaches a global thres
 the whole glossary with the highest score is reported too, so a wrong attempt shows what it resembled.
 
 An attempt can also be a sentence of several signs, as TAKK signs the key words of a spoken
-sentence. The signer lowers their hands between the signs; the recording is split at those rests
-(split_signs) and each part is scored as an attempt of the sign at its place in the sentence.
+sentence. The recording is split into its signs and each part is scored as an attempt of the sign at
+its place in the sentence. With the sentence spoken aloud, the split follows the speech (`speech`):
+the signer speaks a whole Swedish sentence and the key words are timed in it. Without audio it
+follows the rests instead (split_signs), and the signer has to lower their hands between the signs.
 """
+
+import re
 
 import numpy as np
 import torch
@@ -24,6 +28,7 @@ from isolated_sign_validation.dataset import collate
 from isolated_sign_validation.extraction import MODEL_PATH, VideoInfo
 from isolated_sign_validation.landmarks import N_LANDMARKS, SKELETON_EDGES
 from isolated_sign_validation.preparation import ONE_HANDED, PrepConfig, hand_presence, hide_low_hands, mirror, prepare_clip
+from isolated_sign_validation.speech import Aligner, decode_audio, split_speech
 
 # Seconds without a raised hand that end a sign of a sentence. Inside a sign the hands are lost for
 # at most 0.23 s in the Swedish browser recordings; lowering the hands and raising them again takes longer.
@@ -71,6 +76,12 @@ def split_signs(landmarks: np.ndarray, aspect: float, config: PrepConfig) -> lis
     return [slice(a, b) for a, b in zip(cuts[:-1], cuts[1:])]
 
 
+def spoken_word(sign: str) -> str:
+    """The Swedish word a lexicon sign is signed for, which is what the signer says: its name without
+    the source and the entry number ("sts:platta slag-25563" -> "platta slag")."""
+    return re.sub(r"-\d+$", "", sign.removeprefix("sts:"))
+
+
 @torch.inference_mode()
 def embed_clip(model: nn.Module, frames: np.ndarray, config: PrepConfig, device: str) -> np.ndarray:
     """The unit-length embedding of one prepared clip."""
@@ -90,10 +101,12 @@ def create_app(
     config: PrepConfig,
     threshold: float,
     device: str,
+    aligner: Aligner | None = None,
 ) -> FastAPI:
     """The practice app: the page, the glossary's signs with their clips (`references`, sign ->
     clip ids, in the order of the rows of `means`, see sign_means), the clips' videos (by clip id, see
-    video_paths), the extraction model for the browser, and the scoring of attempts."""
+    video_paths), the extraction model for the browser, and the scoring of attempts. With an
+    `aligner` a spoken sentence is split into its signs by its words rather than by the rests."""
     app = FastAPI()
     names = list(references)
     index = {sign: i for i, sign in enumerate(names)}
@@ -135,22 +148,33 @@ def create_app(
         }  # fmt: skip
 
     @app.post("/api/attempt")
-    async def attempt(landmarks: UploadFile, sign: list[str] = Form(), handedness: str = Form(), width: int = Form(), height: int = Form()) -> dict:  # fmt: skip
+    async def attempt(landmarks: UploadFile, sign: list[str] = Form(), handedness: str = Form(), width: int = Form(), height: int = Form(), audio: UploadFile | None = None, audio_offset: float = Form(0.0)) -> dict:  # fmt: skip
         """Score an attempt of one sign or a sentence of several (`sign` repeated, in order): its
         landmarks as float32 (n_frames, N_LANDMARKS, 3), NaN where not detected, at the preparation's
         frame rate, from frames of `width` x `height` pixels. A sentence is split into its signs
-        first; when their number differs from the sentence's, nothing is scored."""
+        first, by the sentence spoken in `audio` (recorded `audio_offset` seconds before the first
+        frame) or, without it, by the rests; when the split fails, nothing is scored."""
         if any(s not in index for s in sign):
             raise HTTPException(404, "unknown sign")
         values = np.frombuffer(await landmarks.read(), dtype=np.float32)
         if handedness not in ("left", "right") or width <= 0 or height <= 0 or values.size % (N_LANDMARKS * 3):
             raise HTTPException(400, "malformed attempt")
         values = values.reshape(-1, N_LANDMARKS, 3)
-        parts = [slice(None)] if len(sign) == 1 else split_signs(values, width / height, config)
-        if len(parts) != len(sign):
-            note = f"{len(parts)} signs were found, but the sentence has {len(sign)}. Lower your hands between the signs."
-            return {"threshold": threshold, "note": note, "signs": []}
+        spans = aligner(decode_audio(await audio.read()), [spoken_word(s) for s in sign]) if aligner and audio and len(sign) > 1 else None  # fmt: skip
+        if len(sign) == 1:
+            parts, split = [slice(0, len(values))], "whole"
+        elif spans is not None:
+            parts, split = split_speech(spans, audio_offset, len(values), config.fps), "speech"
+        else:
+            parts, split = split_signs(values, width / height, config), "rests"
+        if len(parts) != len(sign) or any(part.stop - part.start < 2 for part in parts):
+            note = (
+                "The words of the sentence were not found in what you said. Say each of them clearly."
+                if split == "speech"
+                else f"{len(parts)} signs were found, but the sentence has {len(sign)}. Lower your hands between the signs."
+            )
+            return {"threshold": threshold, "note": note, "split": split, "signs": []}
         signs = [judge(values[part], s, handedness, width, height) for part, s in zip(parts, sign)]
-        return {"threshold": threshold, "note": "", "signs": signs}
+        return {"threshold": threshold, "note": "", "split": split, "signs": signs}
 
     return app

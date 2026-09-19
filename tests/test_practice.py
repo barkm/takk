@@ -8,8 +8,11 @@ from fastapi import HTTPException, UploadFile
 from torch import nn
 
 from isolated_sign_validation.landmarks import LANDMARK_SLICES, N_LANDMARKS
-from isolated_sign_validation.practice import create_app, prepare_attempt, sign_means, split_signs
+from isolated_sign_validation.practice import create_app, prepare_attempt, sign_means, split_signs, spoken_word
 from isolated_sign_validation.preparation import PrepConfig, mirror, prepare_clip
+from isolated_sign_validation.speech import SAMPLE_RATE
+
+from test_speech import wav
 
 CONFIG = PrepConfig()
 POSE = LANDMARK_SLICES["pose"].start
@@ -82,7 +85,7 @@ def test_attempt_scores_against_the_chosen_sign():
     landmarks = attempt_landmarks(("right_hand",))
     closest = {"sign": "A", "score": pytest.approx(1.0)}
     a = {"sign": "A", "usable": True, "note": "Looks good.", "score": pytest.approx(1.0), "correct": True, "closest": closest}
-    assert send(landmarks, "A") == {"threshold": 0.7, "note": "", "signs": [a]}
+    assert send(landmarks, "A") == {"threshold": 0.7, "note": "", "split": "whole", "signs": [a]}
     (b,) = send(landmarks, "B")["signs"]
     assert b["closest"] == closest and b["correct"] is False and b["score"] == pytest.approx(0.6)
     assert send(attempt_landmarks(()), "A")["signs"][0]["usable"] is False
@@ -93,3 +96,23 @@ def test_attempt_scores_against_the_chosen_sign():
         send(landmarks, "C")
     with pytest.raises(HTTPException):
         send(landmarks[:, :-1], "A")  # not a whole number of frames
+
+
+def test_spoken_word_is_the_sign_name_without_its_entry():
+    assert spoken_word("sts:platta slag-25563") == "platta slag"
+    assert spoken_word("sts:höger-04788") == "höger"
+
+
+def test_attempt_splits_a_spoken_sentence_by_its_words():
+    references = {"A": ["a1"], "B": ["b1"]}
+    means = np.array([[0.6, 0.8], [1.0, 0.0]])
+    spoken = [(0.5, 0.7), (2.5, 2.7)]  # "A" then "B", so the cut falls 1.6 s into the audio
+    app = create_app(references, means, {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: spoken)
+    attempt = next(route for route in app.routes if getattr(route, "path", "") == "/api/attempt").endpoint
+
+    landmarks = np.concatenate([attempt_landmarks(("right_hand",))] * 2)  # 4 s, a sign in each half
+    upload = UploadFile(io.BytesIO(landmarks.astype(np.float32).tobytes()))
+    audio = UploadFile(io.BytesIO(wav(np.zeros(4 * SAMPLE_RATE, dtype=np.float32))))
+    result = asyncio.run(attempt(upload, sign=["A", "B"], handedness="right", width=640, height=480, audio=audio, audio_offset=0.1))  # fmt: skip
+    assert result["split"] == "speech"
+    assert [s["sign"] for s in result["signs"]] == ["A", "B"] and [s["correct"] for s in result["signs"]] == [True, False]
