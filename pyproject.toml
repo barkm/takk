@@ -11,7 +11,9 @@ dependencies = [
     "python-multipart>=0.0.32",
     "scikit-learn>=1.9.1",
     "torch>=2.14.0",
+    "torchaudio>=2.11.0",
     "tqdm>=4.70.1",
+    "transformers>=5.17.0",
     "uvicorn>=0.53.0",
     "yt-dlp[default]>=2026.8.19",
 ]
