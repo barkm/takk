@@ -26,6 +26,8 @@ from isolated_sign_validation.dataset import SignDataset
 from isolated_sign_validation.extraction import download_model
 from isolated_sign_validation.practice import create_app, sign_means
 from isolated_sign_validation.preparation import PrepConfig, PreparedData
+from isolated_sign_validation.speech import MODEL as SPEECH_MODEL
+from isolated_sign_validation.speech import load_aligner
 from isolated_sign_validation.training import embed, load_run
 
 RUNS_DIR = Path("outputs/runs")
@@ -37,6 +39,7 @@ def main() -> None:
     parser.add_argument("--run", default="iv14_h384_e20", help="training run whose model scores the attempts")
     parser.add_argument("--threshold", type=float, default=0.38, help="lowest score that counts as the sign")
     parser.add_argument("--device", default="cpu", help="the GPU is shared; one attempt at a time is cheap on the CPU")
+    parser.add_argument("--no-speech", action="store_true", help="split a sentence at the rests between the signs instead of by the spoken words, and skip the speech model")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8002)
     args = parser.parse_args()
@@ -57,7 +60,11 @@ def main() -> None:
     means = sign_means(embeddings, clips.labels, len(clips.signs))
     table = glossary.clips[clips.positions].with_columns(label=clips.labels)
     references = dict(table.group_by("label").agg("sign", "clip_id").sort("label").select(pl.col("sign").list.first(), "clip_id").iter_rows())
-    app = create_app(references, means, video_paths(table), model, PrepConfig(), args.threshold, args.device)
+    aligner = None
+    if not args.no_speech:
+        print(f"loading the Swedish speech model {SPEECH_MODEL} that times a spoken sentence's words (about 1.2 GB, downloaded once)")
+        aligner = load_aligner(args.device)
+    app = create_app(references, means, video_paths(table), model, PrepConfig(), args.threshold, args.device, aligner)
     uvicorn.run(app, host=args.host, port=args.port)
 
 

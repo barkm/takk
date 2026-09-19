@@ -45,7 +45,7 @@
 
       <section id="prompt" class="card hidden">
         <h2 id="sign"></h2>
-        <p class="dim">Each search result you pick adds a sign; several make a sentence. Watch the clips, then record yourself signing them in order, lowering your hands between the signs. Press space to start and stop recording.</p>
+        <p class="dim">Each search result you pick adds a sign; several make a sentence. Watch the clips, then record yourself signing them in order. Say the sentence aloud as you sign it, as TAKK is spoken and signed at once: the signs are found by when you say their words. Without a microphone, lower your hands between the signs instead. Press space to start and stop recording.</p>
         <button id="clear" class="secondary">Clear</button>
         <div id="references" class="videos"></div>
       </section>
@@ -85,7 +85,7 @@
       const word = (sign) => sign.replace(/^sts:/, "").replace(/-\d+$/, "");
       const COLORS = { left_hand: "#60a5fa", right_hand: "#f87171", upper_body: "#a0a6b2", lips: "#f472b6" };
       const id = (sign) => sign.match(/\d+$/)?.[0] ?? "";
-      let signs = [], sentence = [], fps = 30, maxSeconds = 4, edges = {}, starting = null, landmarker = null, recorded = null;
+      let signs = [], sentence = [], fps = 30, maxSeconds = 4, edges = {}, starting = null, landmarker = null, recorded = null, recorder = null, audioStart = 0;
 
       function search() {
         const query = el("search").value.trim().toLowerCase();
@@ -119,12 +119,11 @@
       }
 
       async function startCamera() {
+        const video = { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } };
         let stream;
         try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
-            audio: false,
-          });
+          // The microphone is what splits a sentence into its signs; without it the rests do.
+          stream = await navigator.mediaDevices.getUserMedia({ video, audio: true }).catch(() => navigator.mediaDevices.getUserMedia({ video }));
         } catch (error) {
           return (el("verdict").textContent = "No access to the camera: " + error.message);
         }
@@ -194,8 +193,23 @@
         video.requestVideoFrameCallback(next);
       }
 
+      // Record the spoken sentence alongside the landmarks, in whichever container the browser
+      // picks (the backend decodes it with ffmpeg). `audioStart` is on the same clock as the frames'
+      // capture times, so their difference places the words among the frames.
+      function recordAudio() {
+        const tracks = el("camera").srcObject.getAudioTracks();
+        if (!tracks.length) return (recorder = null);
+        const chunks = [];
+        recorder = new MediaRecorder(new MediaStream(tracks));
+        recorder.ondataavailable = (event) => chunks.push(event.data);
+        recorder.onstart = () => (audioStart = performance.now() / 1000);
+        recorder.stopped = new Promise((resolve) => (recorder.onstop = () => resolve(new Blob(chunks))));
+        recorder.start();
+      }
+
       function record() {
         recorded = [];
+        recordAudio();
         el("camera").classList.add("recording");
         el("record").textContent = "Stop";
         clearResult();
@@ -212,11 +226,13 @@
         clearInterval(window.ticker);
         const frames = recorded;
         recorded = null;
+        let audio = null;
+        if (recorder) (recorder.stop(), (audio = await recorder.stopped), (recorder = null));
         el("camera").classList.remove("recording");
         el("record").textContent = "Record";
         el("record").disabled = true;
         try {
-          await score(frames);
+          await score(frames, audio);
         } finally {
           el("record").disabled = false;
         }
@@ -235,11 +251,12 @@
         return landmarks;
       }
 
-      async function score(frames) {
+      async function score(frames, audio) {
         if (frames.length < 2) return (el("verdict").textContent = "The recording is empty.");
         el("detail").textContent = "Scoring...";
         const body = new FormData();
         body.append("landmarks", new Blob([resample(frames).buffer]), "landmarks.f32");
+        if (audio) (body.append("audio", audio, "audio"), body.append("audio_offset", frames[0].time - audioStart));
         for (const s of sentence) body.append("sign", s.sign);
         body.append("handedness", document.querySelector("input[name=handedness]:checked").value);
         body.append("width", el("camera").videoWidth);
@@ -273,7 +290,8 @@
           }
           el("results").append(item);
         }
-        el("detail").textContent = `A score of at least ${result.threshold.toFixed(2)} counts as the sign.`;
+        const found = result.split === "speech" ? " The signs were found by the words you spoke." : result.split === "rests" ? " The signs were found by the rests between them." : "";
+        el("detail").textContent = `A score of at least ${result.threshold.toFixed(2)} counts as the sign.${found}`;
       }
 
       el("search").oninput = search;
