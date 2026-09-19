@@ -17,8 +17,10 @@ Every result comes in two settings:
   performance that was copied. A sign with no other clip, like most lexicon entries, has no trial
   here. Recordings made before `references` existed leave nothing out, so for them both settings match.
 
-Beside the pooled metrics it prints each recording with the rank of its own sign among the whole
-glossary and the signs it scored highest, which is what few clips can actually say something about.
+Signs the glossary knows to be one sign form (its twins.csv) are not scored against each other, as in
+`evaluate_test.py`. Beside the pooled metrics it prints each recording with the rank of its own sign
+among the whole glossary (twins included) and the signs it scored highest, which is what few clips can
+actually say something about.
 
 Run from the repo root: uv run scripts/evaluate_recordings.py --run gru_auslan_phonpool1
     uv run scripts/evaluate_recordings.py --name recordings_sts --glossary data/prepared/sts_lexikon-<id>
@@ -102,7 +104,7 @@ def main() -> None:
             print(f"\n{setting}: no recording's sign has a glossary clip left")
             continue
         kept_similarity = similarity if keep.all() else similarity[np.ix_(keep, keep)]
-        summary, per_sign = evaluate(kept_similarity, kept, queries=is_query[keep])
+        summary, per_sign = evaluate(kept_similarity, kept, queries=is_query[keep], twins=dictionary.twins)
         per_clip = top_signs(kept_similarity, kept, is_query[keep], args.k, 5, seed=0)
         for name, table in [("summary", summary), ("per_sign", per_sign), ("per_clip", per_clip)]:
             tables[name].append(table.with_columns(setting=pl.lit(setting)))
