@@ -37,7 +37,7 @@ from isolated_sign_validation.preparation import PreparedData
 @dataclass(frozen=True)
 class TrainConfig:
     encoder: str = "gru"  # or "conv_transformer"
-    hidden: int = 256  # model width
+    hidden: int = 384  # model width
     layers: int = 2  # GRU layers, or stacks of 3 convolution blocks and a transformer block
     heads: int = 4  # attention heads (conv_transformer)
     kernel_size: int = 17  # temporal convolution kernel (conv_transformer)
@@ -51,19 +51,19 @@ class TrainConfig:
     minimal_pair_margin: float = 0.0
     hand_bones: bool = False  # also input each hand's bone directions (see models.frame_features)
     attention_pool: bool = False  # also pool the frames by attention, besides mean and max
-    phonology_weight: float = 0.0  # weight of the auxiliary phonological feature loss (0: off)
-    phonology_input: str = "embedding"  # what the feature heads read: "embedding" or "pooled" (the encoder output)
+    phonology_weight: float = 1.0  # weight of the auxiliary phonological feature loss (0: off)
+    phonology_input: str = "pooled"  # what the feature heads read: "embedding" or "pooled" (the encoder output)
     augment: AugmentConfig = dataclasses.field(default_factory=AugmentConfig)
     # training signers left out of training, to measure generalization to unseen signers
     holdout_signers: tuple[str, ...] = ()
     # share of the training signs to train on (a random subset, nested across fractions for a given seed)
     train_sign_fraction: float = 1.0
-    epochs: int = 30
+    epochs: int = 20
     batch_size: int = 256
     lr: float = 1e-3
     weight_decay: float = 0.05
     warmup_epochs: int = 2
-    ema_decay: float = 0.0  # > 0: validate and keep an exponential moving average of the weights, updated every step
+    ema_decay: float = 0.999  # > 0: validate and keep an exponential moving average of the weights, updated every step
     eval_every: int = 2  # epochs between validation checks
     num_workers: int = 8
     seed: int = 0

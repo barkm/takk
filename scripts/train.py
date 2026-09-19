@@ -1,10 +1,11 @@
 """Train a sign embedding model on prepared data (by default ASL Citizen).
 
 Run from the repo root:
-    uv run scripts/train.py --name gru_arcface
-    uv run scripts/train.py --name gru_dropout --set dropout=0.4 --set augment.hand_drop=0.2
-    uv run scripts/train.py --name gru_auslan --prepared data/prepared/asl_citizen-<id> data/prepared/mm_wlauslan-<id>
-Settings are the fields of TrainConfig (and AugmentConfig as augment.<field>).
+    uv run scripts/train.py --name gru_best
+    uv run scripts/train.py --name gru_dropout --set dropout=0.5 --set augment.hand_drop=0.2
+    uv run scripts/train.py --name gru_asl_only --prepared data/prepared/asl_citizen-<id>
+Settings are the fields of TrainConfig (and AugmentConfig as augment.<field>). By default it trains on
+ASL Citizen, MM-WLAuslan and WLASL together.
 Writes outputs/runs/<name>/ (config, prepared data directories, metrics.csv, curves.png, best.pt,
 validation evaluation).
 """
@@ -36,7 +37,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--name", required=True)
     parser.add_argument(
-        "--prepared", type=Path, nargs="+", default=[Path("data/prepared") / f"asl_citizen-{PrepConfig().id()}"],
+        "--prepared", type=Path, nargs="+",
+        default=[Path("data/prepared") / f"{name}-{PrepConfig().id()}" for name in ("asl_citizen", "mm_wlauslan", "wlasl")],
         help="prepared data directories, trained on together",
     )  # fmt: skip
     parser.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", help="override a training setting")

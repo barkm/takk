@@ -232,14 +232,14 @@ uv run scripts/evaluate_baselines.py  # results in outputs/results/
 The learned baseline, a bidirectional GRU embedding model trained with an ArcFace loss over the training signs (`src/isolated_sign_validation/models.py`, `training.py`), is trained with:
 
 ```sh
-uv run scripts/train.py --name gru_arcface
+uv run scripts/train.py --name gru_best
 ```
 
-With `--set phonology_weight=<w>`, linear heads on the embedding also predict each sign's ASL-LEX phonological features (handshape, location, movement, ...) as an auxiliary loss with weight `w`; clips without features (e.g. MM-WLAuslan) only get the ArcFace loss. `--set phonology_input=pooled` puts the heads on the pooled encoder output instead of the embedding, leaving the embedding free.
+The defaults are the best configuration of the validation search (see ROADMAP.md): hidden size 384, 20 epochs, validation and checkpoints of an exponential moving average of the weights, and training on ASL Citizen, MM-WLAuslan and WLASL together. Linear heads on the pooled encoder output also predict each sign's ASL-LEX phonological features (handshape, location, movement, ...) as an auxiliary loss with weight 1 (`phonology_weight`; `phonology_input=embedding` puts the heads on the embedding instead); clips without features (e.g. MM-WLAuslan) only get the ArcFace loss. Settings are changed with `--set key=value`.
 
-To train on several datasets, pass their prepared directories: `--prepared data/prepared/asl_citizen-<config id> data/prepared/mm_wlauslan-<config id>`.
+To train on other datasets, pass their prepared directories: `--prepared data/prepared/asl_citizen-<config id> ...`.
 
-A run writes `outputs/runs/<name>/`: `config.json`, per-epoch `metrics.csv` and `curves.png` (updated during training), the checkpoint with the best validation AUC (`best.pt`), and its full validation evaluation.
+A run writes `outputs/runs/<name>/`: `config.json`, per-epoch `metrics.csv` and `curves.png` (updated during training), the checkpoint with the lowest validation EER at k = 1 (`best.pt`), and its full validation evaluation.
 
 ## Evaluation
 
