@@ -112,6 +112,7 @@ Status of the work and the plan ahead. Update this file when a step is finished,
    - Validate the classes before trusting the benchmark: `sts_lexikon.mixed_transcriptions` lists the classes whose entries notate their form differently — 16 of 2,476 in the full crawl, so the grouping holds up. — first pass done: six classes viewed, all one sign (see findings); a wider sample is still worth doing once the pseudo signer ids exist.
    - Evaluate the best model at k = 1 and compare with the Slovo and ASL Citizen test numbers.
    - In parallel, ask Stockholm University (teckenlexikon@ling.su.se) for access to the Swedish Sign Language Corpus (42 signers, 53,625 annotated sign tokens over 6,197 types), which would give a proper multi-signer, multi-clip benchmark; the lexicon links to it by gloss.
+   - Target application (user, 2026-09-19): a practice app for TAKK (tecken som alternativ och kompletterande kommunikation), extended from single signs to sentences. TAKK signs the key words of spoken Swedish with STS lexicon signs, in Swedish word order and closer to isolation than fluent STS, so a sentence is a known sequence of lexicon signs to find and score in order. What remains is splitting the recording into signs, possibly slightly blended forms, and errors adding up over a sentence's signs.
 
 Later: sensitivity analysis and threshold selection, including score normalization (see the baseline findings).
 
