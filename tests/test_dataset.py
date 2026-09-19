@@ -3,7 +3,7 @@ import polars as pl
 import pytest
 import torch
 
-from isolated_sign_validation.dataset import AugmentConfig, SignDataset, affine, augment, collate, drop_frames, drop_hand
+from isolated_sign_validation.dataset import AugmentConfig, SignDataset, affine, augment, collate, drop_frames, drop_hand, hide_below
 from isolated_sign_validation.preparation import PrepConfig, PreparedData
 
 CONFIG = PrepConfig()
@@ -42,11 +42,20 @@ def test_augment_without_strength_is_identity():
     np.testing.assert_array_equal(augment(frames, np.random.default_rng(0), none, HANDS, 128), frames)
 
 
+def test_hide_below_hides_only_deep_hands():
+    frames = clip_frames(3, left_hand=True)
+    frames[:, HANDS[0].start, 1] = [0.2, 0.8, 0.5]  # left wrist depth; the right wrist is at 1.0
+    hidden = hide_below(frames, HANDS, 0.6)
+    assert np.isnan(hidden[:, HANDS[0]]).all(axis=(1, 2)).tolist() == [False, True, False]
+    assert np.isnan(hidden[:, HANDS[1]]).all() and not np.isnan(hidden[:, ~np.isin(np.arange(N_LANDMARKS), np.r_[HANDS[0], HANDS[1]])]).any()
+
+
 def test_augment_keeps_landmarks_and_missing_hands():
     frames = clip_frames(40)
     rng = np.random.default_rng(0)
     for _ in range(20):
-        out = augment(frames, rng, AugmentConfig(), HANDS, max_frames=45)
+        config = AugmentConfig(low_crop=0.5, jitter=0.01, time_crop=0.2) if _ % 2 else AugmentConfig()
+        out = augment(frames, rng, config, HANDS, max_frames=45)
         assert out.shape[1:] == frames.shape[1:] and 1 <= len(out) <= 45
         assert np.isnan(out[:, HANDS[0]]).all()  # a missing hand stays missing
 

@@ -22,6 +22,11 @@ class AugmentConfig:
     speed: tuple[float, float] = (0.7, 1.4)  # playback speed range
     frame_drop: float = 0.2  # probability of dropping each frame
     hand_drop: float = 0.25  # probability of blanking each hand for a random stretch of frames
+    # probability of a tighter framing: hands whose wrist is deeper than a random depth count as undetected
+    low_crop: float = 0.0
+    low_crop_depth: tuple[float, float] = (0.3, 1.0)  # range of that depth, in shoulder widths below the shoulders
+    jitter: float = 0.0  # standard deviation of noise added to every landmark, in shoulder widths
+    time_crop: float = 0.0  # up to this share of the frames is cut from each end
 
 
 def affine(frames: np.ndarray, matrix: np.ndarray, shift: np.ndarray) -> np.ndarray:
@@ -43,8 +48,24 @@ def drop_hand(frames: np.ndarray, hand: slice, start: int, stop: int) -> np.ndar
     return out
 
 
+def hide_below(frames: np.ndarray, hands: list[slice], depth: float) -> np.ndarray:
+    """Set each hand to undetected (NaN) in the frames where its wrist is deeper than `depth` (prepared
+    coordinates: shoulder widths below the shoulders)."""
+    out = frames.copy()
+    for hand in hands:
+        out[frames[:, hand.start, 1] > depth, hand] = np.nan
+    return out
+
+
 def augment(frames: np.ndarray, rng: np.random.Generator, config: AugmentConfig, hands: list[slice], max_frames: int) -> np.ndarray:
     """Randomly augment prepared frames (NaN where missing)."""
+    if config.low_crop and rng.random() < config.low_crop:
+        frames = hide_below(frames, hands, rng.uniform(*config.low_crop_depth))
+    if config.time_crop:
+        cut = rng.integers(0, int(config.time_crop * len(frames)) + 1, size=2)
+        frames = frames[cut[0] : max(cut[0] + 1, len(frames) - cut[1])]
+    if config.jitter:
+        frames = frames + rng.normal(0, config.jitter, frames.shape).astype(frames.dtype)
     angle = np.radians(rng.uniform(-config.rotation, config.rotation))
     rotation = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
     shear = np.array([[1, rng.uniform(-config.shear, config.shear)], [0, 1]])
