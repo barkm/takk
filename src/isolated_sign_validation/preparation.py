@@ -8,6 +8,7 @@ resampled to a common frame rate. Finally clips are mirrored so the dominant han
 right_hand slot. Missing landmarks stay NaN. Random augmentation happens at training time.
 """
 
+import argparse
 import dataclasses
 import functools
 import hashlib
@@ -70,6 +71,17 @@ class PrepConfig:
 def hand_presence(landmarks: np.ndarray) -> np.ndarray:
     """Whether the left and the right hand are detected in each frame, shape (n_frames, 2)."""
     return np.stack([~np.isnan(landmarks[:, hand.start, 0]) for hand in HANDS], axis=1)
+
+
+def add_config_arguments(parser: argparse.ArgumentParser) -> None:
+    """Command line options for the preparation settings that experiments vary; see config_from."""
+    parser.add_argument("--groups", nargs="+", default=list(PrepConfig.groups), help="landmark groups (default: %(default)s)")
+    parser.add_argument("--n_coords", type=int, default=PrepConfig.n_coords, choices=[2, 3], help="2: x, y; 3 adds z")
+
+
+def config_from(args: argparse.Namespace, **settings) -> PrepConfig:
+    """The PrepConfig of the options of add_config_arguments, with further `settings`."""
+    return PrepConfig(groups=tuple(args.groups), n_coords=args.n_coords, **settings)
 
 
 def hide_low_hands(landmarks: np.ndarray, aspect: float, max_hand_y: float) -> np.ndarray:

@@ -23,12 +23,13 @@ import polars as pl
 
 from isolated_sign_validation.datasets import asl_citizen, asl_lex, wlasl
 from isolated_sign_validation.landmarks import LandmarkStore
-from isolated_sign_validation.preparation import PrepConfig, PreparedData, prepare_store
+from isolated_sign_validation.preparation import PreparedData, add_config_arguments, config_from, prepare_store
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--store", type=Path, default=wlasl.STORE_DIR)
+    add_config_arguments(parser)
     args = parser.parse_args()
 
     urls = wlasl.read_videos(wlasl.RAW_DIR).select("clip_id", "url")
@@ -56,7 +57,7 @@ def main() -> None:
     phonology = codes.join(asl_lex.read_phonology(asl_lex.RAW_DIR), on="Code", how="left").drop("Code")
     clips = clips.join(phonology, on="sign", how="left", maintain_order="left")
 
-    config = PrepConfig()
+    config = config_from(args)
     out = Path("data/prepared") / f"{args.store.name}-{config.id()}"
     prepare_store(args.store, clips, config, out)
     pl.DataFrame(sorted(twins), schema=["sign_a", "sign_b"], orient="row").write_csv(out / "twins.csv")

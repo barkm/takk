@@ -20,16 +20,17 @@ import polars as pl
 from isolated_sign_validation.datasets import asl_lex
 from isolated_sign_validation.datasets.asl_citizen import RAW_DIR, STORE_DIR, official_test_signers, read_videos
 from isolated_sign_validation.landmarks import LandmarkStore
-from isolated_sign_validation.preparation import PrepConfig, PreparedData, prepare_store
+from isolated_sign_validation.preparation import PreparedData, add_config_arguments, config_from, prepare_store
 from isolated_sign_validation.splits import assign_splits, sign_split
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--store", type=Path, default=STORE_DIR)
+    add_config_arguments(parser)
     args = parser.parse_args()
 
-    config = PrepConfig()
+    config = config_from(args)
     clips = assign_splits(LandmarkStore(args.store).clips.with_row_index("row"), official_test_signers(RAW_DIR))
     codes = read_videos(RAW_DIR).select(sign="Gloss", Code="ASL-LEX Code").unique()
     phonology = codes.join(asl_lex.read_phonology(asl_lex.RAW_DIR), on="Code", how="left").drop("Code")

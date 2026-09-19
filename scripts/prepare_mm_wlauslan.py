@@ -16,13 +16,14 @@ import polars as pl
 
 from isolated_sign_validation.datasets import asl_citizen, mm_wlauslan
 from isolated_sign_validation.landmarks import LandmarkStore
-from isolated_sign_validation.preparation import PrepConfig, PreparedData, prepare_store
+from isolated_sign_validation.preparation import PreparedData, add_config_arguments, config_from, prepare_store
 from isolated_sign_validation.splits import assign_training_only, matching_signs, sign_split
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--store", type=Path, default=mm_wlauslan.STORE_DIR)
+    add_config_arguments(parser)
     args = parser.parse_args()
 
     held_out = [sign for sign in LandmarkStore(asl_citizen.STORE_DIR).clips["sign"].unique() if sign_split(sign) != "train"]
@@ -31,7 +32,7 @@ def main() -> None:
     print(f"{clips.filter(pl.col('split').is_null())['sign'].n_unique()} of {clips['sign'].n_unique()} signs match one of "
           f"{len(held_out)} ASL Citizen val/test signs and are left out of training")  # fmt: skip
 
-    config = PrepConfig()
+    config = config_from(args)
     out = Path("data/prepared") / f"{args.store.name}-{config.id()}"
     prepare_store(args.store, clips.with_columns(sign="auslan:" + pl.col("sign")), config, out)
 

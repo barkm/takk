@@ -1,3 +1,4 @@
+import argparse
 import dataclasses
 import json
 
@@ -9,7 +10,9 @@ from isolated_sign_validation.landmarks import LANDMARK_SLICES, N_LANDMARKS, wri
 from isolated_sign_validation.preparation import (
     PrepConfig,
     PreparedData,
+    add_config_arguments,
     add_dominant_hands,
+    config_from,
     hide_low_hands,
     mirror,
     prepare_clip,
@@ -167,3 +170,11 @@ def test_prepare_store(tmp_path):
     for i in range(len(data)):  # the dominant hand ends up in the right_hand slot, on the image's left
         assert np.isfinite(hand_x(data[i])[3:-3]).all() and (hand_x(data[i])[3:-3] < 0).all()
         assert np.isnan(hand_x(data[i], "left_hand")).all()
+
+
+def test_config_options_default_to_the_prep_config():
+    parser = argparse.ArgumentParser()
+    add_config_arguments(parser)
+    assert config_from(parser.parse_args([])) == PrepConfig()
+    lips = config_from(parser.parse_args(["--groups", *PrepConfig().groups, "lips", "--n_coords", "3"]), max_hand_y=0.9)
+    assert lips == PrepConfig(groups=(*PrepConfig().groups, "lips"), n_coords=3, max_hand_y=0.9)
