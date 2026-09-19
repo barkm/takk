@@ -45,6 +45,7 @@ class TrainConfig:
     dropout: float = 0.4
     arcface_scale: float = 30.0
     arcface_margin: float = 0.3
+    hand_bones: bool = False  # also input each hand's bone directions (see models.frame_features)
     phonology_weight: float = 0.0  # weight of the auxiliary phonological feature loss (0: off)
     phonology_input: str = "embedding"  # what the feature heads read: "embedding" or "pooled" (the encoder output)
     augment: AugmentConfig = dataclasses.field(default_factory=AugmentConfig)
@@ -65,12 +66,12 @@ class TrainConfig:
 
 def build_model(config: TrainConfig, data: PreparedData) -> nn.Module:
     hands = [data.config.group_slices[hand] for hand in ("left_hand", "right_hand")]
-    n_landmarks = len(data.config.landmarks)
+    n_landmarks, inputs = len(data.config.landmarks), {"n_coords": data.config.n_coords, "bones": config.hand_bones}
     if config.encoder == "gru":
-        return GRUEncoder(n_landmarks, hands, config.hidden, config.layers, config.embedding_dim, config.dropout)
+        return GRUEncoder(n_landmarks, hands, config.hidden, config.layers, config.embedding_dim, config.dropout, **inputs)
     if config.encoder == "conv_transformer":
         return ConvTransformerEncoder(
-            n_landmarks, hands, config.hidden, config.layers, config.embedding_dim, config.dropout, config.heads, config.kernel_size
+            n_landmarks, hands, config.hidden, config.layers, config.embedding_dim, config.dropout, config.heads, config.kernel_size, **inputs
         )
     raise ValueError(f"unknown encoder {config.encoder}")
 

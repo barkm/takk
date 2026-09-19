@@ -4,7 +4,7 @@ import pytest
 import torch
 
 from isolated_sign_validation.dataset import collate
-from isolated_sign_validation.models import ArcFace, ConvTransformerEncoder, GRUEncoder, frame_features
+from isolated_sign_validation.models import ArcFace, ConvTransformerEncoder, GRUEncoder, frame_features, n_frame_features
 from isolated_sign_validation.preparation import PrepConfig
 
 CONFIG = PrepConfig()
@@ -28,6 +28,15 @@ def test_frame_features_zero_velocity_for_missing_hand():
     velocity = features[0, :, N * 2 + 2 * 21 * 2 : N * 2 * 2 + 2 * 21 * 2].reshape(5, N, 2)
     assert (velocity[:, HANDS[0]] == 0).all() and (velocity[0] == 0).all()
     assert (velocity[1:, HANDS[1]] != 0).any()
+
+
+def test_bone_features_are_unit_directions_and_zero_for_a_missing_hand():
+    batch = collate([item(5, left_hand=False)])
+    features = frame_features(batch["frames"], batch["hands"], batch["mask"], HANDS, bones=True)
+    assert features.shape[2] == n_frame_features(N, HANDS, bones=True) == n_frame_features(N, HANDS) + 2 * 20 * 2
+    left, right = features[0, :, -2 * 20 * 2 :].reshape(5, 2, 20, 2).unbind(1)
+    assert (left == 0).all()
+    torch.testing.assert_close(right.norm(dim=2), torch.ones(5, 20))
 
 
 @pytest.mark.parametrize("encoder", [GRUEncoder, ConvTransformerEncoder])
