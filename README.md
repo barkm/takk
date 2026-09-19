@@ -366,6 +366,11 @@ ROADMAP.md). It also names the closest sign of the whole lexicon:
 uv run scripts/practice.py   # then open http://localhost:8002
 ```
 
+Picking several words makes a sentence, as TAKK signs the key words of a spoken sentence. Sign them
+in order and lower your hands between them: the recording is split at those rests and each part is
+scored against the sign at its place in the sentence, with a verdict per sign. When the number of
+signs found differs from the sentence's, the page says so and nothing is scored.
+
 The page shows the rate the landmarks are tracked at. Below 20 fps it skips so many camera frames
 that the answer is less reliable, since the model was trained on every frame. The lexicon's
 embeddings are cached in `outputs/runs/<run>/`, so only the first start takes about a minute. As with
