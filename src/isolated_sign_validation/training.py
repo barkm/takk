@@ -50,6 +50,7 @@ class TrainConfig:
     # pairs of a clip's sign: all phonological features known, at most 2 of them differ
     minimal_pair_margin: float = 0.0
     hand_bones: bool = False  # also input each hand's bone directions (see models.frame_features)
+    attention_pool: bool = False  # also pool the frames by attention, besides mean and max
     phonology_weight: float = 0.0  # weight of the auxiliary phonological feature loss (0: off)
     phonology_input: str = "embedding"  # what the feature heads read: "embedding" or "pooled" (the encoder output)
     augment: AugmentConfig = dataclasses.field(default_factory=AugmentConfig)
@@ -70,7 +71,7 @@ class TrainConfig:
 
 def build_model(config: TrainConfig, data: PreparedData) -> nn.Module:
     hands = [data.config.group_slices[hand] for hand in ("left_hand", "right_hand")]
-    n_landmarks, inputs = len(data.config.landmarks), {"n_coords": data.config.n_coords, "bones": config.hand_bones}
+    n_landmarks, inputs = len(data.config.landmarks), {"n_coords": data.config.n_coords, "bones": config.hand_bones, "attention_pool": config.attention_pool}
     if config.encoder == "gru":
         return GRUEncoder(n_landmarks, hands, config.hidden, config.layers, config.embedding_dim, config.dropout, **inputs)
     if config.encoder == "conv_transformer":

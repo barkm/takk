@@ -59,7 +59,7 @@ def tiny_prepared(directory: Path, n_signs: int = 6, n_signers: int = 4, n_frame
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="training autocasts to bfloat16 on CUDA")
-@pytest.mark.parametrize("settings", [{}, {"ema_decay": 0.9}, {"arcface_subcenters": 2, "minimal_pair_margin": 0.1}, {"hand_bones": True}])
+@pytest.mark.parametrize("settings", [{}, {"ema_decay": 0.9}, {"arcface_subcenters": 2, "minimal_pair_margin": 0.1}, {"hand_bones": True, "attention_pool": True}])
 def test_train_runs_and_writes_the_validation(tmp_path, settings):
     config = TrainConfig(hidden=16, embedding_dim=8, epochs=2, batch_size=8, num_workers=1, eval_every=1, **settings)
     train(config, tiny_prepared(tmp_path / "prepared"), tmp_path / "run", device="cuda")

@@ -16,6 +16,17 @@ def n_frame_features(n_landmarks: int, hand_slices: list[slice], n_coords: int =
     return n_coords * (2 * n_landmarks + hand_points) + len(hand_slices)
 
 
+def pool(x: torch.Tensor, mask: torch.Tensor, attention: nn.Module | None = None) -> torch.Tensor:
+    """Mean and max of the real frames' features, and with `attention` (a layer scoring each frame)
+    also their attention-weighted mean."""
+    valid = mask[:, :, None]
+    pooled = [(x * valid).sum(dim=1) / valid.sum(dim=1), x.masked_fill(~valid, -torch.inf).amax(dim=1)]
+    if attention is not None:
+        weights = attention(x).masked_fill(~valid, -torch.inf).softmax(dim=1)
+        pooled.append((weights * x).sum(dim=1))
+    return torch.cat(pooled, dim=1)
+
+
 def frame_features(frames: torch.Tensor, hands: torch.Tensor, mask: torch.Tensor, hand_slices: list[slice], bones: bool = False) -> torch.Tensor:
     """Per-frame input features from a batch (see dataset.collate): coordinates, each hand's shape
     relative to its wrist, velocities (zero where a landmark is missing in either frame), hand flags;
@@ -43,14 +54,15 @@ class GRUEncoder(nn.Module):
 
     def __init__(
         self, n_landmarks: int, hand_slices: list[slice], hidden: int = 256, layers: int = 2, embedding_dim: int = 256,
-        dropout: float = 0.2, n_coords: int = 2, bones: bool = False,
+        dropout: float = 0.2, n_coords: int = 2, bones: bool = False, attention_pool: bool = False,
     ):  # fmt: skip
         super().__init__()
         self.hand_slices, self.bones = hand_slices, bones
         n_features = n_frame_features(n_landmarks, hand_slices, n_coords, bones)
         self.input = nn.Sequential(nn.Linear(n_features, hidden), nn.LayerNorm(hidden), nn.GELU(), nn.Dropout(dropout))
         self.gru = nn.GRU(hidden, hidden, layers, batch_first=True, bidirectional=True, dropout=dropout)
-        self.head = nn.Linear(4 * hidden, embedding_dim)  # mean and max pooling of both directions
+        self.attention = nn.Linear(2 * hidden, 1) if attention_pool else None
+        self.head = nn.Linear((6 if attention_pool else 4) * hidden, embedding_dim)  # mean, max (and attention) pooling of both directions
 
     def forward(self, frames: torch.Tensor, hands: torch.Tensor, mask: torch.Tensor, return_pooled: bool = False) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """The embedding, and with `return_pooled` also the pooled encoder output it is projected from."""
@@ -59,10 +71,7 @@ class GRUEncoder(nn.Module):
         packed = nn.utils.rnn.pack_padded_sequence(x, lengths, batch_first=True, enforce_sorted=False)
         output, _ = self.gru(packed)
         output, _ = nn.utils.rnn.pad_packed_sequence(output, batch_first=True, total_length=x.shape[1])
-        valid = mask[:, :, None]
-        mean = (output * valid).sum(dim=1) / valid.sum(dim=1)
-        maximum = output.masked_fill(~valid, -torch.inf).amax(dim=1)
-        pooled = torch.cat([mean, maximum], dim=1)
+        pooled = pool(output, mask, self.attention)
         embedding = F.normalize(self.head(pooled), dim=1)
         return (embedding, pooled) if return_pooled else embedding
 
@@ -105,6 +114,7 @@ class ConvTransformerEncoder(nn.Module):
     def __init__(
         self, n_landmarks: int, hand_slices: list[slice], hidden: int = 192, layers: int = 2,
         embedding_dim: int = 256, dropout: float = 0.2, heads: int = 4, kernel_size: int = 17, n_coords: int = 2, bones: bool = False,
+        attention_pool: bool = False,
     ):  # fmt: skip
         super().__init__()
         self.hand_slices, self.bones = hand_slices, bones
@@ -115,18 +125,15 @@ class ConvTransformerEncoder(nn.Module):
             blocks += [ConvBlock(hidden, kernel_size, dropout) for _ in range(3)] + [TransformerBlock(hidden, heads, dropout)]
         self.blocks = nn.ModuleList(blocks)
         self.norm = nn.LayerNorm(hidden)
-        self.head = nn.Linear(2 * hidden, embedding_dim)  # mean and max pooling
+        self.attention = nn.Linear(hidden, 1) if attention_pool else None
+        self.head = nn.Linear((3 if attention_pool else 2) * hidden, embedding_dim)  # mean, max (and attention) pooling
 
     def forward(self, frames: torch.Tensor, hands: torch.Tensor, mask: torch.Tensor, return_pooled: bool = False) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """The embedding, and with `return_pooled` also the pooled encoder output it is projected from."""
         x = self.input(frame_features(frames, hands, mask, self.hand_slices, self.bones))
         for block in self.blocks:
             x = block(x, mask)
-        x = self.norm(x)
-        valid = mask[:, :, None]
-        mean = (x * valid).sum(dim=1) / valid.sum(dim=1)
-        maximum = x.masked_fill(~valid, -torch.inf).amax(dim=1)
-        pooled = torch.cat([mean, maximum], dim=1)
+        pooled = pool(self.norm(x), mask, self.attention)
         embedding = F.normalize(self.head(pooled), dim=1)
         return (embedding, pooled) if return_pooled else embedding
 

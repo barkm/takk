@@ -39,9 +39,10 @@ def test_bone_features_are_unit_directions_and_zero_for_a_missing_hand():
     torch.testing.assert_close(right.norm(dim=2), torch.ones(5, 20))
 
 
+@pytest.mark.parametrize("attention_pool", [False, True])
 @pytest.mark.parametrize("encoder", [GRUEncoder, ConvTransformerEncoder])
-def test_encoder_embeddings_are_unit_length_and_ignore_padding(encoder):
-    model = encoder(N, HANDS, hidden=32, embedding_dim=16).eval()
+def test_encoder_embeddings_are_unit_length_and_ignore_padding(encoder, attention_pool):
+    model = encoder(N, HANDS, hidden=32, embedding_dim=16, attention_pool=attention_pool).eval()
     short, long = item(4, seed=1), item(9, seed=2)
     alone = collate([short])
     padded = collate([short, long])  # short is padded to 9 frames
