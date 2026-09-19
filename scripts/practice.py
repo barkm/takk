@@ -9,12 +9,15 @@ of random wrong signs accepted; similar signs get through more often.
 Run from the repo root, then open http://localhost:8002 (the browser only gives access to the
 camera on localhost or over https, so forward the port when the machine is remote):
     uv run scripts/practice.py
-Embedding the glossary at startup takes about a minute on the CPU.
+Embedding the glossary takes about a minute on the CPU. The embeddings are cached next to the run
+(outputs/runs/<run>/embeddings_<glossary>.npy) and computed again only when the run's model or the
+glossary is newer than the cache.
 """
 
 import argparse
 from pathlib import Path
 
+import numpy as np
 import polars as pl
 import uvicorn
 
@@ -43,8 +46,15 @@ def main() -> None:
     clips = SignDataset(glossary, "test")
     _, model = load_run(RUNS_DIR / args.run, glossary)
     model = model.to(args.device)
-    print(f"embedding {len(clips)} clips of {len(clips.signs)} signs from {args.glossary.name} with {args.run}")
-    means = sign_means(embed(model, clips, args.device), clips.labels, len(clips.signs))
+    cache = RUNS_DIR / args.run / f"embeddings_{args.glossary.name}.npy"
+    sources = [RUNS_DIR / args.run / "best.pt", args.glossary / "frames.npy", args.glossary / "clips.parquet"]
+    if cache.exists() and cache.stat().st_mtime > max(path.stat().st_mtime for path in sources):
+        embeddings = np.load(cache)
+    else:
+        print(f"embedding {len(clips)} clips of {len(clips.signs)} signs from {args.glossary.name} with {args.run}")
+        embeddings = embed(model, clips, args.device)
+        np.save(cache, embeddings)
+    means = sign_means(embeddings, clips.labels, len(clips.signs))
     table = glossary.clips[clips.positions].with_columns(label=clips.labels)
     references = dict(table.group_by("label").agg("sign", "clip_id").sort("label").select(pl.col("sign").list.first(), "clip_id").iter_rows())
     app = create_app(references, means, video_paths(table), model, PrepConfig(), args.threshold, args.device)
