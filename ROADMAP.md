@@ -387,3 +387,5 @@ Validation accuracy search (`prompts/improve_val.md`, started 2026-09-19). All n
 - A larger ArcFace margin (`iv16_margin04`, 0.4 instead of 0.3): worse, top-1 78.88%, −0.62 points (−1.05 to −0.17), EER +0.14 (−0.03 to +0.30).
 - A smaller ArcFace margin (`iv17_margin02`, 0.2): worse too, top-1 78.89%, −0.61 points (−0.98 to −0.20), EER +0.03 (−0.12 to +0.18). The margin of 0.3 stays.
 - A deeper GRU (`iv18_layers3`, 3 layers at hidden 384): worse, top-1 78.28%, −1.22 points (−1.75 to −0.62), EER +0.26 (+0.06 to +0.46). The capacity gain comes from width, not depth.
+- Conv + transformer at the new width (`iv19_ct384`, width 384, 2 stacks, dropout 0.2, EMA, 30 epochs): no gain, top-1 78.86%, −0.64 points (−1.27 to +0.00), EER +0.26 (+0.04 to +0.53). It peaks around epoch 20 and then overfits like the wide GRU (quick top-1 79.1% at epoch 20, 76.7% at 30).
+- **Stopping rule met after 19 runs:** runs 12–19 made 8 in a row without a counted gain. Counted gains: EMA of the weights and the GRU width of 384. The best configuration is `gru_wlasl_twins` + `ema_decay=0.999` + `hidden=384` (+ `epochs=20`, equal to 30 at two thirds of the compute).
