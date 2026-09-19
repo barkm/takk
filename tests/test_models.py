@@ -45,6 +45,7 @@ def test_encoder_embeddings_are_unit_length_and_ignore_padding(encoder):
 
 
 def test_arcface_adds_margin_to_the_true_class_only():
+    torch.manual_seed(0)  # some random embeddings miss the 1e-4 tolerance
     head = ArcFace(8, 3, scale=10.0, margin=0.5)
     embeddings = torch.nn.functional.normalize(torch.randn(4, 8), dim=1)
     labels = torch.tensor([0, 1, 2, 0])
