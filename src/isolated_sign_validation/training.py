@@ -57,6 +57,7 @@ class TrainConfig:
     lr: float = 1e-3
     weight_decay: float = 0.05
     warmup_epochs: int = 2
+    ema_decay: float = 0.0  # > 0: validate and keep an exponential moving average of the weights, updated every step
     eval_every: int = 2  # epochs between validation checks
     num_workers: int = 8
     seed: int = 0
@@ -177,6 +178,8 @@ def train(config: TrainConfig, data: PreparedData, run_dir: Path, device: str = 
         raise ValueError(f"unknown phonology_input {config.phonology_input}")
     head_input = model.head.in_features if config.phonology_input == "pooled" else config.embedding_dim
     phonology_heads = nn.ModuleList(nn.Linear(head_input, n) for n in n_classes).to(device)
+    ema = torch.optim.swa_utils.AveragedModel(model, multi_avg_fn=torch.optim.swa_utils.get_ema_multi_avg_fn(config.ema_decay)) if config.ema_decay else None
+    evaluated = ema.module if ema else model  # what is validated and saved
     parameters = [*model.parameters(), *head.parameters(), *phonology_heads.parameters()]
     optimizer = torch.optim.AdamW(parameters, lr=config.lr, weight_decay=config.weight_decay)
     total_steps, warmup_steps = config.epochs * len(loader), config.warmup_epochs * len(loader)
@@ -206,6 +209,8 @@ def train(config: TrainConfig, data: PreparedData, run_dir: Path, device: str = 
             loss.backward()
             optimizer.step()
             schedule.step()
+            if ema:
+                ema.update_parameters(model)
             losses.append(arcface_loss.item())
             predicted = head(embeddings.detach())
             if twins is not None:  # a twin of the true class is neither right nor wrong
@@ -216,11 +221,11 @@ def train(config: TrainConfig, data: PreparedData, run_dir: Path, device: str = 
         if phonology_losses:
             row["phonology_loss"] = float(np.mean(phonology_losses))
         if epoch % config.eval_every == 0 or epoch == config.epochs:
-            val_metrics = quick_validation(model, val_set, device)
+            val_metrics = quick_validation(evaluated, val_set, device)
             row |= {f"val_{name}": value for name, value in val_metrics.items()}
             if val_metrics["eer_k1"] < best_eer:
                 best_eer = val_metrics["eer_k1"]
-                torch.save({"model": model.state_dict(), "epoch": epoch}, run_dir / "best.pt")
+                torch.save({"model": evaluated.state_dict(), "epoch": epoch}, run_dir / "best.pt")
         row["seconds"] = time.time() - start
         rows.append(row)
         print(" ".join(f"{k}={v:.4g}" if isinstance(v, float) else f"{k}={v}" for k, v in row.items()), flush=True)
