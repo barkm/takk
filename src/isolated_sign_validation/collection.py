@@ -33,7 +33,8 @@ import polars as pl
 from fastapi import FastAPI, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
-from isolated_sign_validation.extraction import extract_landmarks
+from isolated_sign_validation.extraction import VideoInfo, extract_landmarks
+from isolated_sign_validation.landmarks import SKELETON_EDGES
 from isolated_sign_validation.preparation import PrepConfig, hand_presence, hide_low_hands, prepare_clip
 
 DATASET = "recordings"
@@ -117,19 +118,19 @@ def transcode(source: Path, target: Path, fps: float) -> None:
     subprocess.run(command, check=True, capture_output=True)
 
 
-def check_clip(video: Path, config: PrepConfig, signing: bool = True) -> tuple[bool, str, float]:
-    """Whether a recording can be used, why not, and how steadily a hand was detected while signing.
+def check_clip(landmarks: np.ndarray, info: VideoInfo, config: PrepConfig, signing: bool = True) -> tuple[bool, str, float]:
+    """Whether a recording (its extracted landmarks) can be used, why not, and how steadily a hand was
+    detected while signing.
 
     A clip of not signing (`signing` false, the no_event prompts) only has to hold a recording: no
     hands, or hands moving for longer than any sign, is what it is meant to show.
 
-    Runs the extraction and preparation the clip would go through later, so that an unusable
+    Runs the preparation the clip would go through later, so that an unusable
     recording is caught while the signer can still redo it. The hand share is measured over the
     signing itself (the first to the last frame with a hand), not over the whole recording: the rest
     before and after the sign has no hands in view by design, so over the whole clip even a clean
     recording scores around 0.4.
     """
-    landmarks, info = extract_landmarks(video)
     aspect = info.width / info.height if info.height else 1.0
     present = hand_presence(hide_low_hands(landmarks, aspect, config.max_hand_y)).any(axis=1)
     usable = prepare_clip(landmarks, info.fps, aspect, config) is not None
@@ -151,6 +152,20 @@ def check_clip(video: Path, config: PrepConfig, signing: bool = True) -> tuple[b
     if hand_share < 0.8:
         return True, f"Usable, but a hand was lost in {1 - hand_share:.0%} of the frames while signing.", hand_share
     return True, "Looks good.", hand_share
+
+
+def overlay(landmarks: np.ndarray) -> dict:
+    """The skeletons to draw over the playback of a recording, as JSON.
+
+    `frames` holds x, y (fractions of the frame) of the drawn landmarks per frame, null where not
+    detected; `edges` the lines of each skeleton, as pairs of indices into those landmarks.
+    """
+    points = np.unique(np.concatenate(list(SKELETON_EDGES.values())))
+    xy = np.round(landmarks[:, points, :2].astype(float), 3).reshape(len(landmarks), -1)
+    return {
+        "frames": np.where(np.isnan(xy), None, xy).tolist(),
+        "edges": {group: np.searchsorted(points, edges).tolist() for group, edges in SKELETON_EDGES.items()},
+    }
 
 
 class Recordings:
@@ -221,7 +236,8 @@ def create_app(prompts: list[dict], recordings: Recordings, reference_videos: di
             transcode(upload, path, config.fps)
         finally:
             upload.unlink()
-        usable, note, hand_share = check_clip(path, config, signing=sign != NO_EVENT)
+        landmarks, info = extract_landmarks(path)
+        usable, note, hand_share = check_clip(landmarks, info, config, signing=sign != NO_EVENT)
         recordings.add(
             {
                 "clip_id": clip_id, "session": session, "signer": signer, "handedness": handedness,
@@ -230,7 +246,13 @@ def create_app(prompts: list[dict], recordings: Recordings, reference_videos: di
                 "references": ";".join(shown.get(sign, [])),
             }
         )  # fmt: skip
-        return {"clip_id": clip_id, "usable": usable, "note": note, "hand_share": hand_share}
+        return {"clip_id": clip_id, "usable": usable, "note": note, "hand_share": hand_share, "fps": info.fps, "overlay": overlay(landmarks)}  # fmt: skip
+
+    @app.get("/api/recordings/{clip_id}")
+    def recording(clip_id: str) -> FileResponse:
+        if clip_id not in recordings.clips["clip_id"]:
+            raise HTTPException(404, "unknown clip")
+        return FileResponse(recordings.videos / f"{clip_id}.mp4")
 
     @app.post("/api/keep")
     def keep(clip_id: str = Form(), confident: bool = Form()) -> dict:

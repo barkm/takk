@@ -22,7 +22,10 @@
       .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
       .videos { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
       .videos video { width: 180px; border-radius: 8px; background: #000; }
-      #camera { width: 100%; max-width: 560px; border-radius: 8px; background: #000; transform: scaleX(-1); }
+      #camera, #playback { width: 100%; max-width: 560px; border-radius: 8px; background: #000; transform: scaleX(-1); }
+      #playback { position: relative; overflow: hidden; }
+      #playback video { display: block; width: 100%; }
+      #playback canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
       .recording { outline: 3px solid var(--bad); }
       .take { font-size: 18px; margin: 4px 0 0; }
       .ok { color: var(--ok); }
@@ -61,6 +64,7 @@
 
       <section id="recorder" class="card hidden">
         <video id="camera" autoplay muted playsinline></video>
+        <div id="playback" class="hidden"><video id="replay" autoplay loop muted playsinline></video><canvas id="landmarks"></canvas></div>
         <p class="row">
           <button id="record">Record</button>
           <button id="skip" class="secondary">Skip this sign</button>
@@ -132,7 +136,7 @@
           .map((name) => `<video src="/api/reference/${encodeURIComponent(name)}" autoplay loop muted playsinline controls></video>`)
           .join("");
         el("result").textContent = "";
-        show("after", false);
+        show("after", false), showCamera();
         show("prompt", true), show("recorder", true);
         el("record").disabled = false;
       }
@@ -189,7 +193,45 @@
         el("result").textContent = result.note;
         el("keep").disabled = !result.usable;
         show("after", true);
+        showPlayback(result);
       }
+
+      // The take replayed with the extracted landmarks drawn over it, in place of the camera.
+      const colors = { left_hand: "#60a5fa", right_hand: "#f87171", upper_body: "#a0a6b2", lips: "#f472b6" };
+      let overlay = null;
+
+      function showPlayback(result) {
+        overlay = { ...result.overlay, fps: result.fps };
+        el("replay").src = `/api/recordings/${encodeURIComponent(result.clip_id)}`;
+        show("camera", false), show("playback", true);
+      }
+
+      function showCamera() {
+        overlay = null;
+        el("replay").removeAttribute("src");
+        show("playback", false), show("camera", true);
+      }
+
+      function drawOverlay() {
+        requestAnimationFrame(drawOverlay);
+        const video = el("replay"), canvas = el("landmarks");
+        if (!overlay || !video.videoWidth) return;
+        canvas.width = video.videoWidth, canvas.height = video.videoHeight;
+        const context = canvas.getContext("2d");
+        const frame = overlay.frames[Math.min(overlay.frames.length - 1, Math.floor(video.currentTime * overlay.fps))];
+        context.lineWidth = 3;
+        for (const [group, edges] of Object.entries(overlay.edges)) {
+          context.strokeStyle = colors[group];
+          context.beginPath();
+          for (const [a, b] of edges) {
+            if (frame[2 * a] === null || frame[2 * b] === null) continue;
+            context.moveTo(frame[2 * a] * canvas.width, frame[2 * a + 1] * canvas.height);
+            context.lineTo(frame[2 * b] * canvas.width, frame[2 * b + 1] * canvas.height);
+          }
+          context.stroke();
+        }
+      }
+      drawOverlay();
 
       async function keep() {
         const body = new FormData();
@@ -210,7 +252,7 @@
 
       el("begin").onclick = begin;
       el("record").onclick = () => (recorder && recorder.state === "recording" ? stopRecording() : record());
-      el("retake").onclick = () => (show("after", false), (el("record").disabled = false), (el("result").textContent = ""));
+      el("retake").onclick = () => (show("after", false), showCamera(), (el("record").disabled = false), (el("result").textContent = ""));
       // Space toggles recording; preventDefault also stops it clicking whichever button has focus.
       document.addEventListener("keydown", (event) => {
         if (event.code !== "Space" || event.target.type === "text") return;

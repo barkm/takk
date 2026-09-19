@@ -319,8 +319,10 @@ preparation would keep the clip, and how steadily a hand was detected while sign
 session cannot turn out to be unusable after the fact, and so that the signer cannot retake until
 the model happens to agree, which would bias the set toward clips the model already likes. Every
 take is stored, including the discarded ones, along with the signer, their handedness and whether
-they felt sure of the sign. Landmarks are extracted on the server by `extraction.py`, the same setup
-every dataset went through, so the recordings are not a second, subtly different extractor. The
+they felt sure of the sign. Each take is replayed with its extracted landmarks drawn over it, so a
+lost hand or a cut-off shoulder is visible at once. Landmarks are extracted on the server by
+`extraction.py`, the same setup every dataset went through, so the recordings are not a second,
+subtly different extractor. The
 session also collects a few `no_event` clips of not signing, as negatives that look like real usage.
 
 Recordings of every glossary land in `data/raw/recordings/` (videos plus `clips.csv`, which also

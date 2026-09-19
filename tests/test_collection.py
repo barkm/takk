@@ -1,10 +1,11 @@
+import json
+
 import numpy as np
 import polars as pl
 import pytest
 from fastapi import HTTPException
 
-from isolated_sign_validation import collection
-from isolated_sign_validation.collection import NO_EVENT, NO_EVENT_PROMPTS, SCHEMA, Recordings, check_clip, create_app, read_clips, session_prompts
+from isolated_sign_validation.collection import NO_EVENT, NO_EVENT_PROMPTS, SCHEMA, Recordings, check_clip, create_app, overlay, read_clips, session_prompts
 from isolated_sign_validation.extraction import VideoInfo
 from isolated_sign_validation.landmarks import N_LANDMARKS
 from isolated_sign_validation.preparation import PrepConfig
@@ -106,9 +107,23 @@ def test_reference_route_serves_only_shown_clips(tmp_path):
         route.endpoint("00002")
 
 
-def test_check_clip_accepts_not_signing_without_hands(tmp_path, monkeypatch):
+def test_check_clip_accepts_not_signing_without_hands():
     no_hands = np.full((60, N_LANDMARKS, 3), np.nan, dtype=np.float32)  # someone sitting still, hands out of view
-    monkeypatch.setattr(collection, "extract_landmarks", lambda video: (no_hands, VideoInfo(30.0, 640, 480)))
+    info = VideoInfo(30.0, 640, 480)
 
-    assert check_clip(tmp_path / "clip.mp4", PrepConfig()) == (False, "No hands were detected. Are your hands inside the frame while signing?", 0.0)
-    assert check_clip(tmp_path / "clip.mp4", PrepConfig(), signing=False) == (True, "Recorded.", 0.0)
+    assert check_clip(no_hands, info, PrepConfig()) == (False, "No hands were detected. Are your hands inside the frame while signing?", 0.0)
+    assert check_clip(no_hands, info, PrepConfig(), signing=False) == (True, "Recorded.", 0.0)
+
+
+def test_overlay_draws_the_skeletons_with_undetected_points_as_null():
+    landmarks = np.full((2, N_LANDMARKS, 3), np.nan, dtype=np.float32)
+    landmarks[0, 468] = (0.25, 0.5, 0.0)  # the left hand's wrist, in the first frame only
+    landmarks[0, 469] = (0.75, 0.125, 0.0)
+
+    result = overlay(landmarks)
+
+    wrist, thumb = result["edges"]["left_hand"][0]  # MediaPipe's first hand connection is wrist to thumb
+    assert result["frames"][0][2 * wrist : 2 * wrist + 2] == [0.25, 0.5]
+    assert result["frames"][0][2 * thumb : 2 * thumb + 2] == [0.75, 0.125]
+    assert result["frames"][1][2 * wrist] is None
+    assert json.dumps(result, allow_nan=False)  # no NaN, which the JSON response would reject
