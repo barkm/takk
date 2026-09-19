@@ -112,6 +112,17 @@ unzip -q data/raw/wlasl-processed.zip -d data/raw/wlasl
 The mirror on Hugging Face ([Voxel51/WLASL](https://huggingface.co/datasets/Voxel51/WLASL)) has the
 same videos as single files, but downloading 11,880 of them runs into rate limiting.
 
+The mirror has none of WLASL's 5,135 YouTube instances, but most of their videos are still public.
+`scripts/download_wlasl_youtube.py` downloads them with yt-dlp (no cookies needed as of 2026-09;
+it uses `node` as yt-dlp's JavaScript runtime) and cuts each instance out at its frame range into
+`data/raw/wlasl/youtube/`, where the adapter finds them next to the mirror's clips. Unavailable
+videos are recorded in `youtube/unavailable.tsv` and skipped when run again, which resumes an
+interrupted run:
+
+```sh
+uv run scripts/download_wlasl_youtube.py
+```
+
 Then extract the landmarks of the 11,980 videos into `data/processed/wlasl/` (5.1 GB, about 4.5
 hours; run it in `tmux`, and run it again to resume). `--signs N` extracts a sample into a separate
 store instead:

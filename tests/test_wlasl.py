@@ -1,8 +1,10 @@
 import json
+import subprocess
 
+import numpy as np
 import polars as pl
 
-from isolated_sign_validation.datasets.wlasl import map_signs, read_videos, sign_labels, twin_pairs
+from isolated_sign_validation.datasets.wlasl import map_signs, read_videos, sign_labels, trim_clip, twin_pairs
 from isolated_sign_validation.splits import sign_split
 
 
@@ -69,3 +71,29 @@ def test_map_signs_holds_out_twins_of_held_out_signs():
     assert mapping["chicken"] is None  # may show the held-out WINE under another word
     assert mapping["father"] is None  # may show the held-out variant SHORT2
     assert mapping["short"] is None
+
+
+def _gray_video(path, values, size=16):
+    """A video whose frame i is a flat gray of values[i]."""
+    frames = np.repeat(np.asarray(values, np.uint8), size * size).tobytes()
+    command = ["ffmpeg", "-v", "error", "-f", "rawvideo", "-pix_fmt", "gray", "-s", f"{size}x{size}", "-r", "25"]
+    subprocess.run([*command, "-i", "-", "-c:v", "ffv1", "-pix_fmt", "yuv420p", str(path)], input=frames, check=True)
+
+
+def _gray_values(path, size=16):
+    command = ["ffmpeg", "-v", "error", "-i", str(path), "-f", "rawvideo", "-pix_fmt", "gray", "-"]
+    frames = np.frombuffer(subprocess.run(command, capture_output=True, check=True).stdout, np.uint8)
+    return frames.reshape(-1, size * size).mean(axis=1).round().astype(int).tolist()
+
+
+def test_trim_clip_keeps_the_inclusive_1_based_frame_range(tmp_path):
+    source = tmp_path / "source.mkv"
+    _gray_video(source, [8 * i for i in range(30)])
+
+    trim_clip(source, tmp_path / "a.mp4", frame_start=11, frame_end=20)
+    trim_clip(source, tmp_path / "b.mp4", frame_start=1, frame_end=-1)
+
+    expected = _gray_values(source)[10:20]  # frames 11..20
+    assert np.abs(np.subtract(_gray_values(tmp_path / "a.mp4"), expected)).max() <= 2
+    assert len(_gray_values(tmp_path / "b.mp4")) == 30  # -1: to the end
+    assert not list(tmp_path.glob("*.part*"))

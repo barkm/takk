@@ -2,8 +2,9 @@
 
 WLASL is distributed as links to YouTube and ASL dictionary sites, many of them dead. The videos
 used here come from a mirror of the surviving ones (11,880 of the 21,083 instances, see ROADMAP.md),
-the glosses and signer ids from WLASL's own metadata. Each video is one sign instance, already
-trimmed. Instances whose video the mirror does not have are skipped. Expects the mirror unpacked in
+the glosses and signer ids from WLASL's own metadata, plus the YouTube instances, which the mirror
+lacks, downloaded by scripts/download_wlasl_youtube.py. Each video is one sign instance, already
+trimmed. Instances without a video are skipped. Expects the mirror unpacked in
 data/raw/wlasl, i.e. WLASL_v0.3.json and the videos somewhere below it (see README).
 
 Extraction takes about two hours; an interrupted run resumes where it left off when run again. Run
@@ -14,6 +15,7 @@ from the repo root:
 
 import argparse
 import json
+import subprocess
 from collections import defaultdict
 from collections.abc import Collection, Iterator, Sequence
 from pathlib import Path
@@ -53,6 +55,21 @@ def read_videos(raw_dir: Path) -> pl.DataFrame:
         if instance["video_id"] in paths
     ]
     return pl.DataFrame(rows)
+
+
+def trim_clip(source: Path, clip: Path, frame_start: int, frame_end: int) -> None:
+    """Cut one instance out of a downloaded source video into the mp4 `clip`, at the source's frame rate.
+
+    `frame_start` and `frame_end` are WLASL's 1-based, inclusive frame numbers (`frame_end` -1 for the
+    end of the video), cut as the official preprocessing does.
+    """
+    end = f":end_frame={frame_end}" if frame_end != -1 else ""
+    trim = f"trim=start_frame={frame_start - 1}{end},setpts=PTS-STARTPTS"
+    clip.parent.mkdir(parents=True, exist_ok=True)
+    partial = clip.with_suffix(".part.mp4")  # a killed run must not leave a truncated clip behind
+    command = ["ffmpeg", "-v", "error", "-y", "-i", str(source), "-vf", trim, "-an", "-c:v", "libx264", "-crf", "18"]
+    subprocess.run([*command, str(partial)], check=True)
+    partial.rename(clip)
 
 
 def _canonical(label: str) -> str:
