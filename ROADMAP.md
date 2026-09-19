@@ -33,6 +33,7 @@ Status of the work and the plan ahead. Update this file when a step is finished,
 
 7. **Strong model** — in progress
    - Experiment tooling: `scripts/train.py --set key=value` overrides, `scripts/compare_runs.py`; checkpoints selected on validation EER at k = 1. — done
+   - Embedding explorer (`scripts/explore_embeddings.py`, `web/embeddings.html`): a web page with each sign as a point, laid out by t-SNE of its mean embedding and clustered (Ward), colored by cluster, split or ASL-LEX feature, with clips, nearest signs and cluster members per sign. — done
    - Regularization (GRU, 30 epochs): stronger augmentation + dropout 0.4 + weight decay 0.05 are the new defaults (see findings). — done
    - Conv + transformer encoder (`ConvTransformerEncoder`): width and depth comparison. — done: worse than the GRU (see findings)
    - Conv + transformer with longer training (80 epochs) and less dropout (0.2). — done: with dropout 0.2 it matches the GRU; longer training doesn't help (see findings)

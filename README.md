@@ -282,6 +282,18 @@ uv run scripts/evaluate_test.py gru_auslan_phonpool1 --prepared data/prepared/sl
 
 Threshold selection and sensitivity analysis come later.
 
+### Exploring the embedding space
+
+`scripts/explore_embeddings.py` serves a web page in the spirit of the [ASL-LEX visualization](https://asl-lex.org/visualization/),
+built from a run's embeddings instead of hand-coded phonology: each sign is a point (the mean of its
+clips' embeddings), laid out by t-SNE and grouped into clusters. Points can be colored by cluster,
+split or ASL-LEX feature, and clicking one shows clips of the sign, its nearest signs and its cluster:
+
+```sh
+uv run scripts/explore_embeddings.py --run gru_auslan_phonpool1   # then open http://localhost:8001
+uv run scripts/explore_embeddings.py --prepared data/prepared/asl_citizen-<config id> data/prepared/slovo-<config id>
+```
+
 ## Recording your own clips
 
 The deployment setting is a user copying a dictionary clip in front of their own camera, which no
