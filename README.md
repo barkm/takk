@@ -351,6 +351,24 @@ uv run scripts/evaluate_recordings.py --name recordings_sts --glossary data/prep
 It also prints each recording with the rank of its own sign among the whole glossary and the signs it
 scored highest, which is what a handful of clips can actually say something about.
 
+## Practicing signs
+
+`scripts/practice.py` serves the product itself as a small web app: search the Swedish lexicon for a
+word, watch its clip, sign it to the webcam, and learn whether it was that sign. The landmarks are
+extracted in the browser, with the same MediaPipe version, model and settings as `extraction.py`, and
+only they are sent to the server; the video never leaves the device. The server checks and prepares
+the attempt like a recording, embeds it with the run's model, and accepts it when its mean cosine
+similarity to the sign's lexicon clips reaches `--threshold` (a provisional 0.38, see ROADMAP.md):
+
+```sh
+uv run scripts/practice.py   # then open http://localhost:8002
+```
+
+Extraction runs on the CPU after recording, since it is slower than real time (about 2–3 s per
+second of video on a desktop CPU). As with the collection app, forward the port when the machine is
+remote. `scripts/compare_browser_extraction.py` compares the browser's landmarks with the Python
+extraction on the recordings.
+
 ## Future
 
 - Validate Swedish Sign Language signs from [Svenskt teckenspråkslexikon](https://teckensprakslexikon.su.se/), which have little training data.

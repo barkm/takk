@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sign practice</title>
+    <style>
+      :root { color-scheme: dark; --bg: #16181d; --card: #23262e; --line: #363a45; --text: #e8eaee; --dim: #a0a6b2; --ok: #4ade80; --bad: #f87171; --accent: #60a5fa; }
+      * { box-sizing: border-box; }
+      body { margin: 0; padding: 24px 16px; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, sans-serif; }
+      main { max-width: 900px; margin: 0 auto; }
+      .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+      h1 { font-size: 20px; margin: 0 0 16px; }
+      h2 { font-size: 32px; margin: 0; letter-spacing: 0.02em; }
+      p { margin: 8px 0; }
+      .dim { color: var(--dim); font-size: 14px; }
+      input[type="search"] { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 16px; }
+      button { padding: 10px 18px; border-radius: 8px; border: 1px solid var(--line); background: var(--accent); color: #0b1220; font-size: 16px; font-weight: 600; cursor: pointer; }
+      button.secondary { background: transparent; color: var(--text); font-weight: 400; padding: 6px 12px; }
+      button:disabled { opacity: 0.5; cursor: default; }
+      .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+      #matches { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+      .videos { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+      .videos video { width: 240px; border-radius: 8px; background: #000; }
+      #camera { width: 100%; max-width: 560px; border-radius: 8px; background: #000; transform: scaleX(-1); }
+      .recording { outline: 3px solid var(--bad); }
+      #verdict { font-size: 22px; font-weight: 600; }
+      .ok { color: var(--ok); }
+      .bad { color: var(--bad); }
+      .hidden { display: none; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="card">
+        <h1>Practice a sign</h1>
+        <input id="search" type="search" placeholder="Search for a word" autocomplete="off" />
+        <div id="matches"></div>
+      </section>
+
+      <section id="prompt" class="card hidden">
+        <h2 id="sign"></h2>
+        <p class="dim">Watch the clip, then record yourself signing it. Press space to start and stop recording.</p>
+        <div id="references" class="videos"></div>
+      </section>
+
+      <section id="recorder" class="card hidden">
+        <video id="camera" autoplay muted playsinline></video>
+        <p class="row">
+          <button id="record" disabled>Record</button>
+          <span id="timer" class="dim"></span>
+          <label class="row dim">I sign with my <input type="radio" name="handedness" value="right" checked /> right <input type="radio" name="handedness" value="left" /> left hand</label>
+        </p>
+        <p id="verdict"></p>
+        <p id="detail" class="dim"></p>
+      </section>
+    </main>
+
+    <script type="module">
+      // Landmarks are extracted here, with the same HolisticLandmarker setup as extraction.py (CPU,
+      // VIDEO mode, a new landmarker per clip), and only they are sent to the server.
+      import { FilesetResolver, HolisticLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.mjs";
+
+      // LANDMARK_SLICES in landmarks.py: [result field, first index, number of points]
+      const PARTS = [
+        ["faceLandmarks", 0, 468], // the face model's 10 iris points after these are dropped
+        ["leftHandLandmarks", 468, 21],
+        ["poseLandmarks", 489, 33],
+        ["rightHandLandmarks", 522, 21],
+      ];
+      const N_LANDMARKS = 543;
+
+      const el = (id) => document.getElementById(id);
+      const show = (id, visible) => el(id).classList.toggle("hidden", !visible);
+      const word = (sign) => sign.replace(/^sts:/, "").replace(/-\d+$/, "");
+      let signs = [], sign = null, fps = 30, maxSeconds = 4, stream = null, frames = null, busy = false;
+
+      const files = FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm");
+
+      function search() {
+        const query = el("search").value.trim().toLowerCase();
+        const found = !query ? [] : signs.filter((s) => word(s.sign).toLowerCase().startsWith(query))
+          .concat(signs.filter((s) => !word(s.sign).toLowerCase().startsWith(query) && word(s.sign).toLowerCase().includes(query)));
+        el("matches").innerHTML = "";
+        for (const s of found.slice(0, 40)) {
+          const button = document.createElement("button");
+          button.className = "secondary";
+          button.textContent = `${word(s.sign)} (${s.sign.match(/\d+$/)?.[0] ?? ""})`;
+          button.onclick = () => choose(s);
+          el("matches").append(button);
+        }
+      }
+
+      async function choose(chosen) {
+        sign = chosen;
+        el("sign").textContent = word(sign.sign);
+        el("references").innerHTML = sign.references
+          .map((id) => `<video src="/api/reference/${encodeURIComponent(id)}" autoplay loop muted playsinline controls></video>`)
+          .join("");
+        el("verdict").textContent = el("detail").textContent = "";
+        show("prompt", true), show("recorder", true);
+        if (!stream) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
+              audio: false,
+            });
+          } catch (error) {
+            return (el("verdict").textContent = "No access to the camera: " + error.message);
+          }
+          el("camera").srcObject = stream;
+        }
+        el("record").disabled = false;
+      }
+
+      // While recording, every camera frame is kept with its capture time. They are only processed
+      // afterwards, since extraction is slower than real time on the CPU.
+      // ponytail: frames are held at full resolution (~3.7 MB each at 720p, ~0.5 GB for the longest
+      // clip); downscale or process while recording if that is too much on phones.
+      function captureFrames() {
+        const video = el("camera");
+        const next = (now, metadata) => {
+          if (!frames) return;
+          const time = (metadata.captureTime ?? now) / 1000;
+          frames.push(createImageBitmap(video).then((bitmap) => ({ time, bitmap })));
+          video.requestVideoFrameCallback(next);
+        };
+        video.requestVideoFrameCallback(next);
+      }
+
+      function record() {
+        frames = [];
+        captureFrames();
+        el("camera").classList.add("recording");
+        el("record").textContent = "Stop";
+        el("verdict").textContent = el("detail").textContent = "";
+        const started = Date.now();
+        window.ticker = setInterval(() => {
+          const seconds = (Date.now() - started) / 1000;
+          el("timer").textContent = `${seconds.toFixed(1)} s`;
+          if (seconds > maxSeconds) stop();
+        }, 100);
+      }
+
+      async function stop() {
+        if (!frames) return; // the time limit and the button can both stop a recording
+        clearInterval(window.ticker);
+        const captured = await Promise.all(frames);
+        frames = null;
+        el("camera").classList.remove("recording");
+        el("record").textContent = "Record";
+        el("record").disabled = true;
+        busy = true;
+        try {
+          await score(captured.sort((a, b) => a.time - b.time));
+        } finally {
+          captured.forEach(({ bitmap }) => bitmap.close());
+          busy = false;
+          el("record").disabled = false;
+        }
+      }
+
+      // Landmarks at the preparation's constant frame rate: at every 1 / fps seconds the latest camera
+      // frame, as the collection app's transcode does before the Python extraction.
+      async function extract(captured) {
+        const landmarker = await HolisticLandmarker.createFromOptions(await files, {
+          baseOptions: { modelAssetPath: "/api/model", delegate: "CPU" },
+          runningMode: "VIDEO",
+        });
+        const start = captured[0].time;
+        const n = Math.floor((captured.at(-1).time - start) * fps) + 1;
+        const landmarks = new Float32Array(n * N_LANDMARKS * 3).fill(NaN);
+        for (let i = 0, j = 0; i < n; i++) {
+          while (j + 1 < captured.length && captured[j + 1].time <= start + i / fps) j++;
+          const result = landmarker.detectForVideo(captured[j].bitmap, Math.round((i * 1000) / fps));
+          for (const [field, first, count] of PARTS) {
+            const points = result[field][0];
+            if (!points) continue;
+            for (let k = 0; k < count; k++) landmarks.set([points[k].x, points[k].y, points[k].z], (i * N_LANDMARKS + first + k) * 3);
+          }
+          if (i % 5 === 0) {
+            el("detail").textContent = `Analyzing frame ${i + 1} of ${n}...`;
+            await new Promise(requestAnimationFrame); // let the page show the progress
+          }
+        }
+        landmarker.close();
+        return landmarks;
+      }
+
+      async function score(captured) {
+        if (captured.length < 2) return (el("verdict").textContent = "The recording is empty.");
+        const landmarks = await extract(captured);
+        el("detail").textContent = "Scoring...";
+        const body = new FormData();
+        body.append("landmarks", new Blob([landmarks.buffer]), "landmarks.f32");
+        body.append("sign", sign.sign);
+        body.append("handedness", document.querySelector("input[name=handedness]:checked").value);
+        body.append("width", captured[0].bitmap.width);
+        body.append("height", captured[0].bitmap.height);
+        const response = await fetch("/api/attempt", { method: "POST", body });
+        if (!response.ok) {
+          el("verdict").className = "bad";
+          el("verdict").textContent = "Scoring failed. Please record again.";
+          el("detail").textContent = "";
+          return;
+        }
+        const result = await response.json();
+        if (!result.usable) {
+          el("verdict").className = "bad";
+          el("verdict").textContent = result.note;
+          el("detail").textContent = "";
+          return;
+        }
+        el("verdict").className = result.correct ? "ok" : "bad";
+        el("verdict").textContent = result.correct ? `Correct: that was ${word(sign.sign)}.` : `Not recognized as ${word(sign.sign)}.`;
+        el("detail").textContent = `Score ${result.score.toFixed(2)} (at least ${result.threshold.toFixed(2)} counts as the sign). ${result.note}`;
+      }
+
+      el("search").oninput = search;
+      el("record").onclick = () => (frames ? stop() : record());
+      // Space toggles recording; preventDefault also stops it clicking whichever button has focus.
+      document.addEventListener("keydown", (event) => {
+        if (event.code !== "Space" || event.target.type === "search") return;
+        event.preventDefault();
+        if (!event.repeat && !el("record").disabled && !busy) el("record").click();
+      });
+
+      fetch("/api/signs")
+        .then((response) => response.json())
+        .then((data) => ((signs = data.signs), (fps = data.fps), (maxSeconds = data.max_seconds), search()));
+    </script>
+  </body>
+</html>
