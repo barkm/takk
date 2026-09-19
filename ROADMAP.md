@@ -386,3 +386,4 @@ Validation accuracy search (`prompts/improve_val.md`, started 2026-09-19). All n
 - Attention pooling (`iv15_attnpool`, an attention-weighted mean of the GRU outputs next to the mean and max): no gain, top-1 79.58%, +0.08 points (−0.51 to +0.68), EER +0.31 (+0.11 to +0.49).
 - A larger ArcFace margin (`iv16_margin04`, 0.4 instead of 0.3): worse, top-1 78.88%, −0.62 points (−1.05 to −0.17), EER +0.14 (−0.03 to +0.30).
 - A smaller ArcFace margin (`iv17_margin02`, 0.2): worse too, top-1 78.89%, −0.61 points (−0.98 to −0.20), EER +0.03 (−0.12 to +0.18). The margin of 0.3 stays.
+- A deeper GRU (`iv18_layers3`, 3 layers at hidden 384): worse, top-1 78.28%, −1.22 points (−1.75 to −0.62), EER +0.26 (+0.06 to +0.46). The capacity gain comes from width, not depth.
