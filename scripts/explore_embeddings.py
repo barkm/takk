@@ -83,7 +83,8 @@ def main() -> None:
 
     similarity = means @ means.T
     np.fill_diagonal(similarity, -np.inf)
-    nearest = np.argsort(-similarity, axis=1)[:, :NEIGHBORS]
+    nearest = np.argpartition(-similarity, NEIGHBORS, axis=1)[:, :NEIGHBORS]  # a full sort is slow for large glossaries
+    nearest = np.take_along_axis(nearest, np.argsort(-np.take_along_axis(similarity, nearest, axis=1), axis=1), axis=1)
     points = signs.to_dicts()
     for i, point in enumerate(points):
         point["neighbors"] = [[int(j), round(float(similarity[i, j]), 3)] for j in nearest[i]]  # indices into points
