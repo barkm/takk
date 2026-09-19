@@ -8,7 +8,7 @@ from fastapi import HTTPException, UploadFile
 from torch import nn
 
 from isolated_sign_validation.landmarks import LANDMARK_SLICES, N_LANDMARKS
-from isolated_sign_validation.practice import create_app, prepare_attempt, sign_means
+from isolated_sign_validation.practice import create_app, prepare_attempt, sign_means, split_signs
 from isolated_sign_validation.preparation import PrepConfig, mirror, prepare_clip
 
 CONFIG = PrepConfig()
@@ -49,6 +49,19 @@ def test_prepare_attempt_mirrors_left_dominant_attempts(hands, handedness, mirro
     np.testing.assert_array_equal(prepare_attempt(landmarks, 30.0, 1.0, handedness, CONFIG), expected)
 
 
+def test_split_signs_splits_at_rests_only():
+    one = attempt_landmarks(("right_hand",))  # 0.5 s rest, 1 s sign, 0.5 s rest
+    blip = attempt_landmarks(())
+    blip[30:33, LANDMARK_SLICES["right_hand"]] = [0.35, 0.6, 0.0]  # 0.1 s: too short for a sign
+    gap = one.copy()
+    gap[25:31, LANDMARK_SLICES["right_hand"]] = np.nan  # 0.2 s lost inside the sign
+    two = np.concatenate([one, blip, one])
+    assert split_signs(one, 1.0, CONFIG) == [slice(0, 60)]
+    assert split_signs(gap, 1.0, CONFIG) == [slice(0, 60)]
+    assert split_signs(two, 1.0, CONFIG) == [slice(0, 90), slice(90, 180)]
+    assert split_signs(attempt_landmarks(()), 1.0, CONFIG) == []
+
+
 class Fixed(nn.Module):
     """A stand-in for the embedding model: the same embedding for every clip."""
 
@@ -62,16 +75,20 @@ def test_attempt_scores_against_the_chosen_sign():
     app = create_app(references, means, {}, Fixed(), CONFIG, threshold=0.7, device="cpu")
     attempt = next(route for route in app.routes if getattr(route, "path", "") == "/api/attempt").endpoint
 
-    def send(landmarks: np.ndarray, sign: str) -> dict:
+    def send(landmarks: np.ndarray, *signs: str) -> dict:
         upload = UploadFile(io.BytesIO(landmarks.astype(np.float32).tobytes()))
-        return asyncio.run(attempt(upload, sign=sign, handedness="right", width=640, height=480))
+        return asyncio.run(attempt(upload, sign=list(signs), handedness="right", width=640, height=480))
 
     landmarks = attempt_landmarks(("right_hand",))
     closest = {"sign": "A", "score": pytest.approx(1.0)}
-    assert send(landmarks, "A") == {"usable": True, "note": "Looks good.", "score": pytest.approx(1.0), "threshold": 0.7, "correct": True, "closest": closest}  # fmt: skip
-    assert send(landmarks, "B")["closest"] == closest
-    assert send(landmarks, "B")["correct"] is False and send(landmarks, "B")["score"] == pytest.approx(0.6)
-    assert send(attempt_landmarks(()), "A")["usable"] is False
+    a = {"sign": "A", "usable": True, "note": "Looks good.", "score": pytest.approx(1.0), "correct": True, "closest": closest}
+    assert send(landmarks, "A") == {"threshold": 0.7, "note": "", "signs": [a]}
+    (b,) = send(landmarks, "B")["signs"]
+    assert b["closest"] == closest and b["correct"] is False and b["score"] == pytest.approx(0.6)
+    assert send(attempt_landmarks(()), "A")["signs"][0]["usable"] is False
+    sentence = send(np.concatenate([landmarks, landmarks]), "A", "B")["signs"]  # scored sign by sign
+    assert [s["sign"] for s in sentence] == ["A", "B"] and [s["correct"] for s in sentence] == [True, False]
+    assert send(landmarks, "A", "B")["signs"] == []  # one sign found for two
     with pytest.raises(HTTPException):
         send(landmarks, "C")
     with pytest.raises(HTTPException):

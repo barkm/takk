@@ -7,6 +7,10 @@ checks and prepares the attempt like any recording, embeds it, and scores it aga
 clips of the chosen sign: the mean cosine similarity to them, as `evaluation` scores a sign from k
 references. The attempt counts as the sign when the score reaches a global threshold. The sign of
 the whole glossary with the highest score is reported too, so a wrong attempt shows what it resembled.
+
+An attempt can also be a sentence of several signs, as TAKK signs the key words of a spoken
+sentence. The signer lowers their hands between the signs; the recording is split at those rests
+(split_signs) and each part is scored as an attempt of the sign at its place in the sentence.
 """
 
 import numpy as np
@@ -20,6 +24,10 @@ from isolated_sign_validation.dataset import collate
 from isolated_sign_validation.extraction import MODEL_PATH, VideoInfo
 from isolated_sign_validation.landmarks import N_LANDMARKS, SKELETON_EDGES
 from isolated_sign_validation.preparation import ONE_HANDED, PrepConfig, hand_presence, hide_low_hands, mirror, prepare_clip
+
+# Seconds without a raised hand that end a sign of a sentence. Inside a sign the hands are lost for
+# at most 0.23 s in the Swedish browser recordings; lowering the hands and raising them again takes longer.
+MIN_REST = 0.4
 
 
 def sign_means(embeddings: np.ndarray, labels: np.ndarray, n_signs: int) -> np.ndarray:
@@ -45,6 +53,22 @@ def prepare_attempt(landmarks: np.ndarray, fps: float, aspect: float, handedness
     else:
         dominant = handedness
     return mirror(frames, config) if dominant == "left" else frames
+
+
+def split_signs(landmarks: np.ndarray, aspect: float, config: PrepConfig) -> list[slice]:
+    """The signs of a recording at the preparation's frame rate: the runs of frames with a raised hand
+    (resting hands count as not detected, see hide_low_hands) at least `MIN_REST` apart, without runs
+    too short for a sign. Each slice reaches halfway into the rests around it."""
+    frames = np.flatnonzero(hand_presence(hide_low_hands(landmarks, aspect, config.max_hand_y)).any(axis=1))
+    if not len(frames):
+        return []
+    breaks = np.flatnonzero(np.diff(frames) > MIN_REST * config.fps)
+    runs = [(a, b + 1) for a, b in zip(frames[np.r_[0, breaks + 1]], frames[np.r_[breaks, len(frames) - 1]])]
+    runs = [(a, b) for a, b in runs if b - a >= config.min_hands * config.fps]
+    if not runs:
+        return []
+    cuts = [0] + [(b + a) // 2 for (_, b), (a, _) in zip(runs[:-1], runs[1:])] + [len(landmarks)]
+    return [slice(a, b) for a, b in zip(cuts[:-1], cuts[1:])]
 
 
 @torch.inference_mode()
@@ -97,25 +121,36 @@ def create_app(
     def extraction_model() -> FileResponse:
         return FileResponse(MODEL_PATH)
 
+    def judge(values: np.ndarray, sign: str, handedness: str, width: int, height: int) -> dict:
+        """Score the landmarks of one sign as an attempt of `sign`."""
+        usable, note, _ = check_clip(values, VideoInfo(config.fps, width, height), config)
+        frames = prepare_attempt(values, config.fps, width / height, handedness, config) if usable else None
+        if frames is None:
+            return {"sign": sign, "usable": False, "note": note}
+        scores = means @ embed_clip(model, frames, config, device)
+        score, closest = float(scores[index[sign]]), int(np.argmax(scores))
+        return {
+            "sign": sign, "usable": True, "note": note, "score": score, "correct": score >= threshold,
+            "closest": {"sign": names[closest], "score": float(scores[closest])},
+        }  # fmt: skip
+
     @app.post("/api/attempt")
-    async def attempt(landmarks: UploadFile, sign: str = Form(), handedness: str = Form(), width: int = Form(), height: int = Form()) -> dict:  # fmt: skip
-        """Score an attempt: its landmarks as float32 (n_frames, N_LANDMARKS, 3), NaN where not
-        detected, at the preparation's frame rate, from frames of `width` x `height` pixels."""
-        if sign not in index:
+    async def attempt(landmarks: UploadFile, sign: list[str] = Form(), handedness: str = Form(), width: int = Form(), height: int = Form()) -> dict:  # fmt: skip
+        """Score an attempt of one sign or a sentence of several (`sign` repeated, in order): its
+        landmarks as float32 (n_frames, N_LANDMARKS, 3), NaN where not detected, at the preparation's
+        frame rate, from frames of `width` x `height` pixels. A sentence is split into its signs
+        first; when their number differs from the sentence's, nothing is scored."""
+        if any(s not in index for s in sign):
             raise HTTPException(404, "unknown sign")
         values = np.frombuffer(await landmarks.read(), dtype=np.float32)
         if handedness not in ("left", "right") or width <= 0 or height <= 0 or values.size % (N_LANDMARKS * 3):
             raise HTTPException(400, "malformed attempt")
         values = values.reshape(-1, N_LANDMARKS, 3)
-        usable, note, _ = check_clip(values, VideoInfo(config.fps, width, height), config)
-        frames = prepare_attempt(values, config.fps, width / height, handedness, config) if usable else None
-        if frames is None:
-            return {"usable": False, "note": note}
-        scores = means @ embed_clip(model, frames, config, device)
-        score, closest = float(scores[index[sign]]), int(np.argmax(scores))
-        return {
-            "usable": True, "note": note, "score": score, "threshold": threshold, "correct": score >= threshold,
-            "closest": {"sign": names[closest], "score": float(scores[closest])},
-        }  # fmt: skip
+        parts = [slice(None)] if len(sign) == 1 else split_signs(values, width / height, config)
+        if len(parts) != len(sign):
+            note = f"{len(parts)} signs were found, but the sentence has {len(sign)}. Lower your hands between the signs."
+            return {"threshold": threshold, "note": note, "signs": []}
+        signs = [judge(values[part], s, handedness, width, height) for part, s in zip(parts, sign)]
+        return {"threshold": threshold, "note": "", "signs": signs}
 
     return app
