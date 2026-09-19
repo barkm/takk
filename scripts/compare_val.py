@@ -5,8 +5,10 @@ training), and each later run's gain over the first run is given with a 95% CI f
 bootstrap samples of signs for both runs (the references and bootstrap samples depend only on the
 clips and the seed). A gain counts only if its CI excludes 0.
 
-A run written as `a+b` is an ensemble: the mean of the runs' unit-length embeddings. Every run is
-scored with the first run's twins, so all of them are scored on the same trials.
+A run written as `a+b` is an ensemble: the mean of the runs' unit-length embeddings. A run written
+as `a*n` adds test-time augmentation: its embedding is the mean over the clip and n mildly augmented
+copies of it (TTA below). Every run is scored with the first run's twins, so all of them are scored
+on the same trials.
 
 Run from the repo root: uv run scripts/compare_val.py gru_wlasl_twins gru_new
 """
@@ -17,24 +19,36 @@ from pathlib import Path
 
 import numpy as np
 import polars as pl
+import torch
 
-from isolated_sign_validation.dataset import SignDataset
+from isolated_sign_validation.dataset import AugmentConfig, SignDataset
 from isolated_sign_validation.evaluation import cosine_similarity, evaluate
 from isolated_sign_validation.preparation import PreparedData
 from isolated_sign_validation.training import embed, load_run
 
 RUNS_DIR = Path("outputs/runs")
 METRICS = ["top1", "eer", "top5"]
+TTA = AugmentConfig(rotation=5, scale=0.1, shift=0.05, shear=0.05, speed=(0.85, 1.15), frame_drop=0, hand_drop=0)
 
 
-def val_embeddings(run: str) -> tuple[pl.DataFrame, np.ndarray, set]:
+def val_embeddings(spec: str) -> tuple[pl.DataFrame, np.ndarray, set]:
     """The val clips (sorted by clip id), one run's embeddings of them and its prepared data's twins."""
+    run, _, copies = spec.partition("*")
     data = PreparedData(*map(Path, json.loads((RUNS_DIR / run / "prepared.json").read_text())))
     val = SignDataset(data, "val")
     _, model = load_run(RUNS_DIR / run, data)
+    model = model.to("cuda")
+    embeddings = [embed(model, val, "cuda")]
+    torch.manual_seed(0)  # the augmented copies are the same for every run
+    for _ in range(int(copies or 0)):
+        embeddings.append(embed(model, SignDataset(data, "val", TTA), "cuda"))
     clips = data.clips[val.positions]
     order = np.argsort(clips["clip_id"].to_numpy())
-    return clips[order], embed(model.to("cuda"), val, "cuda")[order], data.twins
+    return clips[order], np.mean([unit(e) for e in embeddings], axis=0)[order], data.twins
+
+
+def unit(embeddings: np.ndarray) -> np.ndarray:
+    return embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
 
 
 def main() -> None:
@@ -49,7 +63,7 @@ def main() -> None:
             base_clips, base_twins = parts[0][0], parts[0][2]
         if not all(part[0]["clip_id"].equals(base_clips["clip_id"]) for part in parts):
             raise SystemExit(f"{spec} has other val clips than {args.runs[0]}; a paired comparison needs the same")
-        embeddings = np.mean([e / np.linalg.norm(e, axis=1, keepdims=True) for _, e, _ in parts], axis=0)
+        embeddings = np.mean([unit(e) for _, e, _ in parts], axis=0)
         summaries[spec], _ = evaluate(cosine_similarity(embeddings), base_clips, twins=base_twins, keep_boot=True)
 
     base = args.runs[0]
