@@ -195,9 +195,10 @@ uv run scripts/prepare_slovo.py
 ```
 
 Svenskt teckenspråkslexikon is prepared the same way, as an evaluation set whose labels get the
-prefix `sts:`. Nothing is filtered out. It writes `data/prepared/sts_lexikon-<config id>/` (21,689
-clips of 16,030 signs, 0.71 GB), the glossary for recording Swedish signs (see Recording your own
-clips):
+prefix `sts:`. Nothing is filtered out, but the lexicon's resting pose (hands clasped at the waist,
+in frame) is hidden with `max_hand_y` 0.9 instead of the default 1.0. It writes
+`data/prepared/sts_lexikon-<config id>/` (21,680 clips of 16,026 signs, 0.64 GB), the glossary for
+recording Swedish signs (see Recording your own clips):
 
 ```sh
 uv run scripts/prepare_sts_lexikon.py

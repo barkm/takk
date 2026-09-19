@@ -6,6 +6,11 @@ labels get the prefix "sts:", since a Swedish sign is a different sign from an A
 same meaning. Nothing is filtered out: the store holds every entry, a sign class of several clips
 or a sign of its own (see `datasets/sts_lexikon.py`). The clips are studio citation form.
 
+The lexicon's models rest with their hands clasped at the waist, in frame, at about 1.0 shoulder
+widths below the shoulders, right on the default `max_hand_y`. The rest is not part of the sign and
+a webcam user's rest is out of frame, so the lexicon is prepared with `max_hand_y` 0.9, which hides
+it in most clips (see ROADMAP.md).
+
 The set serves as the glossary for self-recorded Swedish clips (`scripts/evaluate_recordings.py`).
 Evaluating the lexicon against itself is blocked until it has signer ids (see ROADMAP.md):
 `evaluation.py` draws every reference from a signer other than the query's, so with one null signer
@@ -39,12 +44,13 @@ def longest_signs(data: PreparedData, n: int) -> pl.DataFrame:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--store", type=Path, default=sts_lexikon.STORE_DIR)
+    parser.add_argument("--max_hand_y", type=float, default=0.9, help="see PrepConfig and above")
     args = parser.parse_args()
 
     clips = assign_evaluation_only(LandmarkStore(args.store).clips.with_row_index("row"))
     clips = clips.with_columns(sign=sts_lexikon.LABEL_PREFIX + pl.col("sign"))
 
-    config = PrepConfig()
+    config = PrepConfig(max_hand_y=args.max_hand_y)
     out = Path("data/prepared") / f"{args.store.name}-{config.id()}"
     print(f"{clips.height} clips of {clips['sign'].n_unique()} signs -> {out}")
     prepare_store(args.store, clips, config, out)
