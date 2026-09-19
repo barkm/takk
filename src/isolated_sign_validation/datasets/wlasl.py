@@ -88,8 +88,8 @@ def map_signs(
     WLASL is ASL, so a gloss that matches exactly one ASL Citizen gloss becomes that gloss and both
     datasets' clips share the class. A gloss matching several variants of one gloss is None (see
     `sign_labels`). A gloss whose sign is held out, a new gloss the hash split doesn't put in train,
-    and a gloss that is a twin (`twin_pairs`) of a held-out sign are None as well, the last because
-    its clips may show the held-out sign under another word.
+    and a gloss that is one of the `twins` (e.g. `twin_pairs`) of a held-out sign are None as well,
+    the last because its clips may show the held-out sign under another word.
     """
 
     def held_out(label: str) -> bool:  # any variant held out, for a gloss matching several

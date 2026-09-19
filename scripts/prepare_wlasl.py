@@ -4,8 +4,10 @@ WLASL is ASL, so its glosses are mapped onto ASL Citizen's labels (`wlasl.map_si
 a gloss matching one ASL Citizen gloss joins that class, a gloss matching several variants of one
 gloss, a held-out sign, or a new sign the hash split doesn't put in train is left out of training
 (prepared with a null split and a "wlasl:" label). So is a gloss that shares a source video with a
-held-out sign, since it may be that sign under another word. Clips that join an ASL Citizen class get
-that sign's ASL-LEX phonological features, like the ASL Citizen clips do.
+held-out sign, since it may be that sign under another word, and so is a gloss whose ASL Citizen
+sign is a SignBank twin of a held-out sign (`asl_lex.signbank_twins`, left out of ASL Citizen's
+training too). Clips that join an ASL Citizen class get that sign's ASL-LEX phonological features,
+like the ASL Citizen clips do.
 
 The pairs of sign labels that share a source video (`wlasl.twin_pairs`, one sign form under several
 words) are written to twins.csv, so that training doesn't push them apart.
@@ -35,7 +37,8 @@ def main() -> None:
     glosses = clips["sign"].unique().to_list()
     labels = pl.col("sign").replace_strict(wlasl.sign_labels(glosses, asl_citizen_signs), return_dtype=pl.String)
     twins = wlasl.twin_pairs(clips.with_columns(label=labels))
-    mapping = wlasl.map_signs(glosses, asl_citizen_signs, twins)
+    codes = asl_citizen.read_videos(asl_citizen.RAW_DIR).select(sign="Gloss", Code="ASL-LEX Code").unique()
+    mapping = wlasl.map_signs(glosses, asl_citizen_signs, twins | asl_lex.signbank_twins(asl_lex.RAW_DIR, codes))
     mapped = pl.col("sign").replace_strict(mapping, return_dtype=pl.String)
     clips = (
         clips.with_columns(mapped=mapped)
@@ -50,7 +53,6 @@ def main() -> None:
     print(f"{trained.height} of {clips.height} clips train, on {trained['sign'].n_unique()} signs of which "
           f"{trained.filter(~pl.col('sign').is_in(list(known)))['sign'].n_unique()} are new to ASL Citizen")  # fmt: skip
 
-    codes = asl_citizen.read_videos(asl_citizen.RAW_DIR).select(sign="Gloss", Code="ASL-LEX Code").unique()
     phonology = codes.join(asl_lex.read_phonology(asl_lex.RAW_DIR), on="Code", how="left").drop("Code")
     clips = clips.join(phonology, on="sign", how="left", maintain_order="left")
 
