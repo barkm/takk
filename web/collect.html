@@ -63,13 +63,13 @@
         <video id="camera" autoplay muted playsinline></video>
         <p class="row">
           <button id="record">Record</button>
+          <button id="skip" class="secondary">Skip this sign</button>
           <span id="timer" class="dim"></span>
         </p>
         <p id="result"></p>
         <div id="after" class="row hidden">
           <button id="keep">Keep and continue</button>
           <button id="retake" class="secondary">Record again</button>
-          <button id="skip" class="secondary">Skip this one</button>
           <label class="row"><input id="confident" type="checkbox" checked /> &nbsp;I signed this one confidently</label>
         </div>
       </section>
@@ -145,6 +145,7 @@
         recorder.ondataavailable = (event) => chunks.push(event.data);
         recorder.onstop = () => upload(new Blob(chunks, { type: recorder.mimeType }));
         recorder.start();
+        el("skip").disabled = true; // until the upload is back, so the take cannot land on the next sign
         saved = "";
         el("saved").textContent = "";
         el("camera").classList.add("recording");
@@ -175,6 +176,7 @@
         body.append("handedness", window.handedness);
         body.append("sign", prompts[index].sign);
         const response = await fetch("/api/recordings", { method: "POST", body });
+        el("skip").disabled = false;
         if (!response.ok) {
           el("result").className = "bad";
           el("result").textContent = "Upload failed. Please record again.";
@@ -216,7 +218,13 @@
         if (!event.repeat && !el("record").disabled) el("record").click();
       });
       el("keep").onclick = keep;
-      el("skip").onclick = () => ((saved = "Skipped."), next());
+      // Skips every remaining take of the sign, not just this one.
+      el("skip").onclick = () => {
+        const { take, takes } = run(index);
+        saved = `Skipped ${prompts[index].instruction ? "the clip without signing" : prompts[index].sign}.`;
+        index += takes - take;
+        next();
+      };
 
       fetch("/api/prompts")
         .then((response) => response.json())
