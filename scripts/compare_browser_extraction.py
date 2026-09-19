@@ -2,12 +2,13 @@
 
 A future application could extract landmarks on the user's device and send only those, not the
 video. This runs web/extract.html (MediaPipe's HolisticLandmarker for the web, same version, model
-and settings as extraction.py) in headless Google Chrome over every video of a landmark store,
-frame by frame at the store's frame rate, and writes the result as a second store with the same
-clips. It then prints, per landmark group, how often the two extractions disagree on whether the
+and settings as extraction.py) in headless Google Chrome over every video of a landmark store, frame
+by frame at the store's frame rate, and writes the result as a second store with the same clips.
+With --delegate GPU it runs on SwiftShader, which checks the GPU code path's numbers, not its speed. It then prints, per landmark group, how often the two extractions disagree on whether the
 group was detected, and how far apart the landmarks are where both detected it, in shoulder widths.
 
 Run from the repo root: uv run scripts/compare_browser_extraction.py
+    uv run scripts/compare_browser_extraction.py --delegate GPU --clips 6 --out data/processed/recordings_browser_gpu
 Then prepare and evaluate the browser store like the Python one, to compare what the model sees:
     uv run scripts/prepare_recordings.py --store data/processed/recordings_browser
     uv run scripts/evaluate_recordings.py --run <run> --prepared data/prepared/recordings_browser-<id> ...
@@ -46,16 +47,19 @@ def serve(directory: Path) -> http.server.ThreadingHTTPServer:
     return server
 
 
-def extract_in_browser(store: LandmarkStore, paths: dict[str, str]) -> list[tuple[dict, np.ndarray]]:
+def extract_in_browser(store: LandmarkStore, paths: dict[str, str], delegate: str) -> list[tuple[dict, np.ndarray]]:
     """(metadata, landmarks) of every clip of `store`, extracted from its video in headless Chrome."""
     server = serve(Path.cwd())
     root = f"http://127.0.0.1:{server.server_port}"
     clips = []
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(channel="chrome")  # Google Chrome decodes H.264; Chromium doesn't
+        # Google Chrome decodes H.264, Chromium doesn't. Headless Chrome has no GPU: SwiftShader emulates
+        # one on the CPU, which runs the GPU delegate's code path, not at a real GPU's speed.
+        args = ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] if delegate == "GPU" else []
+        browser = playwright.chromium.launch(channel="chrome", args=args)
         page = browser.new_page()
         page.on("console", lambda message: print("browser:", message.text) if message.type == "error" else None)
-        page.goto(f"{root}/web/extract.html?model=/{MODEL_PATH}")
+        page.goto(f"{root}/web/extract.html?model=/{MODEL_PATH}&delegate={delegate}")
         page.wait_for_function("window.extractLandmarks !== undefined", timeout=120_000)
         for i, metadata in enumerate(tqdm(store.clips.to_dicts(), desc="browser", unit="clip")):
             n_frames, fps = len(store[i]), metadata["fps"]
@@ -103,13 +107,17 @@ def main() -> None:
     parser.add_argument("--store", type=Path, default=recordings.STORE_DIR, help="the Python extraction")
     parser.add_argument("--raw_dir", type=Path, default=RAW_DIR, help="the videos the store was extracted from")
     parser.add_argument("--out", type=Path, default=Path("data/processed/recordings_browser"))
+    parser.add_argument("--delegate", choices=["CPU", "GPU"], default="CPU", help="where MediaPipe runs in the browser")
+    parser.add_argument("--clips", type=int, help="only the first this many clips of the store")
     args = parser.parse_args()
 
     download_model()
     python = LandmarkStore(args.store)
+    if args.clips:
+        python.clips = python.clips.head(args.clips)
     paths = dict(recordings.read_videos(args.raw_dir).select("clip_id", "path").iter_rows())
     print(f"{len(python)} clips, {python.clips['n_frames'].sum()} frames -> {args.out}")
-    write_store(args.out, extract_in_browser(python, paths))
+    write_store(args.out, extract_in_browser(python, paths, args.delegate))
     with pl.Config(tbl_rows=-1, float_precision=4):
         print(compare(python, LandmarkStore(args.out)))
 

@@ -8,7 +8,7 @@
     <p id="status">Loading MediaPipe…</p>
     <script type="module">
       // Landmark extraction in the browser with the same HolisticLandmarker setup as extraction.py
-      // (same MediaPipe version and model, CPU, VIDEO mode), into the common landmark layout.
+      // (same MediaPipe version and model, VIDEO mode; the CPU unless ?delegate=GPU), into the common landmark layout.
       // scripts/compare_browser_extraction.py drives it and compares it with the Python extraction.
       import { FilesetResolver, HolisticLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.mjs";
 
@@ -22,8 +22,9 @@
       const N_LANDMARKS = 543;
 
       const files = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm");
+      const params = new URLSearchParams(location.search);
       const options = {
-        baseOptions: { modelAssetPath: new URLSearchParams(location.search).get("model"), delegate: "CPU" },
+        baseOptions: { modelAssetPath: params.get("model"), delegate: params.get("delegate") ?? "CPU" },
         runningMode: "VIDEO",
       };
       document.getElementById("status").textContent = "Ready";
