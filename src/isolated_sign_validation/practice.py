@@ -18,7 +18,7 @@ from torch import nn
 from isolated_sign_validation.collection import WEB_DIR, check_clip
 from isolated_sign_validation.dataset import collate
 from isolated_sign_validation.extraction import MODEL_PATH, VideoInfo
-from isolated_sign_validation.landmarks import N_LANDMARKS
+from isolated_sign_validation.landmarks import N_LANDMARKS, SKELETON_EDGES
 from isolated_sign_validation.preparation import ONE_HANDED, PrepConfig, hand_presence, hide_low_hands, mirror, prepare_clip
 
 
@@ -84,6 +84,7 @@ def create_app(
             "signs": [{"sign": sign, "references": clips} for sign, clips in references.items()],
             "fps": config.fps,
             "max_seconds": config.max_frames / config.fps,
+            "edges": {group: edges.tolist() for group, edges in SKELETON_EDGES.items()},  # to draw the tracked landmarks
         }
 
     @app.get("/api/reference/{clip_id}")

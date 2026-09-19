@@ -22,7 +22,9 @@
       #matches { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
       .videos { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
       .videos video { width: 240px; border-radius: 8px; background: #000; }
-      #camera { width: 100%; max-width: 560px; border-radius: 8px; background: #000; transform: scaleX(-1); }
+      #view { position: relative; width: 100%; max-width: 560px; transform: scaleX(-1); }
+      #camera { display: block; width: 100%; border-radius: 8px; background: #000; }
+      #skeleton { position: absolute; inset: 0; width: 100%; height: 100%; }
       .recording { outline: 3px solid var(--bad); }
       #verdict { font-size: 22px; font-weight: 600; }
       .ok { color: var(--ok); }
@@ -45,7 +47,7 @@
       </section>
 
       <section id="recorder" class="card hidden">
-        <video id="camera" autoplay muted playsinline></video>
+        <div id="view"><video id="camera" autoplay muted playsinline></video><canvas id="skeleton"></canvas></div>
         <p id="tracking" class="dim"></p>
         <p class="row">
           <button id="record" disabled>Record</button>
@@ -76,7 +78,8 @@
       const el = (id) => document.getElementById(id);
       const show = (id, visible) => el(id).classList.toggle("hidden", !visible);
       const word = (sign) => sign.replace(/^sts:/, "").replace(/-\d+$/, "");
-      let signs = [], sign = null, fps = 30, maxSeconds = 4, stream = null, landmarker = null, recorded = null;
+      const COLORS = { left_hand: "#60a5fa", right_hand: "#f87171", upper_body: "#a0a6b2", lips: "#f472b6" };
+      let signs = [], sign = null, fps = 30, maxSeconds = 4, edges = {}, stream = null, landmarker = null, recorded = null;
 
       function search() {
         const query = el("search").value.trim().toLowerCase();
@@ -137,6 +140,24 @@
         return landmarks;
       }
 
+      // Draw one frame's landmarks (the common layout) over the camera image.
+      function draw(landmarks) {
+        const video = el("camera"), canvas = el("skeleton");
+        (canvas.width = video.videoWidth), (canvas.height = video.videoHeight);
+        const context = canvas.getContext("2d");
+        context.lineWidth = 3;
+        for (const [group, pairs] of Object.entries(edges)) {
+          context.strokeStyle = COLORS[group];
+          context.beginPath();
+          for (const [a, b] of pairs) {
+            if (Number.isNaN(landmarks[3 * a]) || Number.isNaN(landmarks[3 * b])) continue;
+            context.moveTo(landmarks[3 * a] * canvas.width, landmarks[3 * a + 1] * canvas.height);
+            context.lineTo(landmarks[3 * b] * canvas.width, landmarks[3 * b + 1] * canvas.height);
+          }
+          context.stroke();
+        }
+      }
+
       // Run the landmarker on every camera frame it can keep up with; frames that arrive while it is
       // busy are skipped. While recording, each result is kept with its frame's capture time.
       function track(delegate) {
@@ -145,8 +166,9 @@
         const next = (now, metadata) => {
           const time = metadata.captureTime ?? now;
           last = Math.max(last + 1, Math.round(time)); // VIDEO mode needs increasing timestamps
-          const result = landmarker.detectForVideo(video, last);
-          if (recorded) recorded.push({ time: time / 1000, landmarks: layout(result) });
+          const landmarks = layout(landmarker.detectForVideo(video, last));
+          draw(landmarks);
+          if (recorded) recorded.push({ time: time / 1000, landmarks });
           count += 1;
           if (now - since > 1000) {
             const rate = (count * 1000) / (now - since);
@@ -240,7 +262,7 @@
 
       fetch("/api/signs")
         .then((response) => response.json())
-        .then((data) => ((signs = data.signs), (fps = data.fps), (maxSeconds = data.max_seconds), search()));
+        .then((data) => ((signs = data.signs), (fps = data.fps), (maxSeconds = data.max_seconds), (edges = data.edges), search()));
     </script>
   </body>
 </html>
