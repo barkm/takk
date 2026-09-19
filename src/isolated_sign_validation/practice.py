@@ -13,6 +13,10 @@ sentence. The recording is split into its signs and each part is scored as an at
 its place in the sentence. With the sentence spoken aloud, the split follows the speech (`speech`):
 the signer speaks a whole Swedish sentence and the key words are timed in it. Without audio it
 follows the rests instead (split_signs), and the signer has to lower their hands between the signs.
+
+A sentence can also be judged sign by sign while it is signed, rather than once it is finished
+(`/api/next`): the signer's current sign is over as soon as the hands rest or the next sign's word
+is spoken, and it is scored then, so a verdict appears about a sign behind the signer.
 """
 
 import re
@@ -28,7 +32,7 @@ from isolated_sign_validation.dataset import collate
 from isolated_sign_validation.extraction import MODEL_PATH, VideoInfo
 from isolated_sign_validation.landmarks import N_LANDMARKS, SKELETON_EDGES
 from isolated_sign_validation.preparation import ONE_HANDED, PrepConfig, hand_presence, hide_low_hands, mirror, prepare_clip
-from isolated_sign_validation.speech import Aligner, decode_audio, split_speech
+from isolated_sign_validation.speech import SAMPLE_RATE, Aligner, decode_audio, split_speech, spoken_boundary
 
 # Seconds without a raised hand that end a sign of a sentence. Inside a sign the hands are lost for
 # at most 0.23 s in the Swedish browser recordings; lowering the hands and raising them again takes longer.
@@ -74,6 +78,23 @@ def split_signs(landmarks: np.ndarray, aspect: float, config: PrepConfig) -> lis
         return []
     cuts = [0] + [(b + a) // 2 for (_, b), (a, _) in zip(runs[:-1], runs[1:])] + [len(landmarks)]
     return [slice(a, b) for a, b in zip(cuts[:-1], cuts[1:])]
+
+
+def rest_boundary(landmarks: np.ndarray, aspect: float, config: PrepConfig) -> int | None:
+    """Where to cut after the first sign of a recording being signed live, once the signer has
+    lowered their hands and left them down: half of `MIN_REST` past the sign's last frame. None
+    while the hands are still up or the rest is too short to end a sign. `split_signs` cuts halfway
+    into a rest, but a rest that is still going on has no end, so the cut is a fixed step into it."""
+    present = hand_presence(hide_low_hands(landmarks, aspect, config.max_hand_y)).any(axis=1)
+    frames = np.flatnonzero(present)
+    if not len(frames):
+        return None
+    breaks = np.flatnonzero(np.diff(frames) > MIN_REST * config.fps)
+    end = frames[breaks[0]] if len(breaks) else frames[-1]
+    rest = (frames[breaks[0] + 1] if len(breaks) else len(present)) - end - 1
+    if end - frames[0] < config.min_hands * config.fps or rest < MIN_REST * config.fps:
+        return None
+    return int(end + MIN_REST * config.fps / 2)
 
 
 def spoken_word(sign: str) -> str:
@@ -176,5 +197,32 @@ def create_app(
             return {"threshold": threshold, "note": note, "split": split, "signs": []}
         signs = [judge(values[part], s, handedness, width, height) for part, s in zip(parts, sign)]
         return {"threshold": threshold, "note": "", "split": split, "signs": signs}
+
+    @app.post("/api/next")
+    async def next_sign(landmarks: UploadFile, sign: list[str] = Form(), handedness: str = Form(), width: int = Form(), height: int = Form(), audio: UploadFile | None = None, audio_start: float = Form(0.0), final: bool = Form(False)) -> dict:  # fmt: skip
+        """Judge the sign a signer is on, as soon as the recording shows it is over, so a sentence
+        is verified sign by sign while it is signed. `landmarks` and `audio` run from that sign's
+        start (`audio_start` seconds into the audio) to now, and `sign` is that sign followed by the
+        next one of the sentence, or that sign alone when it is the sentence's last. The sign is
+        over once the hands rest (rest_boundary) or the next sign's word is spoken (spoken_boundary),
+        whichever comes first; `final` ends it at the recording's end however it looks. Until then
+        nothing is judged and the caller sends a longer recording."""
+        if any(s not in index for s in sign) or not sign:
+            raise HTTPException(404, "unknown sign")
+        values = np.frombuffer(await landmarks.read(), dtype=np.float32)
+        if handedness not in ("left", "right") or width <= 0 or height <= 0 or values.size % (N_LANDMARKS * 3):
+            raise HTTPException(400, "malformed attempt")
+        values = values.reshape(-1, N_LANDMARKS, 3)
+        cut, by = rest_boundary(values, width / height, config), "rest"
+        if cut is None and len(sign) == 2 and aligner and audio:
+            data = decode_audio(await audio.read())[int(audio_start * SAMPLE_RATE) :]
+            spans = aligner(data, [spoken_word(s) for s in sign])
+            seconds = spoken_boundary(spans, len(data) / SAMPLE_RATE) if spans else None
+            cut, by = (round(seconds * config.fps), "speech") if seconds is not None else (None, by)
+        if cut is None and final:
+            cut, by = len(values), "end"
+        if cut is None or cut < 2:
+            return {"threshold": threshold, "sign": None}
+        return {"threshold": threshold, "sign": judge(values[:cut], sign[0], handedness, width, height), "seconds": cut / config.fps, "by": by}  # fmt: skip
 
     return app

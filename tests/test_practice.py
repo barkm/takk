@@ -8,7 +8,7 @@ from fastapi import HTTPException, UploadFile
 from torch import nn
 
 from isolated_sign_validation.landmarks import LANDMARK_SLICES, N_LANDMARKS
-from isolated_sign_validation.practice import create_app, prepare_attempt, sign_means, split_signs, spoken_word
+from isolated_sign_validation.practice import create_app, prepare_attempt, rest_boundary, sign_means, split_signs, spoken_word
 from isolated_sign_validation.preparation import PrepConfig, mirror, prepare_clip
 from isolated_sign_validation.speech import SAMPLE_RATE
 
@@ -116,3 +116,32 @@ def test_attempt_splits_a_spoken_sentence_by_its_words():
     result = asyncio.run(attempt(upload, sign=["A", "B"], handedness="right", width=640, height=480, audio=audio, audio_offset=0.1))  # fmt: skip
     assert result["split"] == "speech"
     assert [s["sign"] for s in result["signs"]] == ["A", "B"] and [s["correct"] for s in result["signs"]] == [True, False]
+
+
+def test_rest_boundary_waits_for_the_hands_to_go_down_and_stay_down():
+    sign = attempt_landmarks(("right_hand",))  # 0.5 s rest, 1 s sign, 0.5 s rest
+    assert rest_boundary(sign[:50], 1.0, CONFIG) is None  # the hands are still up
+    assert rest_boundary(sign, 1.0, CONFIG) == 44 + 6  # half of MIN_REST past the sign's last frame
+    assert rest_boundary(attempt_landmarks(()), 1.0, CONFIG) is None  # no sign at all
+
+
+def test_next_sign_judges_the_current_sign_once_it_is_over():
+    references = {"A": ["a1"], "B": ["b1"]}
+    means = np.array([[0.6, 0.8], [1.0, 0.0]])
+    spoken = [(0.5, 0.7), (1.5, 1.7)]  # "A" said, then "B" said with room to spare
+    app = create_app(references, means, {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: spoken)
+    live = next(route for route in app.routes if getattr(route, "path", "") == "/api/next").endpoint
+
+    def send(landmarks: np.ndarray, *signs: str, seconds: float = 4.0, final: bool = False) -> dict:
+        upload = UploadFile(io.BytesIO(landmarks.astype(np.float32).tobytes()))
+        audio = UploadFile(io.BytesIO(wav(np.zeros(int(seconds * SAMPLE_RATE), dtype=np.float32))))
+        return asyncio.run(live(upload, sign=list(signs), handedness="right", width=640, height=480, audio=audio, audio_start=0.0, final=final))  # fmt: skip
+
+    sign = attempt_landmarks(("right_hand",))
+    assert send(sign[:50], "A", "B", seconds=1.8)["sign"] is None  # mid-sign: hands up, "B" not said yet
+    ended = send(sign[:50], "A", "B", seconds=2.0)  # "B" is said, so the sign before it is over
+    assert ended["by"] == "speech" and ended["seconds"] == pytest.approx(1.1) and ended["sign"]["correct"] is True
+    rested = send(sign, "A", "B", seconds=1.8)  # the hands went down first, which ends it sooner
+    assert rested["by"] == "rest" and rested["sign"]["sign"] == "A"
+    last = send(sign[:50], "B", seconds=1.8, final=True)  # the sentence's last sign, and the signer stopped
+    assert last["by"] == "end" and last["sign"]["correct"] is False
