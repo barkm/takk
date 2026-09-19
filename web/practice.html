@@ -225,7 +225,8 @@
         }
         el("verdict").className = result.correct ? "ok" : "bad";
         el("verdict").textContent = result.correct ? `Correct: that was ${word(sign.sign)}.` : `Not recognized as ${word(sign.sign)}.`;
-        el("detail").textContent = `Score ${result.score.toFixed(2)} (at least ${result.threshold.toFixed(2)} counts as the sign). ${result.note}`;
+        const closest = result.closest.sign === sign.sign ? "It is also the closest sign in the lexicon." : `The closest sign in the lexicon is ${word(result.closest.sign)} (${result.closest.sign.match(/\d+$/)?.[0] ?? ""}), score ${result.closest.score.toFixed(2)}.`;
+        el("detail").textContent = `Score ${result.score.toFixed(2)} (at least ${result.threshold.toFixed(2)} counts as the sign). ${closest} ${result.note}`;
       }
 
       el("search").oninput = search;

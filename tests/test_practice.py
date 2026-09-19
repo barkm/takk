@@ -67,7 +67,9 @@ def test_attempt_scores_against_the_chosen_sign():
         return asyncio.run(attempt(upload, sign=sign, handedness="right", width=640, height=480))
 
     landmarks = attempt_landmarks(("right_hand",))
-    assert send(landmarks, "A") == {"usable": True, "note": "Looks good.", "score": pytest.approx(1.0), "threshold": 0.7, "correct": True}
+    closest = {"sign": "A", "score": pytest.approx(1.0)}
+    assert send(landmarks, "A") == {"usable": True, "note": "Looks good.", "score": pytest.approx(1.0), "threshold": 0.7, "correct": True, "closest": closest}  # fmt: skip
+    assert send(landmarks, "B")["closest"] == closest
     assert send(landmarks, "B")["correct"] is False and send(landmarks, "B")["score"] == pytest.approx(0.6)
     assert send(attempt_landmarks(()), "A")["usable"] is False
     with pytest.raises(HTTPException):

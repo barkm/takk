@@ -5,7 +5,8 @@ itself, with the same HolisticLandmarker setup as `extraction.py` (see the brows
 findings in ROADMAP.md), and sends only those: the video never leaves the user's device. The backend
 checks and prepares the attempt like any recording, embeds it, and scores it against the glossary
 clips of the chosen sign: the mean cosine similarity to them, as `evaluation` scores a sign from k
-references. The attempt counts as the sign when the score reaches a global threshold.
+references. The attempt counts as the sign when the score reaches a global threshold. The sign of
+the whole glossary with the highest score is reported too, so a wrong attempt shows what it resembled.
 """
 
 import numpy as np
@@ -70,7 +71,8 @@ def create_app(
     clip ids, in the order of the rows of `means`, see sign_means), the clips' videos (by clip id, see
     video_paths), the extraction model for the browser, and the scoring of attempts."""
     app = FastAPI()
-    index = {sign: i for i, sign in enumerate(references)}
+    names = list(references)
+    index = {sign: i for i, sign in enumerate(names)}
 
     @app.get("/")
     def page() -> FileResponse:
@@ -108,7 +110,11 @@ def create_app(
         frames = prepare_attempt(values, config.fps, width / height, handedness, config) if usable else None
         if frames is None:
             return {"usable": False, "note": note}
-        score = float(means[index[sign]] @ embed_clip(model, frames, config, device))
-        return {"usable": True, "note": note, "score": score, "threshold": threshold, "correct": score >= threshold}
+        scores = means @ embed_clip(model, frames, config, device)
+        score, closest = float(scores[index[sign]]), int(np.argmax(scores))
+        return {
+            "usable": True, "note": note, "score": score, "threshold": threshold, "correct": score >= threshold,
+            "closest": {"sign": names[closest], "score": float(scores[closest])},
+        }  # fmt: skip
 
     return app
