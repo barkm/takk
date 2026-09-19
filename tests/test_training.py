@@ -8,7 +8,7 @@ import pytest
 import torch
 
 from isolated_sign_validation.preparation import PrepConfig, PreparedData
-from isolated_sign_validation.training import TrainConfig, phonology_targets, train, twin_matrix
+from isolated_sign_validation.training import TrainConfig, near_minimal_matrix, phonology_targets, train, twin_matrix
 
 
 def test_phonology_targets():
@@ -31,6 +31,12 @@ def test_twin_matrix():
     assert twin_matrix({("B", "HELD_OUT")}, ["A", "B"]) is None  # no pair among the training signs
 
 
+def test_near_minimal_matrix():
+    targets = np.array([[0, 0, 0], [0, 1, 1], [1, 1, 1], [-1, 0, 0]])
+    minimal = near_minimal_matrix(targets, max_differences=2).numpy()
+    assert minimal.tolist() == [[False, True, False, False], [True, False, True, False], [False, True, False, False], [False] * 4]
+
+
 def tiny_prepared(directory: Path, n_signs: int = 6, n_signers: int = 4, n_frames: int = 12) -> PreparedData:
     """A prepared directory of random clips: train signs S0.. and val signs V0.., one clip per signer."""
     config = PrepConfig()
@@ -42,7 +48,9 @@ def tiny_prepared(directory: Path, n_signs: int = 6, n_signers: int = 4, n_frame
         for signer in range(n_signers)
     ]
     frames = rng.normal(size=(len(rows) * n_frames, len(config.landmarks), config.n_coords)).astype(np.float32)
-    clips = pl.DataFrame(rows).with_columns(offset=pl.int_range(pl.len()) * n_frames, n_frames=pl.lit(n_frames))
+    clips = pl.DataFrame(rows).with_columns(
+        offset=pl.int_range(pl.len()) * n_frames, n_frames=pl.lit(n_frames), **{"phonology.Movement": pl.col("sign").str.slice(1).cast(int) % 2}
+    )
     directory.mkdir()
     np.save(directory / "frames.npy", frames)
     clips.write_parquet(directory / "clips.parquet")
@@ -51,7 +59,7 @@ def tiny_prepared(directory: Path, n_signs: int = 6, n_signers: int = 4, n_frame
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="training autocasts to bfloat16 on CUDA")
-@pytest.mark.parametrize("settings", [{}, {"ema_decay": 0.9}])
+@pytest.mark.parametrize("settings", [{}, {"ema_decay": 0.9}, {"arcface_subcenters": 2, "minimal_pair_margin": 0.1}, {"hand_bones": True}])
 def test_train_runs_and_writes_the_validation(tmp_path, settings):
     config = TrainConfig(hidden=16, embedding_dim=8, epochs=2, batch_size=8, num_workers=1, eval_every=1, **settings)
     train(config, tiny_prepared(tmp_path / "prepared"), tmp_path / "run", device="cuda")

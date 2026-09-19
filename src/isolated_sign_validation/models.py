@@ -132,18 +132,24 @@ class ConvTransformerEncoder(nn.Module):
 
 
 class ArcFace(nn.Module):
-    """Additive angular margin head (Deng et al., 2019): class logits from unit-length embeddings."""
+    """Additive angular margin head (Deng et al., 2019): class logits from unit-length embeddings.
 
-    def __init__(self, embedding_dim: int, n_classes: int, scale: float = 30.0, margin: float = 0.3):
+    With several `subcenters` per class (sub-center ArcFace, Deng et al., 2020), a class's cosine is
+    that of its closest sub-center, so a class may hold a few distinct clusters (e.g. sign variants
+    or mislabeled clips) without pulling them together.
+    """
+
+    def __init__(self, embedding_dim: int, n_classes: int, scale: float = 30.0, margin: float = 0.3, subcenters: int = 1):
         super().__init__()
-        self.weight = nn.Parameter(torch.randn(n_classes, embedding_dim) * 0.01)
-        self.scale, self.margin = scale, margin
+        self.weight = nn.Parameter(torch.randn(n_classes * subcenters, embedding_dim) * 0.01)
+        self.scale, self.margin, self.subcenters = scale, margin, subcenters
 
     def forward(self, embeddings: torch.Tensor, labels: torch.Tensor | None = None, twins: torch.Tensor | None = None) -> torch.Tensor:
         """Logits; with `labels`, the true class gets the margin (for the training loss). `twins`, a
         boolean (n_classes, n_classes) matrix of classes known to be one sign form, sets each clip's
         twin classes to -inf, so the loss neither pushes the twins apart nor pulls them together."""
         cos = F.linear(embeddings, F.normalize(self.weight, dim=1)).float()
+        cos = cos.view(len(cos), -1, self.subcenters).amax(dim=2)
         if labels is None:
             return self.scale * cos
         sin = (1 - cos.square()).clamp(min=0).sqrt()

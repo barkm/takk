@@ -45,6 +45,10 @@ class TrainConfig:
     dropout: float = 0.4
     arcface_scale: float = 30.0
     arcface_margin: float = 0.3
+    arcface_subcenters: int = 1
+    # extra margin (on the cosine, like arcface_margin) against the training signs that are near-minimal
+    # pairs of a clip's sign: all phonological features known, at most 2 of them differ
+    minimal_pair_margin: float = 0.0
     hand_bones: bool = False  # also input each hand's bone directions (see models.frame_features)
     phonology_weight: float = 0.0  # weight of the auxiliary phonological feature loss (0: off)
     phonology_input: str = "embedding"  # what the feature heads read: "embedding" or "pooled" (the encoder output)
@@ -99,6 +103,15 @@ def phonology_targets(clips: pl.DataFrame, signs: Sequence[str]) -> tuple[np.nda
         targets.append([index.get(value, -1) for value in table[column]])
         n_classes.append(len(index))
     return np.array(targets, dtype=np.int64).T.reshape(len(signs), len(columns)), n_classes
+
+
+def near_minimal_matrix(targets: np.ndarray, max_differences: int = 2) -> torch.Tensor:
+    """Boolean (n_signs, n_signs) matrix of the near-minimal pairs among signs with the phonological
+    feature `targets` of phonology_targets: all features known, at most `max_differences` differ."""
+    known = (targets >= 0).all(axis=1)
+    pairs = ((targets[:, None] != targets[None]).sum(axis=2) <= max_differences) & known[:, None] & known[None]
+    np.fill_diagonal(pairs, False)
+    return torch.from_numpy(pairs)
 
 
 def twin_matrix(twins: Collection[tuple[str, str]], signs: Sequence[str]) -> torch.Tensor | None:
@@ -166,10 +179,16 @@ def train(config: TrainConfig, data: PreparedData, run_dir: Path, device: str = 
         collate_fn=collate, num_workers=config.num_workers, persistent_workers=True,
     )  # fmt: skip
     model = build_model(config, data).to(device)
-    head = ArcFace(config.embedding_dim, len(train_set.signs), config.arcface_scale, config.arcface_margin).to(device)
-    targets, n_classes = phonology_targets(data.clips, train_set.signs) if config.phonology_weight else (np.zeros((0, 0)), [])
-    if config.phonology_weight and not n_classes:
-        raise ValueError("phonology_weight is set, but the prepared clips have no phonology columns")
+    head = ArcFace(config.embedding_dim, len(train_set.signs), config.arcface_scale, config.arcface_margin, config.arcface_subcenters).to(device)
+    uses_phonology = config.phonology_weight or config.minimal_pair_margin
+    targets, n_classes = phonology_targets(data.clips, train_set.signs) if uses_phonology else (np.zeros((0, 0)), [])
+    if uses_phonology and not n_classes:
+        raise ValueError("phonology_weight or minimal_pair_margin is set, but the prepared clips have no phonology columns")
+    minimal = near_minimal_matrix(targets).to(device) if config.minimal_pair_margin else None
+    if minimal is not None:
+        print(f"{int(minimal.sum()) // 2} near-minimal pairs among the training signs")
+    if not config.phonology_weight:
+        n_classes = []  # no feature heads
     targets = torch.from_numpy(targets).to(device)
     twins = twin_matrix(data.twins, train_set.signs)
     if twins is not None:
@@ -197,6 +216,8 @@ def train(config: TrainConfig, data: PreparedData, run_dir: Path, device: str = 
             with torch.autocast(device, dtype=torch.bfloat16):
                 embeddings, pooled = model(batch["frames"].to(device), batch["hands"].to(device), batch["mask"].to(device), return_pooled=True)
                 logits = head(embeddings, labels, twins)
+                if minimal is not None:
+                    logits = logits + config.arcface_scale * config.minimal_pair_margin * minimal[labels]
             loss = arcface_loss = F.cross_entropy(logits, labels)
             if phonology_heads:
                 features, inputs = targets[labels], (pooled if config.phonology_input == "pooled" else embeddings).float()

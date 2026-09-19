@@ -68,6 +68,12 @@ def test_arcface_adds_margin_to_the_true_class_only():
     torch.testing.assert_close(logit, torch.tensor(10.0 * math.cos(0.5)), atol=1e-4, rtol=1e-4)
 
 
+def test_arcface_subcenters_score_a_class_by_its_closest_subcenter():
+    head = ArcFace(2, 2, scale=1.0, subcenters=2)
+    head.weight.data = torch.tensor([[1.0, 0.0], [0.0, 1.0], [-1.0, 0.0], [0.0, -1.0]])  # class 0: +x, +y; class 1: -x, -y
+    torch.testing.assert_close(head(torch.tensor([[0.0, 1.0]])), torch.tensor([[1.0, 0.0]]))
+
+
 def test_arcface_twins_are_not_pushed_apart():
     head = ArcFace(8, 3)
     embeddings = torch.nn.functional.normalize(torch.randn(2, 8), dim=1)
