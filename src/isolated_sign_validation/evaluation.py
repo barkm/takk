@@ -86,6 +86,7 @@ def evaluate(
     seed: int = 0,
     queries: np.ndarray | None = None,
     twins: Collection[tuple[str, str]] = (),
+    keep_boot: bool = False,
 ) -> tuple[pl.DataFrame, pl.DataFrame]:
     """Evaluate a similarity matrix between `clips` (with `sign` and `signer` columns).
 
@@ -93,7 +94,9 @@ def evaluate(
 
     With `queries` (a boolean mask over the clips), only those clips are scored as queries; references
     are still drawn from all clips. Returns a summary with one row per k and metric (estimate and
-    95% CI) and a per-sign table.
+    95% CI) and a per-sign table. With `keep_boot`, the summary also holds each bootstrap sample
+    (`boot`). The references and bootstrap samples depend only on the clips and the seed, not on the
+    similarities, so two models evaluated on the same clips can be compared paired, sample by sample.
     """
     rng = np.random.default_rng(seed)
     sign_names, signs = np.unique(clips["sign"].to_numpy(), return_inverse=True)
@@ -143,6 +146,8 @@ def evaluate(
         for name, value in estimate.items():
             low, high = np.percentile([b[name] for b in boot], [2.5, 97.5]) if boot else (np.nan, np.nan)
             summary.append({"k": k, "metric": name, "value": value, "ci_low": low, "ci_high": high})
+            if keep_boot:
+                summary[-1]["boot"] = [b[name] for b in boot]
         for sign in range(n_signs):
             if counts[2, sign]:
                 one_hot = np.zeros(n_signs)

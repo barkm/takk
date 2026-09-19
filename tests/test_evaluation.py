@@ -108,3 +108,14 @@ def test_signer_codes_with_and_without_signer_ids():
 
     assert codes[1] == codes[2]  # clips without a signer id are one signer
     assert len({codes[0], codes[1], codes[3]}) == 3 and codes[0] == codes[4]
+
+
+def test_bootstrap_samples_are_paired_across_similarities():
+    """The same clips give the same references and bootstrap samples whatever the similarities, so two
+    models' samples can be subtracted one by one; an order-preserving change of scores changes nothing."""
+    clips = clips_table(6, 5)
+    similarity = cosine_similarity(np.random.default_rng(0).normal(size=(len(clips), 16)))
+    first, _ = evaluate(similarity, clips, n_bootstrap=50, keep_boot=True)
+    shifted, _ = evaluate(2 * similarity, clips, n_bootstrap=50, keep_boot=True)  # exact in floating point
+    assert first["boot"].list.len().to_list() == [50] * first.height
+    np.testing.assert_allclose(np.array(first["boot"].to_list()), np.array(shifted["boot"].to_list()))
