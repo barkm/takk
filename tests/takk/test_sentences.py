@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from takk.sentences import Written, key_order, write_sentence
+from takk.sentences import Written, key_words, write_sentence
 
 
 class FakeClient:
@@ -19,22 +19,31 @@ class FakeClient:
         return SimpleNamespace(parsed_output=Written(sentence=self.answers.pop(0)))
 
 
-def test_key_order_reads_the_words_off_the_sentence():
-    assert key_order("Jag vill ha mer mjölk", ["mjölk", "mer"]) == ["mer", "mjölk"]
-    assert key_order("Mjölk är gott", ["mjölk"]) == ["mjölk"]  # a sentence-initial capital still matches
-    assert key_order("Vi ska äta platta slag idag", ["äta", "platta slag"]) == ["äta", "platta slag"]  # a sign of two words
+def test_key_words_reads_off_the_sentence_which_offered_words_it_used():
+    assert key_words("Jag vill ha mer mjölk", ["mjölk", "mer"]) == ["mer", "mjölk"]
+    assert key_words("Mjölk är gott", ["mjölk"]) == ["mjölk"]  # a sentence-initial capital still matches
+    assert key_words("Vi ska äta platta slag idag", ["äta", "platta slag"]) == ["äta", "platta slag"]  # a sign of two words
+    # the words after the first are offered, not required, so a sentence may leave them out
+    assert key_words("Jag vill ha mjölk", ["mjölk", "mer", "bröd"]) == ["mjölk"]
+    assert key_words("Jag vill ha mer mjölk", ["mjölk", "mer", "bröd"]) == ["mer", "mjölk"]
+    assert key_words("Vi plockar blåbär", ["blåbär", "blå"]) == ["blåbär"]  # "blå" is not found inside "blåbär"
 
 
-def test_key_order_refuses_a_sentence_that_does_not_use_each_word_once_as_written():
-    assert key_order("Jag vill ha mera mjölk", ["mer", "mjölk"]) is None  # "mera" is not "mer"
-    assert key_order("Jag drack mjölken", ["mjölk"]) is None  # inflected, so it would not be timed in the audio
-    assert key_order("Jag vill ha mjölk", ["mjölk", "mer"]) is None  # a word left out
-    assert key_order("Mer mjölk och mer bröd", ["mer", "bröd"]) is None  # twice, so which one is signed?
+def test_key_words_refuses_a_sentence_it_could_not_be_scored_from():
+    assert key_words("Jag vill ha mera mjölk", ["mer", "mjölk"]) is None  # "mera" is not "mer", so the head is missing
+    assert key_words("Jag drack mjölken", ["mjölk"]) is None  # inflected, so it would not be timed in the audio
+    assert key_words("Mjölk är gott", ["mer", "mjölk"]) is None  # the head is the word the turn is for
+    assert key_words("Mer mjölk och mer bröd", ["mer", "bröd"]) is None  # twice, so which one is signed?
+    # at most three signs in one recording, however many words were offered
+    assert key_words("Mamma vill ha mer mjölk och bröd", ["mer", "mjölk", "bröd", "mamma"]) is None
 
 
-def test_write_sentence_returns_the_sentence_and_the_order_its_words_come_in():
+def test_write_sentence_returns_the_sentence_and_the_words_it_chose_to_use():
     client = FakeClient("Jag vill ha mer mjölk")
-    assert write_sentence(client, ["mjölk", "mer"], model="test") == ("Jag vill ha mer mjölk", ["mer", "mjölk"])
+    # bröd was offered and left out, which is the model's choice to make; mer and mjölk come back in
+    # the order they are spoken, which is the order they are signed in
+    assert write_sentence(client, ["mjölk", "mer", "bröd"], model="test") == ("Jag vill ha mer mjölk", ["mer", "mjölk"])
+    assert "mjölk" in client.asked[0][0]["content"]  # the head is asked for by name, the rest offered
 
 
 def test_write_sentence_asks_again_when_a_word_was_inflected():

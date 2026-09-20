@@ -237,11 +237,11 @@ describe("turn", () => {
     expect(turn(queue, { "sts:mamma-1": known(1), "sts:pappa-1": known(3) })).toEqual([word("mamma")]);
   });
 
-  it("gathers the words that may be combined once the head is one of them", () => {
+  it("offers every word that may be combined once the head is one of them", () => {
     const progress = { "sts:mamma-1": known(2), "sts:pappa-1": known(1), "sts:hej-1": known(4), "sts:tack-1": known(2) };  // prettier-ignore
-    // pappa is in the first box, so it is skipped over rather than buried in the sentence
+    // pappa is in the first box, so it is skipped over rather than buried in the sentence; which of
+    // the other three the sentence uses is the model's choice, and only the head is required
     expect(turn(queue, progress)).toEqual([word("mamma"), word("hej"), word("tack")]);
-    expect(turn(queue, progress, 2)).toEqual([word("mamma"), word("hej")]);
   });
 
   it("is empty when the pass is", () => {

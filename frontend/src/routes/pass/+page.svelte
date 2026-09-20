@@ -95,7 +95,8 @@
     writing = true;
     // The words are the ones on the cards, not the names of the signs that score them: "blå" is
     // scored by sts:öga-02636, and a sentence about an eye is neither what is being practised nor
-    // what the learner would say. The order comes back as the order they occur in the sentence.
+    // what the learner would say. They are offered rather than required — the head apart — so what
+    // comes back is the ones the sentence uses, in the order they occur in it.
     const written = await fetchSentence(words.map(label)).finally(() => (writing = false));
     if (!written.sentence) return;
     const byWord = new Map(words.map((each) => [label(each), each]));

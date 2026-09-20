@@ -136,18 +136,19 @@ export function session(words: PackWord[], progress: Progress, size = DEFAULTS.s
   return [...due, ...fresh].slice(0, size);
 }
 
-/** The words of the next turn: the head of the queue, and, when the head is a word that may be
- * combined with others, the following words that may be too, at most `size` of them.
+/** The words a turn may use: the head of the queue first, and, when the head is a word that may be
+ * combined with others, every later word that may be too.
  *
- * A word may be combined once it has left the first box, which is to say once a pass has accepted it
- * on its own. The first box is where a new word and a word missed today both sit, and neither should
- * be buried in a sentence: a new word is being taught, and a missed one has just shown it needs the
- * attention. A turn of several words is signed inside one spoken sentence (`api.fetchSentence`), a
- * turn of one is the word alone. */
-export function turn(queue: PackWord[], progress: Progress, size = 3): PackWord[] {
+ * Which of them the sentence actually uses is the model's choice (`api.fetchSentence`), since it is
+ * what knows which words make one sentence; only the head is required, so the turn still practises
+ * what the pass has scheduled next. A word may be combined once it has left the first box, which is
+ * to say once a pass has accepted it on its own. The first box is where a new word and a word missed
+ * today both sit, and neither should be buried in a sentence: a new word is being taught, and a
+ * missed one has just shown it needs the attention. */
+export function turn(queue: PackWord[], progress: Progress): PackWord[] {
   const combinable = (word: PackWord) => (progress[word.sign]?.box ?? 0) >= 2;
   if (!queue.length || !combinable(queue[0])) return queue.slice(0, 1);
-  return queue.filter(combinable).slice(0, size);
+  return queue.filter(combinable);
 }
 
 /** The turns left in a pass once `taken` has been answered, given how often each sign has been
