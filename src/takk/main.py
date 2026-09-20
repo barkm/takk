@@ -44,7 +44,6 @@ def main() -> None:
     parser.add_argument("--run", default="iv14_h384_e20", help="training run whose model scores the attempts")
     parser.add_argument("--threshold", type=float, default=0.38, help="lowest score that counts as the sign")
     parser.add_argument("--device", default="cpu", help="the GPU is shared; one attempt at a time is cheap on the CPU")
-    parser.add_argument("--no-speech", action="store_true", help="split a sentence at the rests between the signs instead of by the spoken words, and skip the speech model")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8002)
     args = parser.parse_args()
@@ -65,10 +64,8 @@ def main() -> None:
     means = sign_means(embeddings, clips.labels, len(clips.signs))
     table = glossary.clips[clips.positions].with_columns(label=clips.labels)
     references = dict(table.group_by("label").agg("sign", "clip_id").sort("label").select(pl.col("sign").list.first(), "clip_id").iter_rows())
-    aligner = None
-    if not args.no_speech:
-        print(f"loading the Swedish speech model {SPEECH_MODEL} that times a spoken sentence's words (about 1.2 GB, downloaded once)")
-        aligner = load_aligner(args.device)
+    print(f"loading the Swedish speech model {SPEECH_MODEL} that times a spoken sentence's words (about 1.2 GB, downloaded once)")
+    aligner = load_aligner(args.device)  # a sentence is split by its spoken words, so this is not optional
     packs = practice_packs(table)
     app = create_app(references, means, video_paths(table), model, PrepConfig(), args.threshold, args.device, aligner, packs, sign_forms())
     uvicorn.run(app, host=args.host, port=args.port)

@@ -31,13 +31,7 @@
     return `${sign.correct ? "✓" : "✗"} ${shown(sign.sign)}: poäng ${sign.score!.toFixed(2)}, ${closest}. ${note}`;
   }
 
-  const found = $derived(
-    attempt?.split === "speech"
-      ? " Tecknen hittades utifrån orden du sa."
-      : attempt?.split === "rests"
-        ? " Tecknen hittades utifrån pauserna mellan dem."
-        : "",
-  );
+  const found = $derived(attempt?.split === "speech" ? " Tecknen hittades utifrån orden du sa." : "");
 </script>
 
 {#if headline}

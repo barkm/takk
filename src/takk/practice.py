@@ -10,10 +10,12 @@ references. The attempt counts as the sign when the score reaches a global thres
 the whole glossary with the highest score is reported too, so a wrong attempt shows what it resembled.
 
 An attempt can also be a sentence of several signs, as TAKK signs the key words of a spoken
-sentence. The recording is split into its signs and each part is scored as an attempt of the sign at
-its place in the sentence. With the sentence spoken aloud, the split follows the speech (`speech`):
-the signer speaks a whole Swedish sentence and the key words are timed in it. Without audio it
-follows the rests instead (split_signs), and the signer has to lower their hands between the signs.
+sentence. The recording is split into its signs by the speech and each part is scored as an attempt
+of the sign at its place in the sentence: the signer speaks a whole Swedish sentence and the key
+words are timed in it (`speech`). A sentence therefore needs the microphone. Splitting at the rests
+between the signs instead was removed (see ROADMAP-takk.md step 3): it could not tell a sign the
+signer skipped from a sign it had failed to find, so it voided the whole sentence and with it the
+verdicts on the signs that were right, while the speech split scores a skipped sign as a miss.
 """
 
 import numpy as np
@@ -40,12 +42,9 @@ NOTES = {
     "no_body": "Din överkropp syntes inte. Sitt så att båda axlarna är i bild.",
     "lost_hand": "Går att bedöma, men en hand tappades i {lost:.0%} av bildrutorna medan du tecknade.",
     "ok": "Det ser bra ut.",
+    "no_audio": "Mikrofonen behövs för en mening: orden du säger är det som delar upp inspelningen i tecken.",
+    "not_said": "Meningens ord hittades inte i det du sa. Säg vart och ett av dem tydligt.",
 }
-
-# Seconds without a raised hand that end a sign of a sentence. Inside a sign the hands are lost for
-# at most 0.23 s in the Swedish browser recordings; lowering the hands and raising them again takes longer.
-MIN_REST = 0.4
-
 
 def sign_means(embeddings: np.ndarray, labels: np.ndarray, n_signs: int) -> np.ndarray:
     """The mean of each sign's unit-length clip embeddings, shape (n_signs, dim). Its dot product with
@@ -72,22 +71,6 @@ def prepare_attempt(landmarks: np.ndarray, fps: float, aspect: float, handedness
     return mirror(frames, config) if dominant == "left" else frames
 
 
-def split_signs(landmarks: np.ndarray, aspect: float, config: PrepConfig) -> list[slice]:
-    """The signs of a recording at the preparation's frame rate: the runs of frames with a raised hand
-    (resting hands count as not detected, see hide_low_hands) at least `MIN_REST` apart, without runs
-    too short for a sign. Each slice reaches halfway into the rests around it."""
-    frames = np.flatnonzero(hand_presence(hide_low_hands(landmarks, aspect, config.max_hand_y)).any(axis=1))
-    if not len(frames):
-        return []
-    breaks = np.flatnonzero(np.diff(frames) > MIN_REST * config.fps)
-    runs = [(a, b + 1) for a, b in zip(frames[np.r_[0, breaks + 1]], frames[np.r_[breaks, len(frames) - 1]])]
-    runs = [(a, b) for a, b in runs if b - a >= config.min_hands * config.fps]
-    if not runs:
-        return []
-    cuts = [0] + [(b + a) // 2 for (_, b), (a, _) in zip(runs[:-1], runs[1:])] + [len(landmarks)]
-    return [slice(a, b) for a, b in zip(cuts[:-1], cuts[1:])]
-
-
 @torch.inference_mode()
 def embed_clip(model: nn.Module, frames: np.ndarray, config: PrepConfig, device: str) -> np.ndarray:
     """The unit-length embedding of one prepared clip."""
@@ -107,14 +90,14 @@ def create_app(
     config: PrepConfig,
     threshold: float,
     device: str,
-    aligner: Aligner | None = None,
+    aligner: Aligner,
     packs: list[dict] | None = None,
     forms: dict[str, str] | None = None,
 ) -> FastAPI:
     """The practice app: the page, the glossary's signs with their clips (`references`, sign ->
     clip ids, in the order of the rows of `means`, see sign_means), the clips' videos (by clip id, see
-    video_paths), the extraction model for the browser, and the scoring of attempts. With an
-    `aligner` a spoken sentence is split into its signs by its words rather than by the rests."""
+    video_paths), the extraction model for the browser, and the scoring of attempts. The `aligner`
+    times a spoken sentence's words, which is what splits it into its signs."""
     app = FastAPI()
     names = list(references)
     index = {sign: i for i, sign in enumerate(names)}
@@ -170,27 +153,22 @@ def create_app(
         landmarks as float32 (n_frames, N_LANDMARKS, 3), NaN where not detected, at the preparation's
         frame rate, from frames of `width` x `height` pixels. A sentence is split into its signs
         first, by the sentence spoken in `audio` (recorded `audio_offset` seconds before the first
-        frame) or, without it, by the rests; when the split fails, nothing is scored."""
+        frame), so it needs the microphone; when the split fails, nothing is scored."""
         if any(s not in index for s in sign):
             raise HTTPException(404, "unknown sign")
         values = np.frombuffer(await landmarks.read(), dtype=np.float32)
         if handedness not in ("left", "right") or width <= 0 or height <= 0 or values.size % (N_LANDMARKS * 3):
             raise HTTPException(400, "malformed attempt")
         values = values.reshape(-1, N_LANDMARKS, 3)
-        spans = aligner(decode_audio(await audio.read()), [spoken_word(s) for s in sign]) if aligner and audio and len(sign) > 1 else None  # fmt: skip
-        if len(sign) == 1:
+        if len(sign) == 1:  # one sign is the whole recording, so it needs no microphone
             parts, split = [slice(0, len(values))], "whole"
-        elif spans is not None:
-            parts, split = split_speech(spans, audio_offset, len(values), config.fps), "speech"
+        elif audio is None:
+            return {"threshold": threshold, "note": NOTES["no_audio"], "split": "speech", "signs": []}
         else:
-            parts, split = split_signs(values, width / height, config), "rests"
+            spans = aligner(decode_audio(await audio.read()), [spoken_word(s) for s in sign])
+            parts, split = split_speech(spans, audio_offset, len(values), config.fps), "speech"
         if len(parts) != len(sign) or any(part.stop - part.start < 2 for part in parts):
-            note = (
-                "Meningens ord hittades inte i det du sa. Säg vart och ett av dem tydligt."
-                if split == "speech"
-                else f"{len(parts)} tecken hittades, men meningen har {len(sign)}. Sänk händerna mellan tecknen."
-            )
-            return {"threshold": threshold, "note": note, "split": split, "signs": []}
+            return {"threshold": threshold, "note": NOTES["not_said"], "split": split, "signs": []}
         signs = [judge(values[part], s, handedness, width, height) for part, s in zip(parts, sign)]
         return {"threshold": threshold, "note": "", "split": split, "signs": signs}
 

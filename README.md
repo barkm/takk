@@ -371,11 +371,11 @@ Picking several words makes a sentence, as TAKK signs the key words of a spoken 
 in order and say the sentence aloud while you sign, the way TAKK is used: the recording is split into
 its signs by when the key words are spoken, and each part is scored against the sign at its place in
 the sentence, with a verdict per sign. The words are known, so they are not recognized but timed, by
-forced alignment against a Swedish CTC model (`takk/speech.py`, about 1.2 GB, downloaded on the first run
-and skipped with `--no-speech`); a wildcard between them absorbs everything else that is said, so the
-sentence around the key words can be any Swedish. Without a microphone the recording is split at the
-rests instead, and the hands have to be lowered between the signs. Either way, when the number of
-signs found differs from the sentence's, the page says so and nothing is scored.
+forced alignment against a Swedish CTC model (`takk/speech.py`, about 1.2 GB, downloaded on the first
+run); a wildcard between them absorbs everything else that is said, so the sentence around the key
+words can be any Swedish. A sentence therefore needs the microphone; a single sign is the whole
+recording and does not. When the number of signs found differs from the sentence's, the page says so
+and nothing is scored.
 
 The page shows the rate the landmarks are tracked at. Below 20 fps it skips so many camera frames
 that the answer is less reliable, since the model was trained on every frame. The lexicon's

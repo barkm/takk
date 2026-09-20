@@ -13,7 +13,8 @@ export type Recording = { frames: Frame[]; audio: Blob | null; audioStart: numbe
 export class Tracker {
   /** Which delegate the landmarker runs on, to show alongside the frame rate. */
   readonly delegate: "GPU" | "CPU";
-  /** Whether the sentence can be split by the spoken words, which needs the microphone. */
+  /** Whether the microphone is open. A sentence of several signs is split by the words the signer
+   * speaks, so without it only one sign at a time can be practised. */
   readonly hasAudio: boolean;
 
   private recorded: Frame[] | null = null;
@@ -35,7 +36,8 @@ export class Tracker {
   }
 
   /** Open the camera, load the landmarker and start tracking. The microphone is what splits a
-   * sentence into its signs; without it the rests do, so a refused microphone is not an error. */
+   * sentence into its signs, but a single sign is the whole recording, so a refused microphone
+   * leaves that much working rather than being an error. */
   static async start(video: HTMLVideoElement, canvas: HTMLCanvasElement, edges: Edges, onRate: (fps: number) => void): Promise<Tracker> {
     const constraints = { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } };
     const stream = await navigator.mediaDevices

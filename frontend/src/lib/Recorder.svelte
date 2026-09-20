@@ -9,10 +9,11 @@
   }: { sentence: Sign[]; lexicon: Lexicon; onattempt: (attempt: Attempt | null, note: string) => void } = $props();
 
   const SLOW_FPS = 20; // below this the extractor skips so many camera frames that results suffer
+  const NO_MICROPHONE = "Mikrofonen behövs för en mening: orden du säger är det som delar upp inspelningen i tecken. Ett ensamt tecken går att öva utan den.";
 
   let video: HTMLVideoElement;
   let canvas: HTMLCanvasElement;
-  let tracker: Tracker | null = $state(null);
+  let tracker = $state<Tracker | null>(null); // the generic, as in the pages: an annotation narrows it to null
   let starting: Promise<Tracker> | null = null;
   let status = $state("Laddar teckenmodellen...");
   let handedness: "left" | "right" = $state("right");
@@ -34,8 +35,12 @@
       });
   });
 
+  // A sentence is split by the words the signer speaks, so without the microphone there is nothing to
+  // split it with. Refusing here says so before a recording is made and thrown away.
+  const silent = $derived(tracker?.hasAudio === false && sentence.length > 1);
+
   function start() {
-    if (!tracker) return;
+    if (!tracker || silent) return;
     onattempt(null, "");
     tracker.startRecording();
     recording = true;
@@ -89,8 +94,9 @@
     <canvas bind:this={canvas}></canvas>
   </div>
   <p class="dim">{status}</p>
+  {#if silent}<p class="dim">{NO_MICROPHONE}</p>{/if}
   <p class="row">
-    <button disabled={!tracker || scoring} onclick={() => (recording ? stop() : start())}>
+    <button disabled={!tracker || scoring || silent} onclick={() => (recording ? stop() : start())}>
       {recording ? "Stoppa" : "Spela in"}
     </button>
     <span class="dim">{recording ? `${seconds.toFixed(1)} s` : ""}</span>

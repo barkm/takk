@@ -9,7 +9,7 @@ from torch import nn
 
 from isolated_sign_validation.landmarks import LANDMARK_SLICES, N_LANDMARKS
 from isolated_sign_validation.preparation import PrepConfig, mirror, prepare_clip
-from takk.practice import create_app, prepare_attempt, sign_means, split_signs
+from takk.practice import NOTES, create_app, prepare_attempt, sign_means
 from takk.vocabulary import spoken_word
 from takk.speech import SAMPLE_RATE
 
@@ -53,19 +53,6 @@ def test_prepare_attempt_mirrors_left_dominant_attempts(hands, handedness, mirro
     np.testing.assert_array_equal(prepare_attempt(landmarks, 30.0, 1.0, handedness, CONFIG), expected)
 
 
-def test_split_signs_splits_at_rests_only():
-    one = attempt_landmarks(("right_hand",))  # 0.5 s rest, 1 s sign, 0.5 s rest
-    blip = attempt_landmarks(())
-    blip[30:33, LANDMARK_SLICES["right_hand"]] = [0.35, 0.6, 0.0]  # 0.1 s: too short for a sign
-    gap = one.copy()
-    gap[25:31, LANDMARK_SLICES["right_hand"]] = np.nan  # 0.2 s lost inside the sign
-    two = np.concatenate([one, blip, one])
-    assert split_signs(one, 1.0, CONFIG) == [slice(0, 60)]
-    assert split_signs(gap, 1.0, CONFIG) == [slice(0, 60)]
-    assert split_signs(two, 1.0, CONFIG) == [slice(0, 90), slice(90, 180)]
-    assert split_signs(attempt_landmarks(()), 1.0, CONFIG) == []
-
-
 class Fixed(nn.Module):
     """A stand-in for the embedding model: the same embedding for every clip."""
 
@@ -76,7 +63,7 @@ class Fixed(nn.Module):
 def test_attempt_scores_against_the_chosen_sign():
     references = {"A": ["a1"], "B": ["b1", "b2"]}
     means = np.array([[0.6, 0.8], [1.0, 0.0]])  # A: cosine 1 with the model's embedding, B: 0.6
-    app = create_app(references, means, {}, Fixed(), CONFIG, threshold=0.7, device="cpu")
+    app = create_app(references, means, {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [])
     attempt = next(route for route in app.routes if getattr(route, "path", "") == "/api/attempt").endpoint
 
     def send(landmarks: np.ndarray, *signs: str) -> dict:
@@ -90,9 +77,6 @@ def test_attempt_scores_against_the_chosen_sign():
     (b,) = send(landmarks, "B")["signs"]
     assert b["closest"] == closest and b["correct"] is False and b["score"] == pytest.approx(0.6)
     assert send(attempt_landmarks(()), "A")["signs"][0]["usable"] is False
-    sentence = send(np.concatenate([landmarks, landmarks]), "A", "B")["signs"]  # scored sign by sign
-    assert [s["sign"] for s in sentence] == ["A", "B"] and [s["correct"] for s in sentence] == [True, False]
-    assert send(landmarks, "A", "B")["signs"] == []  # one sign found for two
     with pytest.raises(HTTPException):
         send(landmarks, "C")
     with pytest.raises(HTTPException):
@@ -117,3 +101,18 @@ def test_attempt_splits_a_spoken_sentence_by_its_words():
     result = asyncio.run(attempt(upload, sign=["A", "B"], handedness="right", width=640, height=480, audio=audio, audio_offset=0.1))  # fmt: skip
     assert result["split"] == "speech"
     assert [s["sign"] for s in result["signs"]] == ["A", "B"] and [s["correct"] for s in result["signs"]] == [True, False]
+
+
+def test_attempt_needs_the_microphone_for_a_sentence_but_not_for_one_sign():
+    """The spoken words are the only thing that splits a sentence, so a sentence without audio is
+    refused rather than split some other way; one sign is the whole recording and needs no audio."""
+    app = create_app({"A": ["a1"]}, np.array([[0.6, 0.8]]), {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [])
+    attempt = next(route for route in app.routes if getattr(route, "path", "") == "/api/attempt").endpoint
+    landmarks = np.concatenate([attempt_landmarks(("right_hand",))] * 2)
+    upload = lambda: UploadFile(io.BytesIO(landmarks.astype(np.float32).tobytes()))  # noqa: E731
+
+    sentence = asyncio.run(attempt(upload(), sign=["A", "A"], handedness="right", width=640, height=480))
+    assert sentence["signs"] == [] and sentence["note"] == NOTES["no_audio"]
+
+    one = asyncio.run(attempt(upload(), sign=["A"], handedness="right", width=640, height=480))
+    assert one["split"] == "whole" and [s["sign"] for s in one["signs"]] == ["A"]

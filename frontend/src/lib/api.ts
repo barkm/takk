@@ -32,8 +32,8 @@ export type Attempt = {
   /** Empty when the recording could not be split into the sentence's signs; `note` says why. */
   signs: Judgement[];
   note: string;
-  /** How the sentence was split: by the spoken words, by the rests, or not at all. */
-  split: "speech" | "rests" | "whole";
+  /** How the sentence was split: by the spoken words, or not at all when it is a single sign. */
+  split: "speech" | "whole";
 };
 
 export async function fetchLexicon(): Promise<Lexicon> {

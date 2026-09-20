@@ -1,7 +1,7 @@
 """Finding the signs of a TAKK sentence by the words the signer speaks.
 
 TAKK is signed while speaking, so the signs of a sentence can be found in the speech instead of in
-the rests between them (see `practice.split_signs`): the signer speaks a whole Swedish sentence and
+the rests between them, which was tried first and removed (see ROADMAP-takk.md step 3): the signer speaks a whole Swedish sentence and
 signs its key words. Those key words are known — they are the signs of the sentence — so their times
 come from forced alignment of exactly those words to the audio, not from recognizing what was said.
 
