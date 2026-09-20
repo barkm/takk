@@ -115,6 +115,7 @@ def create_app(
     threshold: float,
     device: str,
     aligner: Aligner | None = None,
+    packs: dict[str, list[dict]] | None = None,
 ) -> FastAPI:
     """The practice app: the page, the glossary's signs with their clips (`references`, sign ->
     clip ids, in the order of the rows of `means`, see sign_means), the clips' videos (by clip id, see
@@ -132,6 +133,12 @@ def create_app(
             "max_seconds": config.max_frames / config.fps,
             "edges": {group: edges.tolist() for group, edges in SKELETON_EDGES.items()},  # to draw the tracked landmarks
         }
+
+    @app.get("/api/packs")
+    def starter_packs() -> dict:
+        """The starter packs to practise (`vocabulary.starter_packs`): the word a learner reads, the
+        lexicon entry it comes from and the sign that scores it, which are not the same thing."""
+        return {"packs": [{"name": name, "words": words} for name, words in (packs or {}).items()]}
 
     @app.get("/api/reference/{clip_id}")
     def reference(clip_id: str) -> FileResponse:

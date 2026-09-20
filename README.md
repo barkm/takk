@@ -384,6 +384,12 @@ the collection app, forward the port when the machine is remote.
 `scripts/compare_browser_extraction.py` compares the browser's landmarks with the Python extraction
 on the recordings.
 
+"Dagens pass" (`/pass`) is the practice session: the words of the starter packs that are due, then
+words never practised, one at a time. Each sign has a Leitner box and a next-due date in the
+browser's `localStorage` (`frontend/src/lib/progress.ts`); an accepted attempt moves the sign up a
+box (due again after 1, 3, 7 and 21 days) and a rejected one puts it back in the first. Nothing is
+stored on the server, so clearing the browser's storage starts the learner over.
+
 ### The frontend
 
 The page is a SvelteKit app in `frontend/` (TypeScript, Vite, `adapter-static`). It is a separate
@@ -398,7 +404,7 @@ cd frontend && npm install       # once
 npm run dev                      # then open http://localhost:5173 (forward this port, not 8002)
 npm run build && npm run preview  # the built site, http://localhost:4173
 npm run check                    # svelte-check
-npm test                         # the landmark layout and the resampling
+npm test                         # the landmark layout, the resampling and the Leitner boxes
 ```
 
 ### The word sets
@@ -408,8 +414,14 @@ listed at https://teckensprakslexikon.su.se/kategori). Every entry page names th
 as a path ("Sport > klubbar och föreningar > NHL"), and the crawl stores them in the `categories`
 field of each entry, together with the entry's other wording (`also`: the sign for "arbetsvetenskap"
 is also "ergonomi"), its English translation and its hit counts in the lexicon, the corpus and the
-surveys. `takk/categories.py` maps a category's lexicon ids to the glossary's signs. Nothing is
+surveys. `takk/vocabulary.py` maps a category's lexicon ids to the glossary's signs. Nothing is
 generated: re-running the crawler picks up whatever the lexicon has changed.
+
+A category is a subject area of a dictionary and not a learning order (Sport is the largest), so the
+first lessons come from a starter pack instead: a short list of everyday Swedish words in
+`takk/packs.json`, resolved to lexicon entries at startup and served by `GET /api/packs`. The word a
+learner reads is kept apart from the sign that scores it, because entries that share a sign form are
+one class labelled by the lowest of them ("äta" is scored as `sts:livsmedel-01265`).
 
 The category listing pages are not used: they miss categories an entry page names (15 of 84 in a
 sample of 120 entries) and hide the deeper levels of the path.

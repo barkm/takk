@@ -32,6 +32,7 @@ from isolated_sign_validation.training import embed, load_run
 from takk.practice import create_app, sign_means
 from takk.speech import MODEL as SPEECH_MODEL
 from takk.speech import load_aligner
+from takk.vocabulary import starter_packs
 
 RUNS_DIR = Path("outputs/runs")
 
@@ -67,7 +68,8 @@ def main() -> None:
     if not args.no_speech:
         print(f"loading the Swedish speech model {SPEECH_MODEL} that times a spoken sentence's words (about 1.2 GB, downloaded once)")
         aligner = load_aligner(args.device)
-    app = create_app(references, means, video_paths(table), model, PrepConfig(), args.threshold, args.device, aligner)
+    packs = starter_packs(table)
+    app = create_app(references, means, video_paths(table), model, PrepConfig(), args.threshold, args.device, aligner, packs)
     uvicorn.run(app, host=args.host, port=args.port)
 
 
