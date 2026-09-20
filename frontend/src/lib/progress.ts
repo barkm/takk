@@ -70,22 +70,24 @@ export function chosenWords(packs: Pack[], chosen: string[]): PackWord[] {
 /** A practised sign, as the progress page shows it: soonest due first. */
 export type Row = Learned & { sign: string; word: string; packs: string[] };
 
-/** Everything practised so far, with the word to show it by and the packs it is in. A sign no longer
- * in any pack is still listed, by the word its sign is named for: it was practised all the same. */
+/** Everything practised so far, with the word to show it by and the packs that teach it under that
+ * word. A sign no longer in any pack is still listed, by the word its sign is named for: it was
+ * practised all the same. The packs are the word's, not the sign class's, because a class carries
+ * several words: `sts:spader-00016` is in Färger as "svart", in Mat och dryck as "lakrits" and in
+ * Spel as "spader", and only the first of those is where "svart" is practised. */
 export function boxes(progress: Progress, packs: Pack[]): Row[] {
   const named = new Map<string, string>(); // the packs hold 14,000 words, so they are walked once
   const inPacks = new Map<string, string[]>();
   for (const pack of packs)
     for (const word of pack.words) {
       if (word.word && !named.has(word.sign)) named.set(word.sign, word.word); // the first pack names it
-      inPacks.set(word.sign, [...(inPacks.get(word.sign) ?? []), pack.name]);
+      const key = `${word.sign}\0${word.word ?? signWord(word.sign)}`;
+      inPacks.set(key, [...(inPacks.get(key) ?? []), pack.name]);
     }
-  const rows = Object.entries(progress).map(([sign, learned]) => ({
-    ...learned,
-    sign,
-    word: learned.word ?? named.get(sign) ?? signWord(sign),
-    packs: inPacks.get(sign) ?? [],
-  }));
+  const rows = Object.entries(progress).map(([sign, learned]) => {
+    const word = learned.word ?? named.get(sign) ?? signWord(sign);
+    return { ...learned, sign, word, packs: inPacks.get(`${sign}\0${word}`) ?? [] };
+  });
   return rows.sort((a, b) => a.due - b.due || a.word.localeCompare(b.word, "sv"));
 }
 

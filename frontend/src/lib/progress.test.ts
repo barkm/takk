@@ -63,8 +63,9 @@ describe("boxes", () => {
     const progress = { "sts:bröd-2": { box: 2, due: DAY }, "sts:livsmedel-1": { box: 1, due: 0 } };
 
     expect(boxes(progress, packs)).toEqual([
-      // no word was stored, so the first pack that names the sign does, not the last one
-      { sign: "sts:livsmedel-1", word: "äta", box: 1, due: 0, packs: ["Första tecknen", "Mat och dryck"] },
+      // no word was stored, so the first pack that names the sign does, not the last one; Mat och
+      // dryck holds the same sign as "livsmedel", which is a different word to practise
+      { sign: "sts:livsmedel-1", word: "äta", box: 1, due: 0, packs: ["Första tecknen"] },
       // practised but in no pack any more: its own name, which is what the lexicon calls the sign
       { sign: "sts:bröd-2", word: "bröd", box: 2, due: DAY, packs: [] },
     ]);
@@ -78,8 +79,9 @@ describe("boxes", () => {
     ];
     const progress = { "sts:spader-1": { box: 2, due: DAY, seen: 0, word: "svart" } };
 
+    // and the packs are the ones that teach "svart", not every pack the sign class appears in
     expect(boxes(progress, both)).toEqual([
-      { sign: "sts:spader-1", word: "svart", box: 2, due: DAY, seen: 0, packs: ["Färger", "Mytologi"] },
+      { sign: "sts:spader-1", word: "svart", box: 2, due: DAY, seen: 0, packs: ["Färger"] },
     ]);
   });
 });

@@ -401,7 +401,8 @@ recorded at the real time.
 
 A box belongs to a sign class, and a class has many words: `sts:spader-00016` is "svart" in Färger
 and "Oden" in Mytologi. The word on the card is therefore stored with the box, so progress is shown
-under the word that was practised rather than whichever pack happened to name the sign last.
+under the word that was practised rather than whichever pack happened to name the sign last, and the
+packs listed beside it are the ones that teach that word, not every pack the sign class appears in.
 
 "Mina tecken" (`/framsteg`) lists what the boxes hold: how many signs are due now, how many sit in
 each box, and every practised sign with its box, when it is due and which packs it is in, with a
