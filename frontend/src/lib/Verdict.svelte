@@ -1,7 +1,13 @@
 <script lang="ts">
   import { entry, word, type Attempt, type Judgement } from "$lib/api";
 
-  let { attempt, note }: { attempt: Attempt | null; note: string } = $props();
+  // `labels` gives the word the learner was asked to sign, which is not always what the sign is
+  // called: signs of one form are one class named after its lowest entry, so "grön" is scored as
+  // `sts:land-00416`. Without it a sign is called what the lexicon calls it, as in free practice.
+  let { attempt, note, labels = {} }: { attempt: Attempt | null; note: string; labels?: Record<string, string> } =
+    $props();
+
+  const shown = (sign: string) => labels[sign] ?? word(sign);
 
   const correct = $derived(attempt ? attempt.signs.filter((sign) => sign.correct).length : 0);
 
@@ -10,19 +16,19 @@
     if (!attempt.signs.length) return attempt.note;
     if (attempt.signs.length > 1) return `${correct} av ${attempt.signs.length} tecken kändes igen.`;
     const only = attempt.signs[0];
-    return only.correct ? `Rätt: det var ${word(only.sign)}.` : `Kändes inte igen som ${word(only.sign)}.`;
+    return only.correct ? `Rätt: det var ${shown(only.sign)}.` : `Kändes inte igen som ${shown(only.sign)}.`;
   });
 
   const good = $derived(!!attempt && attempt.signs.length > 0 && correct === attempt.signs.length);
 
   function line(sign: Judgement): string {
-    if (!sign.usable) return `${word(sign.sign)}: ${sign.note}`;
+    if (!sign.usable) return `${shown(sign.sign)}: ${sign.note}`;
     const closest =
       sign.closest!.sign === sign.sign
         ? "också det närmaste tecknet i lexikonet"
         : `närmaste tecken i lexikonet ${word(sign.closest!.sign)} (${entry(sign.closest!.sign)}), poäng ${sign.closest!.score.toFixed(2)}`;
     const note = sign.note === "Det ser bra ut." ? "" : sign.note;
-    return `${sign.correct ? "✓" : "✗"} ${word(sign.sign)}: poäng ${sign.score!.toFixed(2)}, ${closest}. ${note}`;
+    return `${sign.correct ? "✓" : "✗"} ${shown(sign.sign)}: poäng ${sign.score!.toFixed(2)}, ${closest}. ${note}`;
   }
 
   const found = $derived(

@@ -122,7 +122,15 @@
     {@render picker()}
   </section>
   <Recorder {sentence} {lexicon} onattempt={scored} />
-  <Verdict {attempt} {note} />
+  <Verdict {attempt} {note} labels={{ [current.sign]: shown }} />
+  {#if attempt?.signs.length && word(current.sign) !== shown}
+    <section class="card">
+      <p class="dim">
+        Tecknet för {shown} har samma form som {word(current.sign)} i lexikonet, så det är det namnet
+        modellen räknar med.
+      </p>
+    </section>
+  {/if}
   {#if attempt?.signs.length}
     <section class="card">
       <button onclick={next}>{at + 1 < today.length ? "Nästa tecken" : "Avsluta passet"}</button>

@@ -400,6 +400,10 @@ recorded at the real time.
 each box, and every practised sign with its box, when it is due and which packs it is in, with a
 reset behind a fold. It is also how the spaced repetition is inspected while it is being built.
 
+The verdict names the word the learner was asked to sign, not the sign that scored it: signs of one
+form are one class named after its lowest entry, so "grön" is scored as `sts:land-00416`, and the
+pass says so in a line of its own rather than answering "det var land".
+
 The learner chooses what the session draws from, by turning packs on and off. A pack is a starter
 pack or one of the lexicon's categories, which to the learner are the same kind of thing: a named
 list of words. `GET /api/packs` serves all of them (`takk/vocabulary.py`), the starter packs first,
