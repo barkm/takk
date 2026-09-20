@@ -25,7 +25,7 @@ describe("record", () => {
     const second = record(first, "sts:mjölk-1", true, "mjölk", 0);
     expect(second["sts:mjölk-1"]).toEqual({
       box: 2,
-      due: DAY,
+      due: 3 * DAY,
       seen: 0,
       first: 0,
       word: "mjölk",
@@ -34,7 +34,7 @@ describe("record", () => {
     const third = record(second, "sts:mjölk-1", true, "mjölk", 0);
     expect(third["sts:mjölk-1"]).toEqual({
       box: 3,
-      due: 3 * DAY,
+      due: 7 * DAY,
       seen: 0,
       first: 0,
       word: "mjölk",
@@ -252,14 +252,14 @@ describe("a pass, turn by turn", () => {
   it("leaves a word the pass missed in the first box, however well it ends", () => {
     // A miss puts the word in the first box, and finishing the pass must not carry it back out:
     // otherwise missing a word would promote it further than signing it right the first time.
-    const known = { "sts:pappa-1": { box: 4, due: 0, seen: 0, first: 0, word: "pappa" } };
+    const known = { "sts:pappa-1": { box: 3, due: 0, seen: 0, first: 0, word: "pappa" } };
     const missed = record(known, "sts:pappa-1", false, "pappa", 0);
     expect(missed["sts:pappa-1"].box).toBe(1);
 
     // the page passes `!missed.includes(sign)`, so the word finishes where the miss left it
     expect(record(missed, "sts:pappa-1", false, "pappa", 0)["sts:pappa-1"].box).toBe(1);
     // and a word the pass never missed climbs the one box it earned
-    expect(record(known, "sts:pappa-1", true, "pappa", 0)["sts:pappa-1"].box).toBe(5);
+    expect(record(known, "sts:pappa-1", true, "pappa", 0)["sts:pappa-1"].box).toBe(4);
   });
 });
 
