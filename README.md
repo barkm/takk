@@ -423,7 +423,9 @@ The verdict names the word the learner was asked to sign, not the sign that scor
 form are one class named after its lowest entry, so "grön" is scored as `sts:land-00416`, and the
 pass says so in a line of its own rather than answering "det var land".
 
-The learner chooses what the session draws from, by turning packs on and off. A pack is a starter
+The learner chooses what the session draws from, by turning packs on and off. New words are taken
+from the chosen packs in turn, a word at a time, so a large pack cannot hide a small one: in plain
+order Djur's 196 words would all come before Mat och dryck's first. A pack is a starter
 pack or one of the lexicon's categories, which to the learner are the same kind of thing: a named
 list of words. `GET /api/packs` serves all of them (`takk/vocabulary.py`), the starter packs first,
 and the choice is kept in `localStorage` as well.

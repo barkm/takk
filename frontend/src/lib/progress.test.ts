@@ -45,6 +45,18 @@ describe("chosenWords", () => {
     { name: "Mat och dryck", kind: "category" as const, words: [{ sign: "sts:mjölk-1", id: "1" }, { sign: "sts:bröd-2", id: "2" }] },
   ];
 
+  it("takes a word from each chosen pack in turn, so a long pack cannot hide a short one", () => {
+    const long = { name: "Djur", kind: "category" as const, words: [word("hund"), word("katt"), word("orm")] };
+    const short = { name: "Färger", kind: "category" as const, words: [word("röd")] };
+
+    expect(chosenWords([long, short], ["Djur", "Färger"]).map((each) => each.word)).toEqual([
+      "hund",
+      "röd", // the short pack's only word comes second, not fourth
+      "katt",
+      "orm",
+    ]);
+  });
+
   it("takes the chosen packs only, and a sign in two of them once", () => {
     expect(chosenWords(packs, ["Första tecknen", "Mat och dryck"])).toEqual([
       { sign: "sts:mjölk-1", id: "1", word: "mjölk" }, // the word of the pack that named it wins

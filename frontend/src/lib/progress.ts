@@ -84,11 +84,22 @@ export function saveChosen(chosen: string[]) {
   localStorage.setItem(CHOSEN, JSON.stringify(chosen));
 }
 
-/** The words of the chosen packs, each sign once however many packs it is in. */
+/** The words of the chosen packs, each sign once however many packs it is in, taken a word at a time
+ * from each pack in turn.
+ *
+ * The packs are read in turn rather than one after the other because a session takes its new words
+ * from the front: in order, Djur's 196 words would come before Mat och dryck's first one, which at
+ * five new words a day is a month of animals. Each pack keeps its own order, the most counted first,
+ * and a pack that runs out drops out of the round. */
 export function chosenWords(packs: Pack[], chosen: string[]): PackWord[] {
+  const chosenPacks = packs.filter((pack) => chosen.includes(pack.name));
   const words = new Map<string, PackWord>();
-  for (const pack of packs.filter((pack) => chosen.includes(pack.name)))
-    for (const word of pack.words) words.set(word.sign, words.get(word.sign) ?? word);
+  const longest = Math.max(0, ...chosenPacks.map((pack) => pack.words.length));
+  for (let at = 0; at < longest; at++)
+    for (const pack of chosenPacks) {
+      const word = pack.words[at];
+      if (word) words.set(word.sign, words.get(word.sign) ?? word);
+    }
   return [...words.values()];
 }
 
