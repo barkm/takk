@@ -248,6 +248,19 @@ describe("a pass, turn by turn", () => {
     });
     expect(advance(queue, accepts, needed)).toEqual([word("pappa")]);
   });
+
+  it("leaves a word the pass missed in the first box, however well it ends", () => {
+    // A miss puts the word in the first box, and finishing the pass must not carry it back out:
+    // otherwise missing a word would promote it further than signing it right the first time.
+    const known = { "sts:pappa-1": { box: 4, due: 0, seen: 0, first: 0, word: "pappa" } };
+    const missed = record(known, "sts:pappa-1", false, "pappa", 0);
+    expect(missed["sts:pappa-1"].box).toBe(1);
+
+    // the page passes `!missed.includes(sign)`, so the word finishes where the miss left it
+    expect(record(missed, "sts:pappa-1", false, "pappa", 0)["sts:pappa-1"].box).toBe(1);
+    // and a word the pass never missed climbs the one box it earned
+    expect(record(known, "sts:pappa-1", true, "pappa", 0)["sts:pappa-1"].box).toBe(5);
+  });
 });
 
 describe("loadSetting", () => {

@@ -1,7 +1,7 @@
 // What the learner has practised, kept in the browser (step 8 of ROADMAP-takk.md): no accounts and
 // no state on the server for as long as that holds. One Leitner box per sign, saying how long until
-// it is due: a word moves up a box once a pass has accepted it `accepts` times, and back to the first
-// box the moment it is missed.
+// it is due: a word moves up a box once a pass has accepted it `accepts` times without missing it,
+// and back to the first box the moment it is missed.
 import { word as signWord, type Pack, type PackWord } from "$lib/api";
 
 const KEY = "takk.progress";

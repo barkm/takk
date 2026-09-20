@@ -39,6 +39,7 @@
   let queue: PackWord[] = $state([]); // the turns left in the pass, the current one first
   let accepts: Record<string, number> = $state({}); // accepted attempts per sign, in this pass alone
   let taught: string[] = $state([]); // the signs whose clip has already been shown in this pass
+  let missed: string[] = $state([]); // the signs missed in this pass, which do not move up when finished
   let answered = $state(false); // whether this turn's answer is in, so a second recording is a retry
   let total = $state(0);
   let attempt: Attempt | null = $state(null);
@@ -65,7 +66,7 @@
   // The pass's signs are picked once, not derived: a scored attempt changes the progress they come from.
   function restart() {
     queue = session(chosenWords(packs, chosen), progress, size, Date.now() + ahead * 24 * 60 * 60 * 1000);
-    (total = queue.length), (accepts = {}), (taught = []), (answered = false);
+    (total = queue.length), (accepts = {}), (taught = []), (missed = []), (answered = false);
     (attempt = null), (note = ""), (peeked = false);
   }
 
@@ -111,10 +112,13 @@
     const ok = !!judged.correct && !peeked; // a looked-up sign is not recalled
     const count = (accepts[judged.sign] ?? 0) + (ok ? 1 : 0);
     accepts = { ...accepts, [judged.sign]: count };
-    // The box only moves when the word's fate is settled: it is finished, or it was missed and drops
-    // back to the first box. An accept that leaves it short of `needed` keeps it in the pass instead.
+    if (!ok && !missed.includes(judged.sign)) missed = [...missed, judged.sign];
+    // The box only moves when the word's fate is settled: it is finished, or it was just missed and
+    // drops back to the first box. An accept that leaves the word short of `needed` keeps it in the
+    // pass and changes nothing. A word missed anywhere in the pass stays in the first box when it
+    // finishes, rather than climbing out of the box the miss put it in.
     if (!ok) progress = record(progress, judged.sign, false, shown);
-    else if (count >= needed) progress = record(progress, judged.sign, true, shown);
+    else if (count >= needed) progress = record(progress, judged.sign, !missed.includes(judged.sign), shown);
     else return;
     save(progress);
   }
