@@ -114,8 +114,8 @@ def test_attempt_listens_for_the_word_the_learner_practises_not_the_sign_name():
     upload = lambda: UploadFile(io.BytesIO(attempt_landmarks(("right_hand",)).astype(np.float32).tobytes()))  # noqa: E731
     audio = lambda: UploadFile(io.BytesIO(wav(np.zeros(2 * SAMPLE_RATE, dtype=np.float32))))  # noqa: E731
 
-    asyncio.run(attempt(upload(), sign=["sts:öga-2636"], spoken=["blå"], handedness="right", width=640, height=480, audio=audio()))  # fmt: skip
-    asyncio.run(attempt(upload(), sign=["sts:öga-2636"], spoken=[], handedness="right", width=640, height=480, audio=audio()))
+    asyncio.run(attempt(upload(), sign=["sts:öga-2636"], spoken=["blå"], handedness="right", width=640, height=480, audio=audio(), audio_offset=0.0))  # fmt: skip
+    asyncio.run(attempt(upload(), sign=["sts:öga-2636"], spoken=[], handedness="right", width=640, height=480, audio=audio(), audio_offset=0.0))  # fmt: skip
     assert heard == [["blå"], ["öga"]]  # without a spoken word the sign is listened for under its own name
 
     with pytest.raises(HTTPException):  # a word per sign or none at all, never some of them

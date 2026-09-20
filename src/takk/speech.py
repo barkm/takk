@@ -37,6 +37,14 @@ SAMPLE_RATE = 16000
 # ROADMAP.md is: it separates silence from speech, and mumbling has not been measured.
 MIN_WORD_SCORE = -3.0
 
+# How much of the recording around the spoken words is signing, in seconds. A sign runs alongside its
+# word but the hands are already on their way up before the first word and have not come down after
+# the last, so the outer edges of the split sit this far outside the speech rather than at the ends
+# of the recording, which hold whatever happened before the signer began and after they finished.
+# Provisional: nothing has been measured, and the spans of every attempt are there to settle them.
+PRE_ROLL = 0.5
+POST_ROLL = 0.4
+
 # Each word of a sentence as (start, end, score): when it was spoken, in seconds, and how well it
 # aligned. None when the words cannot be aligned at all.
 Aligner = Callable[[np.ndarray, list[str]], list[tuple[float, float, float]] | None]
@@ -95,8 +103,12 @@ def load_aligner(device: str = "cpu") -> Aligner:
 def split_speech(spans: list[tuple[float, float, float]], offset: float, n_frames: int, fps: float) -> list[slice]:
     """The signs of a recording at the preparation's frame rate, one per spoken word of `spans`, cut
     halfway between one word's end and the next one's start: a sign runs alongside its word but may
-    start before it or end after it. `offset` is how far into the audio the first frame was captured."""
+    start before it or end after it. `offset` is how far into the audio the first frame was captured.
+
+    The split covers the speech and `PRE_ROLL`/`POST_ROLL` around it, not the whole recording: what
+    was recorded before the signer began and after they finished belongs to no sign, and left in it
+    would be scored as part of the first and the last one."""
     cuts = [(end + start) / 2 for (_, end, _), (start, _, _) in zip(spans[:-1], spans[1:])]
-    inner = np.maximum.accumulate(np.clip(np.round((np.array(cuts) - offset) * fps), 0, n_frames)).astype(int)
-    edges = [0, *inner.tolist(), n_frames]
+    times = [spans[0][0] - PRE_ROLL, *cuts, spans[-1][1] + POST_ROLL]
+    edges = np.maximum.accumulate(np.clip(np.round((np.array(times) - offset) * fps), 0, n_frames)).astype(int)
     return [slice(a, b) for a, b in zip(edges[:-1], edges[1:])]

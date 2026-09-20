@@ -66,9 +66,18 @@ def test_align_words_scores_a_word_that_was_not_spoken_low():
 
 def test_split_speech_cuts_halfway_between_the_words():
     spans = [(0.5, 0.7, -0.1), (1.5, 1.7, -0.2)]  # the cut falls at 1.1 s, halfway from one word's end to the next
-    assert split_speech(spans, 0.0, 90, 30) == [slice(0, 33), slice(33, 90)]
-    assert split_speech(spans, 0.2, 90, 30) == [slice(0, 27), slice(27, 90)]  # the audio started earlier
-    assert split_speech([(0.5, 0.7, -0.1)], 0.0, 90, 30) == [slice(0, 90)]
+    # 0.5 - PRE_ROLL = 0.0 s and 1.7 + POST_ROLL = 2.1 s bound the two signs, at frames 0 and 63
+    assert split_speech(spans, 0.0, 90, 30) == [slice(0, 33), slice(33, 63)]
+    assert split_speech(spans, 0.2, 90, 30) == [slice(0, 27), slice(27, 57)]  # the audio started earlier
+    assert split_speech([(0.5, 0.7, -0.1)], 0.0, 90, 30) == [slice(0, 33)]
+
+
+def test_split_speech_leaves_out_what_was_recorded_before_and_after_the_signing():
+    """The recording starts when the card appears and ends a moment after the last word, so its ends
+    hold the signer sitting still. Scored as part of the first and last sign, that stillness counts
+    against them."""
+    spans = [(4.0, 4.3, -0.1)]  # four seconds of waiting before a word spoken at 30 fps
+    assert split_speech(spans, 0.0, 300, 30) == [slice(105, 141)]  # 3.5 s to 4.7 s, not 0 s to 10 s
 
 
 def test_decode_audio_reads_the_browser_recording():
