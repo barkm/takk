@@ -13,9 +13,13 @@ while the learner still reads "äta".
 A **category** is the lexicon's own subject category ("Djur", "Djur > fisk"), which every entry page
 names. They are subject areas of a dictionary, not a learning order — Sport and Geografi are the
 largest — so they are for browsing, not for a beginner's first lesson.
+
+The learner picks what today's practice draws from, and to them a starter pack and a category are
+the same thing: a named list of words to turn on or off (`packs`).
 """
 
 import json
+import re
 from pathlib import Path
 
 import polars as pl
@@ -25,6 +29,12 @@ from isolated_sign_validation.datasets.sts_lexikon import ENTRIES_FILE, RAW_DIR
 PACKS = Path(__file__).parent / "packs.json"
 # Entries of Österberg's 1916 dictionary, whose sign forms are historical and not what to teach.
 HISTORICAL = "Österberg 1916"
+
+
+def spoken_word(sign: str) -> str:
+    """The Swedish word a lexicon sign is signed for, which is what the signer says: its name without
+    the source and the entry number ("sts:platta slag-25563" -> "platta slag")."""
+    return re.sub(r"-\d+$", "", sign.removeprefix("sts:"))
 
 
 def word_index(entries: pl.DataFrame) -> dict[str, str]:
@@ -68,6 +78,30 @@ def starter_packs(clips: pl.DataFrame, raw_dir: Path = RAW_DIR, path: Path = PAC
     if missing:
         raise KeyError(f"no sign in this glossary for {', '.join(missing)}")
     return packs
+
+
+def packs(clips: pl.DataFrame, raw_dir: Path = RAW_DIR, path: Path = PACKS) -> list[dict]:
+    """Everything a learner can choose to practise, as one kind of thing: a named list of words, each
+    with the sign that scores it (user, 2026-09-20: a pack is either a starter pack or a category,
+    and it does not matter which). The starter packs come first, then the lexicon's categories by name;
+    a category's word is the word its sign is named for, and the historical dictionary is left out.
+    """
+    starters = [
+        {"name": name, "kind": "pack", "words": [_word(entry["sign"], entry["word"]) for entry in words]}
+        for name, words in starter_packs(clips, raw_dir, path).items()
+    ]
+    categories = [
+        {"name": name, "kind": "category", "words": [_word(sign) for sign in signs]}
+        for name, signs in sorted(sign_categories(clips, raw_dir).items())
+        if name != HISTORICAL
+    ]
+    return starters + categories
+
+
+def _word(sign: str, word: str | None = None) -> dict:
+    """A pack's word: the sign that scores it, and the word to show only when it is not the sign's own
+    name. Thousands of category words travel to the browser, so what it can derive is not sent."""
+    return {"sign": sign} if word is None or word == spoken_word(sign) else {"sign": sign, "word": word}
 
 
 def sign_categories(clips: pl.DataFrame, raw_dir: Path = RAW_DIR, deep: bool = False) -> dict[str, list[str]]:

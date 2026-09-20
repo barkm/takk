@@ -9,7 +9,8 @@ from torch import nn
 
 from isolated_sign_validation.landmarks import LANDMARK_SLICES, N_LANDMARKS
 from isolated_sign_validation.preparation import PrepConfig, mirror, prepare_clip
-from takk.practice import create_app, prepare_attempt, sign_means, split_signs, spoken_word
+from takk.practice import create_app, prepare_attempt, sign_means, split_signs
+from takk.vocabulary import spoken_word
 from takk.speech import SAMPLE_RATE
 
 from test_speech import wav

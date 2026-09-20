@@ -16,8 +16,6 @@ the signer speaks a whole Swedish sentence and the key words are timed in it. Wi
 follows the rests instead (split_signs), and the signer has to lower their hands between the signs.
 """
 
-import re
-
 import numpy as np
 import torch
 from fastapi import FastAPI, Form, HTTPException, UploadFile
@@ -30,6 +28,7 @@ from isolated_sign_validation.extraction import MODEL_PATH, VideoInfo
 from isolated_sign_validation.landmarks import N_LANDMARKS, SKELETON_EDGES
 from isolated_sign_validation.preparation import ONE_HANDED, PrepConfig, hand_presence, hide_low_hands, mirror, prepare_clip
 from takk.speech import Aligner, decode_audio, split_speech
+from takk.vocabulary import spoken_word
 
 # Everything the learner reads is Swedish (see ROADMAP-takk.md): the app is for practising TAKK.
 NOTES = {
@@ -89,12 +88,6 @@ def split_signs(landmarks: np.ndarray, aspect: float, config: PrepConfig) -> lis
     return [slice(a, b) for a, b in zip(cuts[:-1], cuts[1:])]
 
 
-def spoken_word(sign: str) -> str:
-    """The Swedish word a lexicon sign is signed for, which is what the signer says: its name without
-    the source and the entry number ("sts:platta slag-25563" -> "platta slag")."""
-    return re.sub(r"-\d+$", "", sign.removeprefix("sts:"))
-
-
 @torch.inference_mode()
 def embed_clip(model: nn.Module, frames: np.ndarray, config: PrepConfig, device: str) -> np.ndarray:
     """The unit-length embedding of one prepared clip."""
@@ -115,7 +108,7 @@ def create_app(
     threshold: float,
     device: str,
     aligner: Aligner | None = None,
-    packs: dict[str, list[dict]] | None = None,
+    packs: list[dict] | None = None,
 ) -> FastAPI:
     """The practice app: the page, the glossary's signs with their clips (`references`, sign ->
     clip ids, in the order of the rows of `means`, see sign_means), the clips' videos (by clip id, see
@@ -135,10 +128,10 @@ def create_app(
         }
 
     @app.get("/api/packs")
-    def starter_packs() -> dict:
-        """The starter packs to practise (`vocabulary.starter_packs`): the word a learner reads, the
-        lexicon entry it comes from and the sign that scores it, which are not the same thing."""
-        return {"packs": [{"name": name, "words": words} for name, words in (packs or {}).items()]}
+    def practice_packs() -> dict:
+        """The packs a learner can pick their daily practice from (`vocabulary.packs`): starter packs
+        and the lexicon's categories alike, each a list of words with the sign that scores them."""
+        return {"packs": packs or []}
 
     @app.get("/api/reference/{clip_id}")
     def reference(clip_id: str) -> FileResponse:

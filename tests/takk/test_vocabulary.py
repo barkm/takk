@@ -4,7 +4,7 @@ import polars as pl
 import pytest
 
 from isolated_sign_validation.datasets.sts_lexikon import ENTRIES_FILE
-from takk.vocabulary import HISTORICAL, sign_categories, starter_packs, word_index
+from takk.vocabulary import HISTORICAL, packs, sign_categories, starter_packs, word_index
 
 
 def entries(tmp_path, *rows: dict):
@@ -107,3 +107,20 @@ def test_an_entry_in_several_categories_is_in_each_of_them(tmp_path):
         "Djur > fisk": ["sts:abborre-01811"],
         "Mat och dryck > fisk": ["sts:abborre-01811"],
     }
+
+
+def test_a_starter_pack_and_a_category_are_the_same_kind_of_thing(tmp_path):
+    raw_dir = entries(
+        tmp_path,
+        {"id": "01267", "word": "äta"},
+        {"id": "01811", "word": "abborre", "categories": category("Djur > fisk", HISTORICAL)},
+    )
+    path = tmp_path / "packs.json"
+    path.write_text(json.dumps({"Första tecknen": ["äta"]}, ensure_ascii=False))
+
+    assert packs(CLIPS, raw_dir, path) == [
+        # the word to show travels only when the sign is not named for it, as here ("äta" is signed
+        # as sts:livsmedel-01265); a category's words are its signs, and Österberg's is not offered
+        {"name": "Första tecknen", "kind": "pack", "words": [{"sign": "sts:livsmedel-01265", "word": "äta"}]},
+        {"name": "Djur", "kind": "category", "words": [{"sign": "sts:abborre-01811"}]},
+    ]
