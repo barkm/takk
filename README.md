@@ -429,8 +429,15 @@ listed at https://teckensprakslexikon.su.se/kategori). Every entry page names th
 as a path ("Sport > klubbar och föreningar > NHL"), and the crawl stores them in the `categories`
 field of each entry, together with the entry's other wording (`also`: the sign for "arbetsvetenskap"
 is also "ergonomi"), its English translation and its hit counts in the lexicon, the corpus and the
-surveys. `takk/vocabulary.py` maps a category's lexicon ids to the glossary's signs. Nothing is
+surveys. `takk/vocabulary.py` turns a category into words to practise. Nothing is
 generated: re-running the crawler picks up whatever the lexicon has changed.
+
+A category's word is the heading of an entry in that category, not the name of the sign that scores
+it: signs of one form are one class labelled by its lowest entry, and that entry often belongs to
+another subject, so "Djur" would otherwise start at "hane" and "batteri". The words come in the order
+the lexicon counts them (`lexicon_hits`, then `corpus_hits`), so a category starts where a learner
+starts: Sport with träna, fotboll, ishockey rather than 2,238 signs in entry order. Only 27% of
+entries are counted at all, so the tail of a large category keeps the lexicon's own order.
 
 A category is a subject area of a dictionary and not a learning order (Sport is the largest), so the
 first lessons come from a starter pack instead: a short list of everyday Swedish words in

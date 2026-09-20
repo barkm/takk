@@ -20,6 +20,7 @@ the same thing: a named list of words to turn on or off (`packs`).
 
 import json
 import re
+from collections.abc import Iterable
 from pathlib import Path
 
 import polars as pl
@@ -83,45 +84,62 @@ def starter_packs(clips: pl.DataFrame, raw_dir: Path = RAW_DIR, path: Path = PAC
 def packs(clips: pl.DataFrame, raw_dir: Path = RAW_DIR, path: Path = PACKS) -> list[dict]:
     """Everything a learner can choose to practise, as one kind of thing: a named list of words, each
     with the sign that scores it (user, 2026-09-20: a pack is either a starter pack or a category,
-    and it does not matter which). The starter packs come first, then the lexicon's categories by name;
-    a category's word is the word its sign is named for, and the historical dictionary is left out.
+    and it does not matter which). The starter packs come first, in the order they are written, then the
+    lexicon's categories by name, each ordered by `category_words`; Österberg's dictionary is left out.
     """
     starters = [
         {"name": name, "kind": "pack", "words": [_word(entry["sign"], entry["word"]) for entry in words]}
         for name, words in starter_packs(clips, raw_dir, path).items()
     ]
     categories = [
-        {"name": name, "kind": "category", "words": [_word(sign) for sign in signs]}
-        for name, signs in sorted(sign_categories(clips, raw_dir).items())
+        {"name": name, "kind": "category", "words": words}
+        for name, words in sorted(category_words(clips, raw_dir).items())
         if name != HISTORICAL
     ]
     return starters + categories
+
+
+def category_words(clips: pl.DataFrame, raw_dir: Path = RAW_DIR, deep: bool = False) -> dict[str, list[dict]]:
+    """The words of each category, the ones the lexicon counts most often first.
+
+    A word is the heading of an entry in the category, not the name of the sign that scores it: signs
+    of one form are one class labelled by its lowest entry, and that entry often belongs to another
+    subject entirely, so "Djur" would otherwise start at "hane" and "batteri". Two words of one form
+    in one category are one word, the more often counted of the two, and so are two forms written the
+    same way ("fotboll" is signed in two ways): a flash card shows the word alone, so a word that
+    could be answered with either form would be scored against whichever of them was drawn.
+
+    The order is the entry's `lexicon_hits`, then its `corpus_hits`, then its id, so it is the same on
+    every start. Only 27% of entries are counted at all, so the tail of a large category keeps the
+    lexicon's own order; the head is what a session draws from, and there the counts are what a
+    learner meets first ("Sport" with träna, fotboll, ishockey).
+    """
+    sign_of = dict(zip(clips["clip_id"], clips["sign"]))
+    entries = pl.read_ndjson(raw_dir / ENTRIES_FILE).filter(pl.col("categories").list.len() > 0)
+    categories: dict[str, dict[str, tuple]] = {}  # category -> sign -> (hits, corpus hits, word, id, sign)
+    for row in entries.select("id", "word", "categories", "lexicon_hits", "corpus_hits").iter_rows(named=True):
+        sign = sign_of.get(row["id"])
+        if sign is None:  # an entry without a clip in this glossary
+            continue
+        word = (row["word"] or spoken_word(sign)).split(",")[0].strip()
+        counted = (row["lexicon_hits"] or 0, row["corpus_hits"] or 0, word, row["id"])
+        for category in row["categories"]:
+            name = category["path"] if deep else category["path"].split(">")[0].strip()
+            signs = categories.setdefault(name, {})
+            signs[sign] = max(signs.get(sign, (*counted, sign)), (*counted, sign))
+    return {name: _best(signs.values()) for name, signs in categories.items()}
+
+
+def _best(counted: Iterable[tuple]) -> list[dict]:
+    """The words of one category, the most counted first, each word once: of two forms written the
+    same way only the more often counted is kept."""
+    words: dict[str, tuple] = {}
+    for hit in counted:
+        words[hit[2]] = max(words.get(hit[2], hit), hit)
+    return [_word(sign, word) for *_, word, _, sign in sorted(words.values(), key=lambda hit: (-hit[0], -hit[1], hit[3]))]  # fmt: skip
 
 
 def _word(sign: str, word: str | None = None) -> dict:
     """A pack's word: the sign that scores it, and the word to show only when it is not the sign's own
     name. Thousands of category words travel to the browser, so what it can derive is not sent."""
     return {"sign": sign} if word is None or word == spoken_word(sign) else {"sign": sign, "word": word}
-
-
-def sign_categories(clips: pl.DataFrame, raw_dir: Path = RAW_DIR, deep: bool = False) -> dict[str, list[str]]:
-    """The signs of each category, by its Swedish name. `clips` are the glossary's prepared clips.
-
-    A category is the first level of the path the lexicon publishes ("Djur"), or the whole path
-    ("Djur > fisk") with `deep`, which gives smaller and narrower sets. A category's entries are
-    lexicon ids, which are the clip ids of the glossary; entries of one sign form give one sign,
-    kept once, in the lexicon's own order.
-    """
-    sign_of = dict(zip(clips["clip_id"], clips["sign"]))
-    entries = pl.read_ndjson(raw_dir / ENTRIES_FILE).filter(pl.col("categories").list.len() > 0)
-    categories: dict[str, list[str]] = {}
-    for row in entries.select("id", "categories").iter_rows(named=True):
-        sign = sign_of.get(row["id"])
-        if sign is None:  # an entry without a clip in this glossary
-            continue
-        for category in row["categories"]:
-            name = category["path"] if deep else category["path"].split(">")[0].strip()
-            signs = categories.setdefault(name, [])
-            if sign not in signs:
-                signs.append(sign)
-    return categories
