@@ -33,6 +33,7 @@ from takk.practice import create_app, sign_means
 from takk.speech import MODEL as SPEECH_MODEL
 from takk.speech import load_aligner
 from takk.vocabulary import packs as practice_packs
+from takk.vocabulary import sign_forms
 
 RUNS_DIR = Path("outputs/runs")
 
@@ -69,7 +70,7 @@ def main() -> None:
         print(f"loading the Swedish speech model {SPEECH_MODEL} that times a spoken sentence's words (about 1.2 GB, downloaded once)")
         aligner = load_aligner(args.device)
     packs = practice_packs(table)
-    app = create_app(references, means, video_paths(table), model, PrepConfig(), args.threshold, args.device, aligner, packs)
+    app = create_app(references, means, video_paths(table), model, PrepConfig(), args.threshold, args.device, aligner, packs, sign_forms())
     uvicorn.run(app, host=args.host, port=args.port)
 
 

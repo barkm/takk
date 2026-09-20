@@ -20,8 +20,8 @@ the same thing: a named list of words to turn on or off (`packs`).
 
 import json
 import re
-from collections.abc import Iterable
 from pathlib import Path
+from typing import NamedTuple
 
 import polars as pl
 
@@ -88,7 +88,7 @@ def packs(clips: pl.DataFrame, raw_dir: Path = RAW_DIR, path: Path = PACKS) -> l
     lexicon's categories by name, each ordered by `category_words`; Österberg's dictionary is left out.
     """
     starters = [
-        {"name": name, "kind": "pack", "words": [_word(entry["sign"], entry["word"]) for entry in words]}
+        {"name": name, "kind": "pack", "words": [_word(entry["sign"], entry["id"], entry["word"]) for entry in words]}
         for name, words in starter_packs(clips, raw_dir, path).items()
     ]
     categories = [
@@ -109,37 +109,65 @@ def category_words(clips: pl.DataFrame, raw_dir: Path = RAW_DIR, deep: bool = Fa
     same way ("fotboll" is signed in two ways): a flash card shows the word alone, so a word that
     could be answered with either form would be scored against whichever of them was drawn.
 
-    The order is the entry's `lexicon_hits`, then its `corpus_hits`, then its id, so it is the same on
-    every start. Only 27% of entries are counted at all, so the tail of a large category keeps the
+    The order is the entry's `lexicon_hits`, then its `corpus_hits`, then the older entry, so it is
+    the same on every start. Only 27% of entries are counted at all, so the tail of a large category keeps the
     lexicon's own order; the head is what a session draws from, and there the counts are what a
     learner meets first ("Sport" with träna, fotboll, ishockey).
     """
     sign_of = dict(zip(clips["clip_id"], clips["sign"]))
     entries = pl.read_ndjson(raw_dir / ENTRIES_FILE).filter(pl.col("categories").list.len() > 0)
-    categories: dict[str, dict[str, tuple]] = {}  # category -> sign -> (hits, corpus hits, word, id, sign)
+    categories: dict[str, list[Entry]] = {}
     for row in entries.select("id", "word", "categories", "lexicon_hits", "corpus_hits").iter_rows(named=True):
         sign = sign_of.get(row["id"])
         if sign is None:  # an entry without a clip in this glossary
             continue
         word = (row["word"] or spoken_word(sign)).split(",")[0].strip()
-        counted = (row["lexicon_hits"] or 0, row["corpus_hits"] or 0, word, row["id"])
+        found = Entry(row["lexicon_hits"] or 0, row["corpus_hits"] or 0, word, row["id"], sign)
         for category in row["categories"]:
             name = category["path"] if deep else category["path"].split(">")[0].strip()
-            signs = categories.setdefault(name, {})
-            signs[sign] = max(signs.get(sign, (*counted, sign)), (*counted, sign))
-    return {name: _best(signs.values()) for name, signs in categories.items()}
+            categories.setdefault(name, []).append(found)
+    return {name: _best(found) for name, found in categories.items()}
 
 
-def _best(counted: Iterable[tuple]) -> list[dict]:
-    """The words of one category, the most counted first, each word once: of two forms written the
-    same way only the more often counted is kept."""
-    words: dict[str, tuple] = {}
-    for hit in counted:
-        words[hit[2]] = max(words.get(hit[2], hit), hit)
-    return [_word(sign, word) for *_, word, _, sign in sorted(words.values(), key=lambda hit: (-hit[0], -hit[1], hit[3]))]  # fmt: skip
+class Entry(NamedTuple):
+    """One entry of a category: how often the lexicon and the corpus count it, the word it is a
+    heading for, its own id, and the sign class that scores it."""
+
+    hits: int
+    corpus: int
+    word: str
+    id: str
+    sign: str
 
 
-def _word(sign: str, word: str | None = None) -> dict:
-    """A pack's word: the sign that scores it, and the word to show only when it is not the sign's own
-    name. Thousands of category words travel to the browser, so what it can derive is not sent."""
-    return {"sign": sign} if word is None or word == spoken_word(sign) else {"sign": sign, "word": word}
+def _best(found: list[Entry]) -> list[dict]:
+    """The words of one category, the most counted first, each sign once and each word once: of two
+    entries of one form, or two forms written the same way, the more often counted is kept, and the
+    lexicon's older entry breaks a tie."""
+    def order(entry: Entry) -> tuple:
+        return -entry.hits, -entry.corpus, entry.id
+
+    for key in (lambda entry: entry.sign, lambda entry: entry.word):
+        best: dict[str, Entry] = {}
+        for entry in sorted(found, key=order):
+            best.setdefault(key(entry), entry)
+        found = list(best.values())
+    return [_word(entry.sign, entry.id, entry.word) for entry in sorted(found, key=order)]
+
+
+def _word(sign: str, entry_id: str, word: str | None = None) -> dict:
+    """A pack's word: the entry it is, the sign that scores it, and the word to show only when it is
+    not the sign's own name. Thousands of category words travel to the browser, so what it can derive
+    is not sent. The entry is the word's own, not the class label: "grön" is entry 00419 of the class
+    `sts:land-00416`, and it is that entry's description of the form a learner is shown."""
+    named = {"sign": sign, "id": entry_id}
+    return named if word is None or word == spoken_word(sign) else {**named, "word": word}
+
+
+def sign_forms(raw_dir: Path = RAW_DIR) -> dict[str, str]:
+    """The lexicon's own description of each entry's sign form, in Swedish. It is the only teaching
+    text the lexicon publishes ("Flata handen, framåtriktad och uppåtvänd, förs åt vänster ...") and
+    it is on all but 30 of the entries with a video, so the app shows it next to the clip.
+    """
+    entries = pl.read_ndjson(raw_dir / ENTRIES_FILE).select("id", "form")
+    return {row["id"]: row["form"] for row in entries.iter_rows(named=True) if row["form"]}

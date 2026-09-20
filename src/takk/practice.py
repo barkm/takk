@@ -109,6 +109,7 @@ def create_app(
     device: str,
     aligner: Aligner | None = None,
     packs: list[dict] | None = None,
+    forms: dict[str, str] | None = None,
 ) -> FastAPI:
     """The practice app: the page, the glossary's signs with their clips (`references`, sign ->
     clip ids, in the order of the rows of `means`, see sign_means), the clips' videos (by clip id, see
@@ -132,6 +133,13 @@ def create_app(
         """The packs a learner can pick their daily practice from (`vocabulary.packs`): starter packs
         and the lexicon's categories alike, each a list of words with the sign that scores them."""
         return {"packs": packs or []}
+
+    @app.get("/api/form/{entry_id}")
+    def form(entry_id: str) -> dict:
+        """How the lexicon describes the form of an entry's sign, in Swedish ("Flata handen,
+        vänsterriktad och inåtvänd, kontakt med bröstet, ..."). It is what a learner is taught by
+        besides the clip, so it is fetched per sign rather than sent with the whole glossary."""
+        return {"form": (forms or {}).get(entry_id, "")}
 
     @app.get("/api/reference/{clip_id}")
     def reference(clip_id: str) -> FileResponse:
