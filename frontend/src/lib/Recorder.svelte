@@ -64,7 +64,7 @@
         taken.frames,
         taken.audio,
         taken.audioStart,
-        sentence.map((sign) => sign.sign),
+        sentence,
         handedness,
         video,
         lexicon.fps,

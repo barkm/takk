@@ -75,7 +75,11 @@
     begin();
   }
 
-  /** Whether a word is being met for the first time, which is the one turn that is not spoken. */
+  /** The word on a card, which is not the name of the sign that scores it when several words share
+   * one sign form: "blå" is scored by `sts:öga-02636`, the lowest entry of that form. */
+  const label = (each: PackWord) => each.word ?? word(each.sign);
+
+  /** Whether a word is being met for the first time, which is when its clip is shown. */
   const unmet = (each: PackWord) => !progress[each.sign] && !taught.includes(each.sign);
 
   // Start a turn on the front of the queue. A word met for the first time is taught by its clip and
@@ -89,10 +93,13 @@
     taken = words.slice(0, 1);
     if (!words.length || unmet(words[0])) return;
     writing = true;
-    const written = await fetchSentence(words.map((each) => each.sign)).finally(() => (writing = false));
+    // The words are the ones on the cards, not the names of the signs that score them: "blå" is
+    // scored by sts:öga-02636, and a sentence about an eye is neither what is being practised nor
+    // what the learner would say. The order comes back as the order they occur in the sentence.
+    const written = await fetchSentence(words.map(label)).finally(() => (writing = false));
     if (!written.sentence) return;
-    const order = new Map(words.map((each) => [each.sign, each]));
-    (said = written.sentence), (taken = written.signs.map((sign) => order.get(sign)!));
+    const byWord = new Map(words.map((each) => [label(each), each]));
+    (said = written.sentence), (taken = written.words.map((each) => byWord.get(each)!));
   }
 
   function setSetting(name: "size" | "accepts", value: number) {
@@ -119,7 +126,6 @@
 
   // Whether another pass would have anything in it, which is what makes the summary offer one.
   const waiting = $derived(session(chosenWords(packs, chosen), progress, 1, Date.now() + ahead * 24 * 60 * 60 * 1000).length > 0);  // prettier-ignore
-  const label = (each: PackWord) => each.word ?? word(each.sign);
   const shown = $derived(current ? label(current) : "");
   const labels = $derived(Object.fromEntries(taken.map((each) => [each.sign, label(each)])));
   const finished = $derived(Object.values(accepts).filter((count) => count >= needed).length);
@@ -131,7 +137,7 @@
   const showClip = $derived(alone && (teaching || peeked || !!attempt));
   const clipsOf = (sign: string) => lexicon?.signs.find((each) => each.sign === sign)?.references ?? [];
   const references = $derived(current ? clipsOf(current.sign) : []);
-  const sentence: Sign[] = $derived(taken.map((each) => ({ sign: each.sign, references: clipsOf(each.sign) })));
+  const sentence: Sign[] = $derived(taken.map((each) => ({ sign: each.sign, references: clipsOf(each.sign), spoken: label(each) })));  // prettier-ignore
 
   function scored(scoredAttempt: Attempt | null, told: string) {
     (attempt = scoredAttempt), (note = told);

@@ -123,18 +123,20 @@ def create_app(
         return {"packs": packs or []}
 
     @app.post("/api/sentence")
-    def sentence(signs: list[str] = Body(embed=True)) -> dict:
-        """A Swedish sentence whose key words are `signs`, to be spoken while they are signed, with
-        the signs in the order they occur in it. The sentence is empty when there is no writer or it
-        could not write one, and the caller then practises the signs one at a time."""
-        if any(s not in index for s in signs):
-            raise HTTPException(404, "unknown sign")
-        written = write_sentence(writer, [spoken_word(s) for s in signs]) if writer else None
+    def sentence(words: list[str] = Body(embed=True)) -> dict:
+        """A Swedish sentence whose key words are `words`, to be spoken while they are signed, with
+        the words in the order they occur in it. The sentence is empty when there is no writer or it
+        could not write one, and the caller then practises the words one at a time.
+
+        The words are the caller's, not the names of the signs that score them: a learner practising
+        "blå" is scored by `sts:öga-02636`, because blå and öga are one sign form and the lower entry
+        names the class, and a sentence about an eye is neither what they are learning nor what they
+        would say. The word travels on to `/api/attempt` as the word to hear."""
+        written = write_sentence(writer, words) if writer else None
         if written is None:
-            return {"sentence": "", "signs": []}
+            return {"sentence": "", "words": []}
         text, order = written
-        by_word = {spoken_word(s): s for s in signs}
-        return {"sentence": text, "signs": [by_word[word] for word in order]}
+        return {"sentence": text, "words": order}
 
     @app.get("/api/form/{entry_id}")
     def form(entry_id: str) -> dict:
@@ -167,7 +169,7 @@ def create_app(
         }  # fmt: skip
 
     @app.post("/api/attempt")
-    async def attempt(landmarks: UploadFile, sign: list[str] = Form(), handedness: str = Form(), width: int = Form(), height: int = Form(), audio: UploadFile | None = None, audio_offset: float = Form(0.0)) -> dict:  # fmt: skip
+    async def attempt(landmarks: UploadFile, sign: list[str] = Form(), handedness: str = Form(), width: int = Form(), height: int = Form(), spoken: list[str] = Form([]), audio: UploadFile | None = None, audio_offset: float = Form(0.0)) -> dict:  # fmt: skip
         """Score an attempt of one sign or a sentence of several (`sign` repeated, in order): its
         landmarks as float32 (n_frames, N_LANDMARKS, 3), NaN where not detected, at the preparation's
         frame rate, from frames of `width` x `height` pixels.
@@ -175,16 +177,22 @@ def create_app(
         Every attempt is spoken, which is how TAKK is used, so `audio` is required (recorded
         `audio_offset` seconds before the first frame): the signs are located by their words timed in
         it, and scored only when every word was heard. For a single sign that leaves the whole
-        recording, so the alignment's only job there is to say the word was said at all."""
+        recording, so the alignment's only job there is to say the word was said at all.
+
+        `spoken` is the word said for each sign, when that is not the sign's own name: a learner
+        practising "blå" signs `sts:öga-02636`, since blå and öga are one sign form, and says "blå".
+        Without it each sign is listened for under its own name."""
         if any(s not in index for s in sign):
             raise HTTPException(404, "unknown sign")
         values = np.frombuffer(await landmarks.read(), dtype=np.float32)
         if handedness not in ("left", "right") or width <= 0 or height <= 0 or values.size % (N_LANDMARKS * 3):
             raise HTTPException(400, "malformed attempt")
         values = values.reshape(-1, N_LANDMARKS, 3)
+        if spoken and len(spoken) != len(sign):
+            raise HTTPException(400, "a spoken word per sign, or none at all")
         if audio is None:
             return {"threshold": threshold, "note": NOTES["no_audio"], "signs": []}
-        words = [spoken_word(s) for s in sign]
+        words = list(spoken) or [spoken_word(s) for s in sign]
         spans = aligner(decode_audio(await audio.read()), words)
         if spans is None:
             return {"threshold": threshold, "note": NOTES["not_said"], "signs": []}

@@ -73,7 +73,7 @@ def test_attempt_scores_against_the_chosen_sign():
     def send(landmarks: np.ndarray, *signs: str) -> dict:
         upload = UploadFile(io.BytesIO(landmarks.astype(np.float32).tobytes()))
         audio = UploadFile(io.BytesIO(wav(np.zeros(2 * SAMPLE_RATE, dtype=np.float32))))
-        return asyncio.run(attempt(upload, sign=list(signs), handedness="right", width=640, height=480, audio=audio, audio_offset=0.0))  # fmt: skip
+        return asyncio.run(attempt(upload, sign=list(signs), spoken=[], handedness="right", width=640, height=480, audio=audio, audio_offset=0.0))  # fmt: skip
 
     landmarks = attempt_landmarks(("right_hand",))
     closest = {"sign": "A", "score": pytest.approx(1.0)}
@@ -88,24 +88,38 @@ def test_attempt_scores_against_the_chosen_sign():
         send(landmarks[:, :-1], "A")  # not a whole number of frames
 
 
-def test_sentence_names_the_signs_in_the_order_they_are_spoken():
-    """The words go out as the lexicon spells them and come back as signs, reordered to the sentence:
-    the signing order is the spoken order, which is what the attempt is then split by."""
-    signs = {"sts:mjölk-1": ["m1"], "sts:mer-2": ["m2"]}
+def test_sentence_returns_the_words_in_the_order_they_are_spoken():
+    """The words are the caller's own and come back reordered to the sentence: the signing order is
+    the spoken order, which is what the attempt is then split by."""
     writer = SimpleNamespace(messages=SimpleNamespace(parse=lambda **kwargs: SimpleNamespace(parsed_output=Written(sentence="Jag vill ha mer mjölk"))))  # fmt: skip
-    app = create_app(signs, np.eye(2), {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [], writer=writer)  # fmt: skip
+    app = create_app({"A": ["a1"]}, np.array([[1.0, 0.0]]), {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [], writer=writer)  # fmt: skip
     sentence = next(route for route in app.routes if getattr(route, "path", "") == "/api/sentence").endpoint
 
-    assert sentence(signs=["sts:mjölk-1", "sts:mer-2"]) == {"sentence": "Jag vill ha mer mjölk", "signs": ["sts:mer-2", "sts:mjölk-1"]}  # fmt: skip
-    with pytest.raises(HTTPException):
-        sentence(signs=["sts:okänd-3"])
+    assert sentence(words=["mjölk", "mer"]) == {"sentence": "Jag vill ha mer mjölk", "words": ["mer", "mjölk"]}
 
 
 def test_sentence_is_empty_without_a_writer():
-    """Then the session practises the signs one at a time, which needs no model at all."""
+    """Then the session practises the words one at a time, which needs no model at all."""
     app = create_app({"A": ["a1"]}, np.array([[1.0, 0.0]]), {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [])  # fmt: skip
     sentence = next(route for route in app.routes if getattr(route, "path", "") == "/api/sentence").endpoint
-    assert sentence(signs=["A"]) == {"sentence": "", "signs": []}
+    assert sentence(words=["mjölk"]) == {"sentence": "", "words": []}
+
+
+def test_attempt_listens_for_the_word_the_learner_practises_not_the_sign_name():
+    """A learner practising "blå" signs sts:öga-02636, because blå and öga are one sign form and the
+    lower entry names the class. Aligning the class name would listen for "öga" while they say "blå"."""
+    heard: list[list[str]] = []
+    app = create_app({"sts:öga-2636": ["a1"]}, np.array([[0.6, 0.8]]), {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: (heard.append(words), [(0.5, 0.7, -0.4)])[1])  # fmt: skip
+    attempt = next(route for route in app.routes if getattr(route, "path", "") == "/api/attempt").endpoint
+    upload = lambda: UploadFile(io.BytesIO(attempt_landmarks(("right_hand",)).astype(np.float32).tobytes()))  # noqa: E731
+    audio = lambda: UploadFile(io.BytesIO(wav(np.zeros(2 * SAMPLE_RATE, dtype=np.float32))))  # noqa: E731
+
+    asyncio.run(attempt(upload(), sign=["sts:öga-2636"], spoken=["blå"], handedness="right", width=640, height=480, audio=audio()))  # fmt: skip
+    asyncio.run(attempt(upload(), sign=["sts:öga-2636"], spoken=[], handedness="right", width=640, height=480, audio=audio()))
+    assert heard == [["blå"], ["öga"]]  # without a spoken word the sign is listened for under its own name
+
+    with pytest.raises(HTTPException):  # a word per sign or none at all, never some of them
+        asyncio.run(attempt(upload(), sign=["sts:öga-2636", "sts:öga-2636"], spoken=["blå"], handedness="right", width=640, height=480, audio=audio()))  # fmt: skip
 
 
 def test_spoken_word_is_the_sign_name_without_its_entry():
@@ -123,7 +137,7 @@ def test_attempt_splits_a_spoken_sentence_by_its_words():
     landmarks = np.concatenate([attempt_landmarks(("right_hand",))] * 2)  # 4 s, a sign in each half
     upload = UploadFile(io.BytesIO(landmarks.astype(np.float32).tobytes()))
     audio = UploadFile(io.BytesIO(wav(np.zeros(4 * SAMPLE_RATE, dtype=np.float32))))
-    result = asyncio.run(attempt(upload, sign=["A", "B"], handedness="right", width=640, height=480, audio=audio, audio_offset=0.1))  # fmt: skip
+    result = asyncio.run(attempt(upload, sign=["A", "B"], spoken=[], handedness="right", width=640, height=480, audio=audio, audio_offset=0.1))  # fmt: skip
     assert [s["sign"] for s in result["signs"]] == ["A", "B"] and [s["correct"] for s in result["signs"]] == [True, False]
 
 
@@ -137,7 +151,7 @@ def test_attempt_refuses_a_sentence_whose_words_were_not_spoken():
     landmarks = np.concatenate([attempt_landmarks(("right_hand",))] * 2)
     upload = UploadFile(io.BytesIO(landmarks.astype(np.float32).tobytes()))
     audio = UploadFile(io.BytesIO(wav(np.zeros(4 * SAMPLE_RATE, dtype=np.float32))))
-    result = asyncio.run(attempt(upload, sign=["A", "B"], handedness="right", width=640, height=480, audio=audio, audio_offset=0.0))  # fmt: skip
+    result = asyncio.run(attempt(upload, sign=["A", "B"], spoken=[], handedness="right", width=640, height=480, audio=audio, audio_offset=0.0))  # fmt: skip
     assert result["signs"] == [] and result["note"] == NOTES["not_heard"].format(words="A och B")
 
 
@@ -150,8 +164,8 @@ def test_attempt_needs_the_microphone_however_few_signs_it_has():
     landmarks = np.concatenate([attempt_landmarks(("right_hand",))] * 2)
     upload = lambda: UploadFile(io.BytesIO(landmarks.astype(np.float32).tobytes()))  # noqa: E731
 
-    sentence = asyncio.run(attempt(upload(), sign=["A", "A"], handedness="right", width=640, height=480))
+    sentence = asyncio.run(attempt(upload(), sign=["A", "A"], spoken=[], handedness="right", width=640, height=480))
     assert sentence["signs"] == [] and sentence["note"] == NOTES["no_audio"]
 
-    alone = asyncio.run(attempt(upload(), sign=["A"], handedness="right", width=640, height=480))
+    alone = asyncio.run(attempt(upload(), sign=["A"], spoken=[], handedness="right", width=640, height=480))
     assert alone["signs"] == [] and alone["note"] == NOTES["no_audio"]

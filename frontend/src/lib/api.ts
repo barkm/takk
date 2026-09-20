@@ -6,7 +6,10 @@ const BASE = import.meta.env.VITE_API_BASE ?? "";
 
 export const api = (path: string) => `${BASE}${path}`;
 
-export type Sign = { sign: string; references: string[] };
+/** A sign of an attempt: the sign that scores it, its lexicon clips, and the word the signer says
+ * for it when that is not the sign's own name (a learner practising "blå" signs `sts:öga-02636`,
+ * because blå and öga are one sign form and the lower entry names the class). */
+export type Sign = { sign: string; references: string[]; spoken?: string };
 
 export type Lexicon = {
   signs: Sign[];
@@ -53,16 +56,17 @@ export async function fetchPacks(): Promise<Pack[]> {
   return (await response.json()).packs;
 }
 
-/** A Swedish sentence whose key words are `signs`, to be spoken while they are signed, with the signs
+/** A Swedish sentence whose key words are `words`, to be spoken while they are signed, with the words
  * in the order they occur in it. The sentence is empty when the server could not write one, and the
- * caller then practises the signs one at a time. */
-export async function fetchSentence(signs: string[]): Promise<{ sentence: string; signs: string[] }> {
+ * caller then practises the words one at a time. The words are the ones the learner is practising,
+ * not the names of the signs that score them (see `Sign.spoken`). */
+export async function fetchSentence(words: string[]): Promise<{ sentence: string; words: string[] }> {
   const response = await fetch(api("/api/sentence"), {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ signs }),
+    body: JSON.stringify({ words }),
   });
-  if (!response.ok) return { sentence: "", signs: [] };
+  if (!response.ok) return { sentence: "", words: [] };
   return await response.json();
 }
 
@@ -80,7 +84,7 @@ export async function scoreAttempt(
   frames: Frame[],
   audio: Blob | null,
   audioStart: number,
-  signs: string[],
+  signs: Sign[],
   handedness: "left" | "right",
   video: HTMLVideoElement,
   fps: number,
@@ -92,7 +96,9 @@ export async function scoreAttempt(
     body.append("audio", audio, "audio");
     body.append("audio_offset", String(frames[0].time - audioStart));
   }
-  for (const sign of signs) body.append("sign", sign);
+  for (const each of signs) body.append("sign", each.sign);
+  // a word per sign, or none at all: the server then listens for each sign under its own name
+  if (signs.some((each) => each.spoken)) for (const each of signs) body.append("spoken", each.spoken ?? word(each.sign));
   body.append("handedness", handedness);
   body.append("width", String(video.videoWidth));
   body.append("height", String(video.videoHeight));
