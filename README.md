@@ -376,14 +376,6 @@ sentence around the key words can be any Swedish. Without a microphone the recor
 rests instead, and the hands have to be lowered between the signs. Either way, when the number of
 signs found differs from the sentence's, the page says so and nothing is scored.
 
-"Judge each sign as I sign it" verifies the sentence while it is signed instead of once it is
-finished. Every half second the page asks the server whether the sign being signed is over
-(`/api/next`), and the verdict appears as soon as it is, so the page stays about one sign behind the
-signer. A sign is over when the hands rest, or when the next sign's word is spoken, whichever comes
-first. The second is what makes continuous signing work, and it is also why the verdict arrives a
-word late: nothing can say where a sign ends until something after it starts. Expect roughly a
-second when the signer pauses between signs and two to three when they do not.
-
 The page shows the rate the landmarks are tracked at. Below 20 fps it skips so many camera frames
 that the answer is less reliable, since the model was trained on every frame. The lexicon's
 embeddings are cached in `outputs/runs/<run>/`, so only the first start takes about a minute. As with
