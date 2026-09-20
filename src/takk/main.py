@@ -1,4 +1,4 @@
-"""Web app for practicing signs: pick a sign, sign it to the webcam, and learn whether it was that sign.
+"""The API of the practice app: it scores an attempt at a sign, and serves the lexicon and its clips.
 
 The landmarks are extracted in the browser and only they are sent (see practice.py). An attempt
 counts as the sign when its mean cosine similarity to the sign's glossary clips reaches --threshold.
@@ -6,9 +6,12 @@ The default, 0.38, is the equal-error point of the Swedish recordings against th
 the default run (see the decisions in ROADMAP.md): about 2% of correct attempts are rejected and 2%
 of random wrong signs accepted; similar signs get through more often.
 
-Run from the repo root, then open http://localhost:8002 (the browser only gives access to the
-camera on localhost or over https, so forward the port when the machine is remote):
-    uv run takk
+The page is a separate site (`frontend/`, see README) that reaches this server through a proxy in
+development, so this is one of two processes:
+    uv run takk                      # this, on port 8002
+    cd frontend && npm run dev       # the page, on port 5173, which is the port to open and forward
+The browser only gives access to the camera on localhost or over https, so forward 5173 when the
+machine is remote.
 Embedding the glossary takes about a minute on the CPU. The embeddings are cached next to the run
 (outputs/runs/<run>/embeddings_<glossary>.npy) and computed again only when the run's model or the
 glossary is newer than the cache.

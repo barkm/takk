@@ -386,10 +386,11 @@ on the recordings.
 
 ### The frontend
 
-The page is being rewritten as a SvelteKit app in `frontend/` (TypeScript, Vite, `adapter-static`),
-which replaces `src/takk/web/practice.html` as it is ported. It is a separate deployment from the API
-and is never served by it (see the decisions in ROADMAP-takk.md): Vite proxies `/api` to the server in
-development and in `preview`, and a deployed build is pointed at the API with `VITE_API_BASE`.
+The page is a SvelteKit app in `frontend/` (TypeScript, Vite, `adapter-static`). It is a separate
+deployment from the API and is never served by it (see the decisions in ROADMAP-takk.md): Vite proxies
+`/api` to the server in development and in `preview`, and a deployed build is pointed at the API with
+`VITE_API_BASE`. `src/lib/landmarks.ts` and `tracking.ts` hold the camera, the landmarker loop and the
+common landmark layout; the components only show them.
 
 ```sh
 uv run takk                      # the API, in one terminal
@@ -397,6 +398,7 @@ cd frontend && npm install       # once
 npm run dev                      # then open http://localhost:5173 (forward this port, not 8002)
 npm run build && npm run preview  # the built site, http://localhost:4173
 npm run check                    # svelte-check
+npm test                         # the landmark layout and the resampling
 ```
 
 ## Future

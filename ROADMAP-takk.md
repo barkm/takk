@@ -12,7 +12,9 @@ The app (user, 2026-09-19): practising TAKK (tecken som alternativ och komplette
 
 3. **Splitting a spoken sentence by its words** instead of by the rests (user decision, 2026-09-19: TAKK is spoken while signed, so take advantage of it). The browser records the microphone alongside the landmarks, and `takk/speech.py` times the sentence's key words in the audio by forced alignment (`torchaudio.functional.forced_align` over `KBLab/wav2vec2-large-voxrex-swedish`), cutting halfway from one word's end to the next word's start. The words are known, so nothing is recognized; a wildcard token between and around them absorbs the rest of the spoken sentence, so only the key words have to be said as written and the signer speaks naturally. Without a microphone or without `--no-speech`'s model the rests still split the recording, and the page says which of the two found the signs. — done: the user confirmed it works in their own browser, speaking Swedish sentences to it (2026-09-19); the split's own tests use synthetic emissions (see findings)
 
-4. Next: whatever the app needs. Its numbers rest on the self-recorded Swedish clips of step 10 of ROADMAP.md, so they grow with that set: more signs and signers before any result from the app means much.
+4. **The page rewritten as a SvelteKit app** (`frontend/`, see the decisions): the same single screen, ported component by component, with the camera, the landmarker loop, the common landmark layout and the API calls in typed modules (`src/lib/tracking.ts`, `landmarks.ts`, `api.ts`) that the components only render. `src/takk/web/practice.html` and the server's `GET /` are gone; `takk` is the API alone. — done, checked with `npm run check`, `npm test` and `npm run build`; the user still has to try it in a real browser, since the camera and the frame rate cannot be judged here. Open: CORS on the API (`allow_origin`), needed the first time the page is served from another origin than the API.
+
+5. Next: whatever the app needs. Its numbers rest on the self-recorded Swedish clips of step 10 of ROADMAP.md, so they grow with that set: more signs and signers before any result from the app means much.
 
 ## Decisions
 

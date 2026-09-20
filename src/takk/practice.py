@@ -1,8 +1,9 @@
 """Practicing signs: pick a sign of a glossary, sign it in front of the webcam, and learn whether it was that sign.
 
-A small web app (`main.py`, `web/practice.html`). The browser extracts the landmarks
-itself, with the same HolisticLandmarker setup as `extraction.py` (see the browser extraction
-findings in ROADMAP.md), and sends only those: the video never leaves the user's device. The backend
+This is the app's API only (`main.py`); the page is a separate site, built from `frontend/` and never
+served from here (see the decisions in ROADMAP-takk.md). The browser extracts the landmarks itself,
+with the same HolisticLandmarker setup as `extraction.py` (see the browser extraction findings in
+ROADMAP.md), and sends only those: the video never leaves the user's device. The backend
 checks and prepares the attempt like any recording, embeds it, and scores it against the glossary
 clips of the chosen sign: the mean cosine similarity to them, as `evaluation` scores a sign from k
 references. The attempt counts as the sign when the score reaches a global threshold. The sign of
@@ -16,7 +17,6 @@ follows the rests instead (split_signs), and the signer has to lower their hands
 """
 
 import re
-from pathlib import Path
 
 import numpy as np
 import torch
@@ -30,8 +30,6 @@ from isolated_sign_validation.extraction import MODEL_PATH, VideoInfo
 from isolated_sign_validation.landmarks import N_LANDMARKS, SKELETON_EDGES
 from isolated_sign_validation.preparation import ONE_HANDED, PrepConfig, hand_presence, hide_low_hands, mirror, prepare_clip
 from takk.speech import Aligner, decode_audio, split_speech
-
-WEB_DIR = Path(__file__).parent / "web"
 
 # Seconds without a raised hand that end a sign of a sentence. Inside a sign the hands are lost for
 # at most 0.23 s in the Swedish browser recordings; lowering the hands and raising them again takes longer.
@@ -113,10 +111,6 @@ def create_app(
     app = FastAPI()
     names = list(references)
     index = {sign: i for i, sign in enumerate(names)}
-
-    @app.get("/")
-    def page() -> FileResponse:
-        return FileResponse(WEB_DIR / "practice.html")
 
     @app.get("/api/signs")
     def signs() -> dict:

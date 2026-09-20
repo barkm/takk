@@ -1,24 +1,46 @@
 <script lang="ts">
-  import { api } from "$lib/api";
+  import Recorder from "$lib/Recorder.svelte";
+  import Sentence from "$lib/Sentence.svelte";
+  import SignSearch from "$lib/SignSearch.svelte";
+  import Verdict from "$lib/Verdict.svelte";
+  import { fetchLexicon, type Attempt, type Lexicon, type Sign } from "$lib/api";
 
-  // A placeholder page: it only shows that the build works and that the API answers. The practice UI
-  // is ported from web/practice.html next.
-  let signs = $state<number | null>(null);
-  let failed = $state(false);
+  let lexicon: Lexicon | null = $state(null);
+  let sentence: Sign[] = $state([]);
+  let attempt: Attempt | null = $state(null);
+  let note = $state("");
 
   $effect(() => {
-    fetch(api("/api/signs"))
-      .then((response) => response.json())
-      .then((data) => (signs = data.signs.length))
-      .catch(() => (failed = true));
+    fetchLexicon()
+      .then((loaded) => (lexicon = loaded))
+      .catch(() => (note = "The server does not answer. Start it with uv run takk."));
   });
+
+  function pick(sign: Sign) {
+    sentence = [...sentence, sign];
+    (attempt = null), (note = "");
+  }
+
+  function remove(index: number) {
+    sentence = sentence.filter((_, i) => i !== index);
+    (attempt = null), (note = "");
+  }
 </script>
 
-<h1>Practice a sign or a sentence</h1>
-{#if signs !== null}
-  <p>{signs} signs in the lexicon.</p>
-{:else if failed}
-  <p>The server does not answer. Start it with <code>uv run takk</code>.</p>
+{#if lexicon}
+  <SignSearch signs={lexicon.signs} onpick={pick} />
+  {#if sentence.length}
+    <Sentence {sentence} onremove={remove} onclear={() => ((sentence = []), (attempt = null), (note = ""))} />
+    <Recorder
+      {sentence}
+      {lexicon}
+      onattempt={(scored, said) => ((attempt = scored), (note = said))}
+    />
+  {/if}
+  <Verdict {attempt} {note} />
 {:else}
-  <p>Loading the lexicon …</p>
+  <section class="card">
+    <h1>Practice a sign or a sentence</h1>
+    <p class="dim">{note || "Loading the lexicon …"}</p>
+  </section>
 {/if}

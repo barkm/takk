@@ -1,0 +1,127 @@
+:root {
+  color-scheme: dark;
+  --bg: #16181d;
+  --card: #23262e;
+  --line: #363a45;
+  --text: #e8eaee;
+  --dim: #a0a6b2;
+  --ok: #4ade80;
+  --bad: #f87171;
+  --accent: #60a5fa;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 24px 16px;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 system-ui, sans-serif;
+}
+
+main {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+h1 {
+  font-size: 20px;
+  margin: 0 0 16px;
+}
+
+h2 {
+  font-size: 32px;
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+p {
+  margin: 8px 0;
+}
+
+.dim {
+  color: var(--dim);
+  font-size: 14px;
+}
+
+input[type="search"] {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 16px;
+}
+
+button {
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--accent);
+  color: #0b1220;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--text);
+  font-weight: 400;
+  padding: 6px 12px;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.videos {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.videos video {
+  width: 240px;
+  border-radius: 8px;
+  background: #000;
+}
+
+.videos figure {
+  margin: 0;
+}
+
+.videos figcaption {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ok {
+  color: var(--ok);
+}
+
+.bad {
+  color: var(--bad);
+}
