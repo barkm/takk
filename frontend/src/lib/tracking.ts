@@ -22,6 +22,9 @@ export class Tracker {
   private chunks: Blob[] = [];
   private stopped: Promise<Blob> | null = null;
   private audioStart = 0;
+  private context: AudioContext | null = null;
+  private analyser: AnalyserNode | null = null;
+  private samples = new Float32Array(0);
 
   private constructor(
     private video: HTMLVideoElement,
@@ -56,8 +59,37 @@ export class Tracker {
       landmarker = await create(delegate);
     }
     const tracker = new Tracker(video, canvas, landmarker, edges, onRate, delegate, stream.getAudioTracks().length > 0);
+    tracker.listen(stream);
     tracker.track();
     return tracker;
+  }
+
+  /** Watch how loud the microphone is, which is what starts and stops a recording. The analyser
+   * keeps the newest samples in a buffer that `level` reads whenever it is asked, so nothing runs
+   * between reads and the frame loop can poll it. */
+  private listen(stream: MediaStream): void {
+    if (!this.hasAudio) return;
+    this.context = new AudioContext();
+    this.analyser = this.context.createAnalyser();
+    this.analyser.fftSize = 1024; // about 21 ms at 48 kHz, shorter than any word
+    this.context.createMediaStreamSource(stream).connect(this.analyser);
+    this.samples = new Float32Array(this.analyser.fftSize);
+  }
+
+  /** How loud the last ~21 ms were, as the root mean square of the waveform: near 0.002 in a quiet
+   * room and above 0.05 while someone speaks. Zero without a microphone. Absolute values mean little
+   * across microphones, so the caller compares it against a floor it measured itself. */
+  get level(): number {
+    if (!this.analyser) return 0;
+    this.analyser.getFloatTimeDomainData(this.samples);
+    let square = 0;
+    for (const sample of this.samples) square += sample * sample;
+    return Math.sqrt(square / this.samples.length);
+  }
+
+  /** Browsers may open an audio context suspended until the page has been clicked. */
+  resume(): void {
+    if (this.context?.state === "suspended") void this.context.resume().catch(() => {}); // until the page is clicked
   }
 
   /** Run the landmarker on every camera frame it can keep up with; frames that arrive while it is

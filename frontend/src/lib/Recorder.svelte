@@ -1,6 +1,9 @@
 <script lang="ts">
+  import { untrack } from "svelte";
+
   import { scoreAttempt, type Attempt, type Lexicon, type Sign } from "$lib/api";
   import { Tracker } from "$lib/tracking";
+  import { hear, listening, type Phase } from "$lib/voice";
 
   let {
     sentence,
@@ -11,16 +14,21 @@
   const SLOW_FPS = 20; // below this the extractor skips so many camera frames that results suffer
   const NO_MICROPHONE = "Mikrofonen behövs: orden du säger högt är det som visar var tecknen är i inspelningen.";
 
+  const TICK = 50; // ms between readings of the microphone; each covers the newest 21 ms of sound
+  const IDLE = 10; // seconds armed without a word before the recording is thrown away and started over
+
   let video: HTMLVideoElement;
   let canvas: HTMLCanvasElement;
   let tracker = $state<Tracker | null>(null); // the generic, as in the pages: an annotation narrows it to null
   let starting: Promise<Tracker> | null = null;
   let status = $state("Laddar teckenmodellen...");
   let handedness: "left" | "right" = $state("right");
-  let recording = $state(false);
+  let phase = $state<Phase | "idle">("idle");
   let scoring = $state(false);
   let seconds = $state(0);
   let ticker: ReturnType<typeof setInterval> | null = null;
+  let ears = listening();
+  let since = 0; // when the current phase began, to arm afresh and to time the attempt
 
   // The camera starts once, however fast signs are picked, and keeps running between attempts.
   $effect(() => {
@@ -39,22 +47,46 @@
   // nothing to locate it with. Refusing here says so before a recording is made and thrown away.
   const silent = $derived(tracker?.hasAudio === false);
 
-  function start() {
+  // A new sentence arms itself, so the learner signs it when they are ready rather than after
+  // pressing anything. The camera has to be up first, which it may not be when the card appears.
+  $effect(() => {
+    if (sentence.length && tracker && !silent) untrack(arm); // arming writes what it reads, so only the sentence triggers it
+  });
+
+  /** Record from now, and wait for the signer to speak. The recording runs from here rather than
+   * from the first word because the hands rise before the voice; the server keeps the part around
+   * the speech and drops the rest (`PRE_ROLL` in speech.py). */
+  async function arm() {
     if (!tracker || silent) return;
     onattempt(null, "");
+    tracker.resume();
+    const again = phase !== "idle";
+    phase = "idle"; // the readings stand still while a recording already running is closed and dropped
+    if (again) await tracker.stopRecording();
     tracker.startRecording();
-    recording = true;
-    const started = Date.now();
-    ticker = setInterval(() => {
-      seconds = (Date.now() - started) / 1000;
-      if (seconds > lexicon.maxSeconds * sentence.length) stop();
-    }, 100);
+    (ears = listening()), (seconds = 0);
+    (phase = ears.phase), (since = Date.now());
+    if (!ticker) ticker = setInterval(listen, TICK);
+  }
+
+  /** One reading of the microphone, every TICK ms. `hear` decides what it means; the clock is this
+   * side, since waiting and talking too long are not things a level can tell. */
+  function listen() {
+    if (!tracker || phase === "idle") return;
+    ears = hear(ears, tracker.level);
+    if (ears.phase !== phase) (phase = ears.phase), (since = Date.now());
+    if (phase === "done") return void stop();
+    // Waiting armed keeps recording, so a long wait is thrown away rather than sent and aligned.
+    if (phase === "armed" && Date.now() - since > IDLE * 1000) return void arm();
+    if (phase !== "speaking") return;
+    seconds = (Date.now() - since) / 1000;
+    if (seconds > lexicon.maxSeconds * sentence.length) stop();
   }
 
   async function stop() {
-    if (!tracker || !recording) return; // the time limit and the button can both stop a recording
-    recording = false;
-    if (ticker) clearInterval(ticker);
+    if (!tracker || phase === "idle") return; // the silence, the time limit and arming again all stop one
+    phase = "idle";
+    if (ticker) (clearInterval(ticker), (ticker = null));
     const taken = await tracker.stopRecording();
     if (!taken) return;
     if (taken.frames.length < 2) return onattempt(null, "Inspelningen är tom.");
@@ -77,12 +109,18 @@
     }
   }
 
-  // Space toggles recording; preventDefault also stops it clicking whichever button has focus.
+  // The attempt ends by itself, so space only ever starts it over. preventDefault also stops it
+  // clicking whichever button has focus.
   function onkeydown(event: KeyboardEvent) {
     if (event.code !== "Space" || (event.target as HTMLInputElement).type === "search") return;
     event.preventDefault();
-    if (!event.repeat && tracker && !scoring) (recording ? stop() : start());
+    if (!event.repeat && tracker && !scoring) arm();
   }
+
+  const recording = $derived(phase !== "idle");
+  const told = $derived(
+    phase === "calibrating" ? "Lyssnar på rummet..." : phase === "armed" ? "Säg meningen när du är redo." : phase === "speaking" ? "Hör dig — teckna medan du talar." : "",
+  );
 </script>
 
 <svelte:window {onkeydown} />
@@ -95,11 +133,10 @@
   </div>
   <p class="dim">{status}</p>
   {#if silent}<p class="dim">{NO_MICROPHONE}</p>{/if}
+  {#if told}<p class="dim">{told}</p>{/if}
   <p class="row">
-    <button disabled={!tracker || scoring || silent} onclick={() => (recording ? stop() : start())}>
-      {recording ? "Stoppa" : "Spela in"}
-    </button>
-    <span class="dim">{recording ? `${seconds.toFixed(1)} s` : ""}</span>
+    <button disabled={!tracker || scoring || silent} onclick={arm}>Spela in igen</button>
+    <span class="dim">{phase === "speaking" ? `${seconds.toFixed(1)} s` : ""}</span>
     <label class="row dim">
       Jag tecknar med
       <input type="radio" name="handedness" value="right" bind:group={handedness} /> höger
