@@ -5,6 +5,7 @@
     fetchLexicon,
     fetchForm,
     fetchPacks,
+    fetchSentence,
     referenceUrl,
     word,
     type Attempt,
@@ -26,6 +27,7 @@
     saveChosen,
     saveSetting,
     session,
+    turn,
     type Progress,
   } from "$lib/progress";
   import { page } from "$app/state";
@@ -41,6 +43,9 @@
   let taught: string[] = $state([]); // the signs whose clip has already been shown in this pass
   let missed: string[] = $state([]); // the signs missed in this pass, which do not move up when finished
   let answered = $state(false); // whether this turn's answer is in, so a second recording is a retry
+  let taken: PackWord[] = $state([]); // the words of the turn on screen, in the order they are signed
+  let said = $state(""); // the Swedish sentence they are signed in, empty when the turn is one word
+  let writing = $state(false); // whether the sentence is still being written
   let total = $state(0);
   let attempt: Attempt | null = $state(null);
   let note = $state("");
@@ -66,8 +71,23 @@
   // The pass's signs are picked once, not derived: a scored attempt changes the progress they come from.
   function restart() {
     queue = session(chosenWords(packs, chosen), progress, size, Date.now() + ahead * 24 * 60 * 60 * 1000);
-    (total = queue.length), (accepts = {}), (taught = []), (missed = []), (answered = false);
-    (attempt = null), (note = ""), (peeked = false);
+    (total = queue.length), (accepts = {}), (taught = []), (missed = []);
+    begin();
+  }
+
+  // Start a turn on the front of the queue: one word, or several inside a sentence to speak while
+  // signing them. A sentence the server could not write leaves the head to be practised on its own,
+  // which is the path that needs no model at all.
+  async function begin() {
+    (attempt = null), (note = ""), (peeked = false), (answered = false), (said = "");
+    const words = turn(queue, progress);
+    taken = words.slice(0, 1);
+    if (words.length < 2) return;
+    writing = true;
+    const written = await fetchSentence(words.map((each) => each.sign)).finally(() => (writing = false));
+    if (!written.sentence) return;
+    const order = new Map(words.map((each) => [each.sign, each]));
+    (said = written.sentence), (taken = written.signs.map((sign) => order.get(sign)!));
   }
 
   function setSetting(name: "size" | "accepts", value: number) {
@@ -82,50 +102,59 @@
     restart();
   }
 
-  const current = $derived(queue[0]);
-  // What the lexicon says the hands do, which is the only teaching text besides the clip.
+  const current = $derived(taken[0]);
+  const alone = $derived(taken.length < 2); // one word, so the whole recording is the attempt
+  // What the lexicon says the hands do, which is the only teaching text besides the clip. It belongs
+  // to a word being taught, so a sentence of words already known needs none.
   $effect(() => {
-    const entryId = current?.id;
+    const entryId = alone ? current?.id : undefined;
     form = "";
     if (entryId) fetchForm(entryId).then((described) => (form = described));
   });
 
   // Whether another pass would have anything in it, which is what makes the summary offer one.
   const waiting = $derived(session(chosenWords(packs, chosen), progress, 1, Date.now() + ahead * 24 * 60 * 60 * 1000).length > 0);  // prettier-ignore
-  const shown = $derived(current ? (current.word ?? word(current.sign)) : "");
+  const label = (each: PackWord) => each.word ?? word(each.sign);
+  const shown = $derived(current ? label(current) : "");
+  const labels = $derived(Object.fromEntries(taken.map((each) => [each.sign, label(each)])));
   const finished = $derived(Object.values(accepts).filter((count) => count >= needed).length);
   // The tutorial belongs to the very first time a word is met: a word never practised, on its first
   // turn of this pass. Every later turn is a test, so the clip only follows the verdict. Looking it up
-  // first is allowed but does not count as recalled.
-  const teaching = $derived(!!current && !progress[current.sign] && !taught.includes(current.sign));
-  const showClip = $derived(teaching || peeked || !!attempt);
-  // The Recorder scores a sentence, so one word is a sentence of one sign, with the sign's lexicon clips.
-  const references = $derived(lexicon?.signs.find((sign) => sign.sign === current?.sign)?.references ?? []);
-  const sentence: Sign[] = $derived(current ? [{ sign: current.sign, references }] : []);
+  // first is allowed but does not count as recalled. A sentence is only ever made of words already
+  // practised on their own, so it is never a tutorial.
+  const teaching = $derived(alone && !!current && !progress[current.sign] && !taught.includes(current.sign));
+  const showClip = $derived(alone && (teaching || peeked || !!attempt));
+  const clipsOf = (sign: string) => lexicon?.signs.find((each) => each.sign === sign)?.references ?? [];
+  const references = $derived(current ? clipsOf(current.sign) : []);
+  const sentence: Sign[] = $derived(taken.map((each) => ({ sign: each.sign, references: clipsOf(each.sign) })));
 
-  function scored(scoredAttempt: Attempt | null, said: string) {
-    (attempt = scoredAttempt), (note = said);
-    const judged = scoredAttempt?.signs[0];
-    if (!judged?.usable) return; // a recording that could not be used is not an answer either way
+  function scored(scoredAttempt: Attempt | null, told: string) {
+    (attempt = scoredAttempt), (note = told);
+    // A sentence the recording could not be split into its signs is no answer for any of its words,
+    // as an unusable recording is none for one: the boxes are not moved by a bad split.
+    if (!scoredAttempt?.signs.length || scoredAttempt.signs.some((judged) => !judged.usable)) return;
     if (answered) return; // a second recording of the same card is a retry: a verdict, but not an answer
-    (answered = true), (taught = [...taught, judged.sign]);
-    const ok = !!judged.correct && !peeked; // a looked-up sign is not recalled
-    const count = (accepts[judged.sign] ?? 0) + (ok ? 1 : 0);
-    accepts = { ...accepts, [judged.sign]: count };
-    if (!ok && !missed.includes(judged.sign)) missed = [...missed, judged.sign];
-    // The box only moves when the word's fate is settled: it is finished, or it was just missed and
-    // drops back to the first box. An accept that leaves the word short of `needed` keeps it in the
-    // pass and changes nothing. A word missed anywhere in the pass stays in the first box when it
-    // finishes, rather than climbing out of the box the miss put it in.
-    if (!ok) progress = record(progress, judged.sign, false, shown);
-    else if (count >= needed) progress = record(progress, judged.sign, !missed.includes(judged.sign), shown);
-    else return;
+    answered = true;
+    for (const judged of scoredAttempt.signs) settle(judged.sign, !!judged.correct && !peeked);
     save(progress);
   }
 
+  /** Record one sign's verdict. The box only moves when the word's fate is settled: it is finished,
+   * or it was just missed and drops back to the first box. An accept that leaves the word short of
+   * `needed` keeps it in the pass and changes nothing. A word missed anywhere in the pass stays in
+   * the first box when it finishes, rather than climbing out of the box the miss put it in. */
+  function settle(sign: string, ok: boolean) {
+    taught = [...taught, sign];
+    const count = (accepts[sign] ?? 0) + (ok ? 1 : 0);
+    accepts = { ...accepts, [sign]: count };
+    if (!ok && !missed.includes(sign)) missed = [...missed, sign];
+    if (!ok) progress = record(progress, sign, false, labels[sign]);
+    else if (count >= needed) progress = record(progress, sign, !missed.includes(sign), labels[sign]);
+  }
+
   function next() {
-    queue = advance(queue, accepts, needed);
-    (attempt = null), (note = ""), (peeked = false), (answered = false);
+    queue = advance(queue, taken, accepts, needed);
+    begin();
   }
 </script>
 
@@ -168,12 +197,20 @@
     <h1>Dagens pass</h1>
     <p class="dim">
       {finished} av {total} tecken klara.
-      {#if teaching}Nytt tecken: titta på klippet och teckna det.{:else}Repetition.{/if}
-      {#if needed > 1}Godkänt {accepts[current.sign] ?? 0} av {needed} gånger.{/if}
+      {#if writing}Skriver en mening ...{:else if said}Säg meningen högt medan du tecknar orden i fetstil.{:else if teaching}Nytt tecken: titta på klippet och teckna det.{:else}Repetition.{/if}
+      {#if needed > 1 && alone}Godkänt {accepts[current.sign] ?? 0} av {needed} gånger.{/if}
       {#if peeked && !attempt}Du tog fram tecknet, så det räknas inte som godkänt.{/if}
       {#if ahead}Passet visas som det ser ut om {ahead} dagar.{/if}
     </p>
-    <h2>{shown}</h2>
+    {#if said}
+      <h2 class="sentence">
+        {#each said.split(new RegExp(`\\b(${taken.map((each) => labels[each.sign]).join("|")})\\b`, "i")) as part, at (at)}
+          {#if at % 2}<strong>{part}</strong>{:else}{part}{/if}
+        {/each}
+      </h2>
+    {:else}
+      <h2>{shown}</h2>
+    {/if}
     {#if showClip}
       <div class="videos">
         {#each references as clip (clip)}
@@ -182,15 +219,15 @@
         {/each}
       </div>
       {#if form}<p class="form">{form}</p>{/if}
-    {:else}
+    {:else if alone}
       <p class="dim">Teckna ordet ur minnet. Klippet visas när du har spelat in.</p>
       <button class="secondary" onclick={() => (peeked = true)}>Jag kommer inte ihåg — visa tecknet</button>
     {/if}
     {@render picker()}
   </section>
   <Recorder {sentence} {lexicon} onattempt={scored} />
-  <Verdict {attempt} {note} labels={{ [current.sign]: shown }} />
-  {#if attempt?.signs.length && word(current.sign) !== shown}
+  <Verdict {attempt} {note} {labels} />
+  {#if attempt?.signs.length && alone && word(current.sign) !== shown}
     <section class="card">
       <p class="dim">
         Tecknet för {shown} har samma form som {word(current.sign)} i lexikonet, så det är det namnet
@@ -200,7 +237,7 @@
   {/if}
   {#if attempt?.signs.length}
     <section class="card">
-      <button onclick={next}>{advance(queue, accepts, needed).length ? "Nästa tecken" : "Avsluta passet"}</button>
+      <button onclick={next}>{advance(queue, taken, accepts, needed).length ? "Nästa" : "Avsluta passet"}</button>
     </section>
   {/if}
 {:else if lexicon}
@@ -233,6 +270,10 @@
   .form {
     margin: 8px 0;
     font-style: italic;
+  }
+
+  .sentence {
+    font-weight: 400; /* the key words are the bold ones, so the sentence around them is not */
   }
 
   ul {

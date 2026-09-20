@@ -136,10 +136,27 @@ export function session(words: PackWord[], progress: Progress, size = DEFAULTS.s
   return [...due, ...fresh].slice(0, size);
 }
 
-/** The turns left in a pass after the current one, given how often each sign has been accepted in it.
- * A word short of `needed` goes back to the end of the queue, so the pass cycles until every word has
- * been accepted `needed` times, and a missed word comes back in the same pass. */
-export function advance(queue: PackWord[], accepts: Record<string, number>, needed: number): PackWord[] {
-  const [current, ...rest] = queue;
-  return (accepts[current.sign] ?? 0) >= needed ? rest : [...rest, current];
+/** The words of the next turn: the head of the queue, and, when the head is a word that may be
+ * combined with others, the following words that may be too, at most `size` of them.
+ *
+ * A word may be combined once it has left the first box, which is to say once a pass has accepted it
+ * on its own. The first box is where a new word and a word missed today both sit, and neither should
+ * be buried in a sentence: a new word is being taught, and a missed one has just shown it needs the
+ * attention. A turn of several words is signed inside one spoken sentence (`api.fetchSentence`), a
+ * turn of one is the word alone. */
+export function turn(queue: PackWord[], progress: Progress, size = 3): PackWord[] {
+  const combinable = (word: PackWord) => (progress[word.sign]?.box ?? 0) >= 2;
+  if (!queue.length || !combinable(queue[0])) return queue.slice(0, 1);
+  return queue.filter(combinable).slice(0, size);
+}
+
+/** The turns left in a pass once `taken` has been answered, given how often each sign has been
+ * accepted in the pass. A word short of `needed` goes back to the end of the queue, so the pass
+ * cycles until every word has been accepted `needed` times, and a missed word comes back in the same
+ * pass — alone, since the miss put it back in the first box. */
+export function advance(queue: PackWord[], taken: PackWord[], accepts: Record<string, number>, needed: number): PackWord[] {  // prettier-ignore
+  const answered = new Set(taken.map((word) => word.sign));
+  const rest = queue.filter((word) => !answered.has(word.sign));
+  const again = taken.filter((word) => (accepts[word.sign] ?? 0) < needed);
+  return [...rest, ...again];
 }

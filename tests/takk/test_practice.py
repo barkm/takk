@@ -1,6 +1,8 @@
 import asyncio
 import io
 
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 import torch
@@ -10,6 +12,7 @@ from torch import nn
 from isolated_sign_validation.landmarks import LANDMARK_SLICES, N_LANDMARKS
 from isolated_sign_validation.preparation import PrepConfig, mirror, prepare_clip
 from takk.practice import NOTES, create_app, prepare_attempt, sign_means
+from takk.sentences import Written
 from takk.vocabulary import spoken_word
 from takk.speech import SAMPLE_RATE
 
@@ -81,6 +84,26 @@ def test_attempt_scores_against_the_chosen_sign():
         send(landmarks, "C")
     with pytest.raises(HTTPException):
         send(landmarks[:, :-1], "A")  # not a whole number of frames
+
+
+def test_sentence_names_the_signs_in_the_order_they_are_spoken():
+    """The words go out as the lexicon spells them and come back as signs, reordered to the sentence:
+    the signing order is the spoken order, which is what the attempt is then split by."""
+    signs = {"sts:mjölk-1": ["m1"], "sts:mer-2": ["m2"]}
+    writer = SimpleNamespace(messages=SimpleNamespace(parse=lambda **kwargs: SimpleNamespace(parsed_output=Written(sentence="Jag vill ha mer mjölk"))))  # fmt: skip
+    app = create_app(signs, np.eye(2), {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [], writer=writer)  # fmt: skip
+    sentence = next(route for route in app.routes if getattr(route, "path", "") == "/api/sentence").endpoint
+
+    assert sentence(signs=["sts:mjölk-1", "sts:mer-2"]) == {"sentence": "Jag vill ha mer mjölk", "signs": ["sts:mer-2", "sts:mjölk-1"]}  # fmt: skip
+    with pytest.raises(HTTPException):
+        sentence(signs=["sts:okänd-3"])
+
+
+def test_sentence_is_empty_without_a_writer():
+    """Then the session practises the signs one at a time, which needs no model at all."""
+    app = create_app({"A": ["a1"]}, np.array([[1.0, 0.0]]), {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [])  # fmt: skip
+    sentence = next(route for route in app.routes if getattr(route, "path", "") == "/api/sentence").endpoint
+    assert sentence(signs=["A"]) == {"sentence": "", "signs": []}
 
 
 def test_spoken_word_is_the_sign_name_without_its_entry():

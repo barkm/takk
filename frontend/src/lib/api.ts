@@ -55,6 +55,19 @@ export async function fetchPacks(): Promise<Pack[]> {
   return (await response.json()).packs;
 }
 
+/** A Swedish sentence whose key words are `signs`, to be spoken while they are signed, with the signs
+ * in the order they occur in it. The sentence is empty when the server could not write one, and the
+ * caller then practises the signs one at a time. */
+export async function fetchSentence(signs: string[]): Promise<{ sentence: string; signs: string[] }> {
+  const response = await fetch(api("/api/sentence"), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ signs }),
+  });
+  if (!response.ok) return { sentence: "", signs: [] };
+  return await response.json();
+}
+
 /** How the lexicon describes the form of an entry's sign, in Swedish. Empty when it describes none. */
 export async function fetchForm(entryId: string): Promise<string> {
   const response = await fetch(api(`/api/form/${encodeURIComponent(entryId)}`));

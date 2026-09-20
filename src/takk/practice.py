@@ -18,9 +18,10 @@ signer skipped from a sign it had failed to find, so it voided the whole sentenc
 verdicts on the signs that were right, while the speech split scores a skipped sign as a miss.
 """
 
+import anthropic
 import numpy as np
 import torch
-from fastapi import FastAPI, Form, HTTPException, UploadFile
+from fastapi import Body, FastAPI, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from torch import nn
 
@@ -29,6 +30,7 @@ from isolated_sign_validation.dataset import collate
 from isolated_sign_validation.extraction import MODEL_PATH, VideoInfo
 from isolated_sign_validation.landmarks import N_LANDMARKS, SKELETON_EDGES
 from isolated_sign_validation.preparation import ONE_HANDED, PrepConfig, hand_presence, hide_low_hands, mirror, prepare_clip
+from takk.sentences import write_sentence
 from takk.speech import MIN_WORD_SCORE, Aligner, decode_audio, split_speech
 from takk.vocabulary import spoken_word
 
@@ -94,11 +96,13 @@ def create_app(
     aligner: Aligner,
     packs: list[dict] | None = None,
     forms: dict[str, str] | None = None,
+    writer: anthropic.Anthropic | None = None,
 ) -> FastAPI:
     """The practice app: the page, the glossary's signs with their clips (`references`, sign ->
     clip ids, in the order of the rows of `means`, see sign_means), the clips' videos (by clip id, see
     video_paths), the extraction model for the browser, and the scoring of attempts. The `aligner`
-    times a spoken sentence's words, which is what splits it into its signs."""
+    times a spoken sentence's words, which is what splits it into its signs. With a `writer` a
+    practice turn of several signs is given a sentence to sign them in (see `sentences.py`)."""
     app = FastAPI()
     names = list(references)
     index = {sign: i for i, sign in enumerate(names)}
@@ -117,6 +121,20 @@ def create_app(
         """The packs a learner can pick their daily practice from (`vocabulary.packs`): starter packs
         and the lexicon's categories alike, each a list of words with the sign that scores them."""
         return {"packs": packs or []}
+
+    @app.post("/api/sentence")
+    def sentence(signs: list[str] = Body(embed=True)) -> dict:
+        """A Swedish sentence whose key words are `signs`, to be spoken while they are signed, with
+        the signs in the order they occur in it. The sentence is empty when there is no writer or it
+        could not write one, and the caller then practises the signs one at a time."""
+        if any(s not in index for s in signs):
+            raise HTTPException(404, "unknown sign")
+        written = write_sentence(writer, [spoken_word(s) for s in signs]) if writer else None
+        if written is None:
+            return {"sentence": "", "signs": []}
+        text, order = written
+        by_word = {spoken_word(s): s for s in signs}
+        return {"sentence": text, "signs": [by_word[word] for word in order]}
 
     @app.get("/api/form/{entry_id}")
     def form(entry_id: str) -> dict:

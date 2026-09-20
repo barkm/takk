@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { type PackWord } from "$lib/api";
-import { advance, boxes, chosenWords, loadSetting, practisedToday, record, saveSetting, session } from "$lib/progress";
+import { advance, boxes, chosenWords, loadSetting, practisedToday, record, saveSetting, session, turn } from "$lib/progress";
 
 const word = (name: string) => ({
   word: name,
@@ -206,17 +206,46 @@ describe("practisedToday", () => {
 
 describe("advance", () => {
   const queue = [word("mamma"), word("pappa")];
+  const head = [word("mamma")];
 
   it("keeps a word in the pass until it has been accepted enough times", () => {
     // accepted once of two, so it goes back to the end rather than leaving the pass
-    expect(advance(queue, { "sts:mamma-1": 1 }, 2)).toEqual([word("pappa"), word("mamma")]);
+    expect(advance(queue, head, { "sts:mamma-1": 1 }, 2)).toEqual([word("pappa"), word("mamma")]);
     // a missed word has no accepts at all, and comes back the same way
-    expect(advance(queue, {}, 2)).toEqual([word("pappa"), word("mamma")]);
-    expect(advance(queue, { "sts:mamma-1": 2 }, 2)).toEqual([word("pappa")]);
+    expect(advance(queue, head, {}, 2)).toEqual([word("pappa"), word("mamma")]);
+    expect(advance(queue, head, { "sts:mamma-1": 2 }, 2)).toEqual([word("pappa")]);
+  });
+
+  it("takes every word of a sentence out of the queue, and puts back the unfinished ones", () => {
+    const three = [word("mamma"), word("pappa"), word("hej")];
+    const sentence = [word("mamma"), word("hej")]; // a turn need not be the front of the queue
+    expect(advance(three, sentence, { "sts:mamma-1": 2, "sts:hej-1": 1 }, 2)).toEqual([word("pappa"), word("hej")]);
   });
 
   it("empties on the last word of the pass", () => {
-    expect(advance([word("hej")], { "sts:hej-1": 1 }, 1)).toEqual([]);
+    expect(advance([word("hej")], [word("hej")], { "sts:hej-1": 1 }, 1)).toEqual([]);
+  });
+});
+
+describe("turn", () => {
+  const queue = [word("mamma"), word("pappa"), word("hej"), word("tack")];
+  const known = (box: number) => ({ box, due: 0 });
+
+  it("is the head alone while the head is still in the first box", () => {
+    // a new word, or one missed today: it is being taught or has just gone wrong, so not in a sentence
+    expect(turn(queue, {})).toEqual([word("mamma")]);
+    expect(turn(queue, { "sts:mamma-1": known(1), "sts:pappa-1": known(3) })).toEqual([word("mamma")]);
+  });
+
+  it("gathers the words that may be combined once the head is one of them", () => {
+    const progress = { "sts:mamma-1": known(2), "sts:pappa-1": known(1), "sts:hej-1": known(4), "sts:tack-1": known(2) };  // prettier-ignore
+    // pappa is in the first box, so it is skipped over rather than buried in the sentence
+    expect(turn(queue, progress)).toEqual([word("mamma"), word("hej"), word("tack")]);
+    expect(turn(queue, progress, 2)).toEqual([word("mamma"), word("hej")]);
+  });
+
+  it("is empty when the pass is", () => {
+    expect(turn([], {})).toEqual([]);
   });
 });
 
@@ -232,12 +261,12 @@ describe("a pass, turn by turn", () => {
 
     accepts = { ...accepts, "sts:mamma-1": 1 }; // accepted once: nothing stored yet
     expect(progress).toEqual({});
-    queue = advance(queue, accepts, needed);
+    queue = advance(queue, [queue[0]], accepts, needed);
     expect(queue).toEqual([word("pappa"), word("mamma")]);
 
     accepts = { ...accepts, "sts:pappa-1": 0 }; // missed: back to the first box, and back in the queue
     progress = record(progress, "sts:pappa-1", false, "pappa", 0);
-    queue = advance(queue, accepts, needed);
+    queue = advance(queue, [queue[0]], accepts, needed);
     expect(queue).toEqual([word("mamma"), word("pappa")]);
 
     accepts = { ...accepts, "sts:mamma-1": 2 }; // accepted twice: finished, and out of the queue
@@ -246,7 +275,7 @@ describe("a pass, turn by turn", () => {
       "sts:pappa-1": { box: 1, due: DAY, seen: 0, first: 0, word: "pappa" },
       "sts:mamma-1": { box: 1, due: DAY, seen: 0, first: 0, word: "mamma" },
     });
-    expect(advance(queue, accepts, needed)).toEqual([word("pappa")]);
+    expect(advance(queue, [queue[0]], accepts, needed)).toEqual([word("pappa")]);
   });
 
   it("leaves a word the pass missed in the first box, however well it ends", () => {
