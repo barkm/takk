@@ -5,7 +5,8 @@ import polars as pl
 import pytest
 from fastapi import HTTPException
 
-from isolated_sign_validation.collection import NO_EVENT, NO_EVENT_PROMPTS, SCHEMA, Recordings, check_clip, create_app, overlay, read_clips, session_prompts
+from isolated_sign_validation.checks import check_clip
+from isolated_sign_validation.collection import NO_EVENT, NO_EVENT_PROMPTS, SCHEMA, Recordings, create_app, overlay, read_clips, session_prompts
 from isolated_sign_validation.extraction import VideoInfo
 from isolated_sign_validation.landmarks import N_LANDMARKS
 from isolated_sign_validation.preparation import PrepConfig

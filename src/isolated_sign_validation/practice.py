@@ -23,7 +23,8 @@ from fastapi import FastAPI, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from torch import nn
 
-from isolated_sign_validation.collection import WEB_DIR, check_clip
+from isolated_sign_validation.checks import check_clip
+from isolated_sign_validation.collection import WEB_DIR
 from isolated_sign_validation.dataset import collate
 from isolated_sign_validation.extraction import MODEL_PATH, VideoInfo
 from isolated_sign_validation.landmarks import N_LANDMARKS, SKELETON_EDGES
