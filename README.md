@@ -385,7 +385,9 @@ the collection app, forward the port when the machine is remote.
 on the recordings.
 
 "Dagens pass" (`/pass`) is the practice session: the words that are due, then words never practised,
-one at a time. Each sign has a Leitner box and a next-due date in the browser's `localStorage`
+one at a time. A word never practised is taught, with its clip; a repetition is a flash card, so the
+word alone is shown and the clip follows the verdict. The sign can be looked up first, which does not
+move it up a box. Each sign has a Leitner box and a next-due date in the browser's `localStorage`
 (`frontend/src/lib/progress.ts`); an accepted attempt moves the sign up a box (due again after 1, 3,
 7 and 21 days) and a rejected one puts it back in the first. Nothing is stored on the server, so
 clearing the browser's storage starts the learner over.

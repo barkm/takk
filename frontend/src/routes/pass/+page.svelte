@@ -24,6 +24,7 @@
   let attempt: Attempt | null = $state(null);
   let note = $state("");
   let correct = $state(0);
+  let peeked = $state(false);
 
   $effect(() => {
     Promise.all([fetchLexicon(), fetchPacks()])
@@ -43,7 +44,7 @@
   // Today's signs are picked once, not derived: a scored attempt changes the progress they come from.
   function restart() {
     today = session(chosenWords(packs, chosen), progress, 5, Date.now() + ahead * 24 * 60 * 60 * 1000);
-    (at = 0), (correct = 0), (attempt = null), (note = "");
+    (at = 0), (correct = 0), (attempt = null), (note = ""), (peeked = false);
   }
 
   function choose(name: string, on: boolean) {
@@ -54,6 +55,10 @@
 
   const current = $derived(today[at]);
   const shown = $derived(current ? (current.word ?? word(current.sign)) : "");
+  // A word never practised is being taught, so its clip is shown; a repetition is a test, and the
+  // clip only follows the verdict. Looking it up first is allowed but does not move the sign up a box.
+  const teaching = $derived(!!current && !progress[current.sign]);
+  const showClip = $derived(teaching || peeked || !!attempt);
   // The Recorder scores a sentence, so one word is a sentence of one sign, with the sign's lexicon clips.
   const references = $derived(lexicon?.signs.find((sign) => sign.sign === current?.sign)?.references ?? []);
   const sentence: Sign[] = $derived(current ? [{ sign: current.sign, references }] : []);
@@ -63,12 +68,12 @@
     const judged = scoredAttempt?.signs[0];
     if (!judged?.usable) return; // a recording that could not be used is not an answer either way
     if (judged.correct) correct += 1;
-    progress = record(progress, judged.sign, !!judged.correct);
+    progress = record(progress, judged.sign, !!judged.correct && !peeked); // a looked-up sign is not recalled
     save(progress);
   }
 
   function next() {
-    (at += 1), (attempt = null), (note = "");
+    (at += 1), (attempt = null), (note = ""), (peeked = false);
   }
 </script>
 
@@ -97,16 +102,23 @@
   <section class="card">
     <h1>Dagens pass</h1>
     <p class="dim">
-      Tecken {at + 1} av {today.length}. Titta på klippet och teckna ordet.
+      Tecken {at + 1} av {today.length}.
+      {#if teaching}Nytt tecken: titta på klippet och teckna det.{:else}Repetition.{/if}
+      {#if peeked && !attempt}Du tog fram tecknet, så det stannar kvar till nästa pass.{/if}
       {#if ahead}Passet visas som det ser ut om {ahead} dagar.{/if}
     </p>
     <h2>{shown}</h2>
-    <div class="videos">
-      {#each references as clip (clip)}
-        <!-- svelte-ignore a11y_media_has_caption -->
-        <video src={referenceUrl(clip)} autoplay loop muted playsinline controls></video>
-      {/each}
-    </div>
+    {#if showClip}
+      <div class="videos">
+        {#each references as clip (clip)}
+          <!-- svelte-ignore a11y_media_has_caption -->
+          <video src={referenceUrl(clip)} autoplay loop muted playsinline controls></video>
+        {/each}
+      </div>
+    {:else}
+      <p class="dim">Teckna ordet ur minnet. Klippet visas när du har spelat in.</p>
+      <button class="secondary" onclick={() => (peeked = true)}>Jag kommer inte ihåg — visa tecknet</button>
+    {/if}
     {@render picker()}
   </section>
   <Recorder {sentence} {lexicon} onattempt={scored} />
