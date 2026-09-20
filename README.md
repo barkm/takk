@@ -401,6 +401,19 @@ npm run check                    # svelte-check
 npm test                         # the landmark layout and the resampling
 ```
 
+### The word sets
+
+The lessons are built from categories of everyday Swedish words (mat och dryck, djur, ...), which the
+lexicon crawl does not have. `scripts/categorize_signs.py` asks Claude for the words of each category
+once, keeps the ones the lexicon has a sign for, and writes them to `src/takk/categories.json`, which
+is committed and read from there at run time. A full run is one request per category and costs cents.
+
+```sh
+export ANTHROPIC_API_KEY=...            # or a profile from `ant auth login`
+uv run scripts/categorize_signs.py
+uv run scripts/categorize_signs.py --categories djur   # this category again, the others untouched
+```
+
 ## Future
 
 - Validate Swedish Sign Language signs from [Svenskt teckenspråkslexikon](https://teckensprakslexikon.su.se/), which have little training data.
