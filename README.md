@@ -384,11 +384,16 @@ the collection app, forward the port when the machine is remote.
 `scripts/compare_browser_extraction.py` compares the browser's landmarks with the Python extraction
 on the recordings.
 
-"Dagens pass" (`/pass`) is the practice session: the words of the starter packs that are due, then
-words never practised, one at a time. Each sign has a Leitner box and a next-due date in the
-browser's `localStorage` (`frontend/src/lib/progress.ts`); an accepted attempt moves the sign up a
-box (due again after 1, 3, 7 and 21 days) and a rejected one puts it back in the first. Nothing is
-stored on the server, so clearing the browser's storage starts the learner over.
+"Dagens pass" (`/pass`) is the practice session: the words that are due, then words never practised,
+one at a time. Each sign has a Leitner box and a next-due date in the browser's `localStorage`
+(`frontend/src/lib/progress.ts`); an accepted attempt moves the sign up a box (due again after 1, 3,
+7 and 21 days) and a rejected one puts it back in the first. Nothing is stored on the server, so
+clearing the browser's storage starts the learner over.
+
+The learner chooses what the session draws from, by turning packs on and off. A pack is a starter
+pack or one of the lexicon's categories, which to the learner are the same kind of thing: a named
+list of words. `GET /api/packs` serves all of them (`takk/vocabulary.py`), the starter packs first,
+and the choice is kept in `localStorage` as well.
 
 ### The frontend
 

@@ -42,11 +42,13 @@ export async function fetchLexicon(): Promise<Lexicon> {
   return { signs: data.signs, fps: data.fps, maxSeconds: data.max_seconds, edges: data.edges };
 }
 
-/** A word of a starter pack: what the learner reads, its lexicon entry, and the sign that scores it
- * (they differ, because entries sharing a sign form are one class labelled by its lowest entry). */
-export type PackWord = { word: string; id: string; sign: string };
+/** A word to practise: the sign that scores it, and the word to show when the sign is not named for
+ * it (entries sharing a sign form are one class labelled by its lowest entry, so "äta" is scored as
+ * `sts:livsmedel-01265`). */
+export type PackWord = { sign: string; word?: string };
 
-export type Pack = { name: string; words: PackWord[] };
+/** A named list of words the learner can turn on: a starter pack or one of the lexicon's categories. */
+export type Pack = { name: string; kind: "pack" | "category"; words: PackWord[] };
 
 export async function fetchPacks(): Promise<Pack[]> {
   const response = await fetch(api("/api/packs"));

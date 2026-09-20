@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { record, session } from "$lib/progress";
+import { chosenWords, record, session } from "$lib/progress";
 
 const word = (name: string) => ({ word: name, id: name, sign: `sts:${name}-1` });
 const DAY = 24 * 60 * 60 * 1000;
@@ -31,5 +31,20 @@ describe("session", () => {
 
   it("is the new signs alone when nothing was practised, at most `size` of them", () => {
     expect(session(words, {}, 2)).toEqual([word("mamma"), word("pappa")]);
+  });
+});
+
+describe("chosenWords", () => {
+  const packs = [
+    { name: "Första tecknen", kind: "pack" as const, words: [{ sign: "sts:mjölk-1", word: "mjölk" }] },
+    { name: "Mat och dryck", kind: "category" as const, words: [{ sign: "sts:mjölk-1" }, { sign: "sts:bröd-2" }] },
+  ];
+
+  it("takes the chosen packs only, and a sign in two of them once", () => {
+    expect(chosenWords(packs, ["Första tecknen", "Mat och dryck"])).toEqual([
+      { sign: "sts:mjölk-1", word: "mjölk" }, // the word of the pack that named it wins
+      { sign: "sts:bröd-2" },
+    ]);
+    expect(chosenWords(packs, [])).toEqual([]);
   });
 });

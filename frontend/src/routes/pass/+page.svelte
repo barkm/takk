@@ -1,10 +1,22 @@
 <script lang="ts">
   import Recorder from "$lib/Recorder.svelte";
   import Verdict from "$lib/Verdict.svelte";
-  import { fetchLexicon, fetchPacks, referenceUrl, type Attempt, type Lexicon, type PackWord, type Sign } from "$lib/api";
-  import { load, record, save, session, type Progress } from "$lib/progress";
+  import {
+    fetchLexicon,
+    fetchPacks,
+    referenceUrl,
+    word,
+    type Attempt,
+    type Lexicon,
+    type Pack,
+    type PackWord,
+    type Sign,
+  } from "$lib/api";
+  import { chosenWords, load, loadChosen, record, save, saveChosen, session, type Progress } from "$lib/progress";
 
   let lexicon = $state<Lexicon | null>(null);
+  let packs: Pack[] = $state([]);
+  let chosen: string[] = $state([]);
   let progress: Progress = $state({});
   let today: PackWord[] = $state([]);
   let at = $state(0);
@@ -14,15 +26,29 @@
 
   $effect(() => {
     Promise.all([fetchLexicon(), fetchPacks()])
-      .then(([loaded, packs]) => {
-        lexicon = loaded;
+      .then(([loadedLexicon, loadedPacks]) => {
+        (lexicon = loadedLexicon), (packs = loadedPacks);
         progress = load();
-        today = session(packs.flatMap((pack) => pack.words), progress);
+        chosen = loadChosen(packs);
+        restart();
       })
       .catch(() => (note = "Servern svarar inte. Starta den med uv run takk."));
   });
 
+  // Today's signs are picked once, not derived: a scored attempt changes the progress they come from.
+  function restart() {
+    today = session(chosenWords(packs, chosen), progress);
+    (at = 0), (correct = 0), (attempt = null), (note = "");
+  }
+
+  function choose(name: string, on: boolean) {
+    chosen = on ? [...chosen, name] : chosen.filter((other) => other !== name);
+    saveChosen(chosen);
+    restart();
+  }
+
   const current = $derived(today[at]);
+  const shown = $derived(current ? (current.word ?? word(current.sign)) : "");
   // The Recorder scores a sentence, so one word is a sentence of one sign, with the sign's lexicon clips.
   const references = $derived(lexicon?.signs.find((sign) => sign.sign === current?.sign)?.references ?? []);
   const sentence: Sign[] = $derived(current ? [{ sign: current.sign, references }] : []);
@@ -41,17 +67,39 @@
   }
 </script>
 
+{#snippet picker()}
+  <details>
+    <summary>Övar på: {chosen.join(", ") || "inget valt"}</summary>
+    <ul>
+      {#each packs as pack (pack.name)}
+        <li>
+          <label>
+            <input
+              type="checkbox"
+              checked={chosen.includes(pack.name)}
+              onchange={(event) => choose(pack.name, event.currentTarget.checked)}
+            />
+            {pack.name}
+            <span class="dim">{pack.words.length} tecken{pack.kind === "category" ? ", ämnesområde i lexikonet" : ""}</span>
+          </label>
+        </li>
+      {/each}
+    </ul>
+  </details>
+{/snippet}
+
 {#if lexicon && current}
   <section class="card">
     <h1>Dagens pass</h1>
     <p class="dim">Tecken {at + 1} av {today.length}. Titta på klippet och teckna ordet.</p>
-    <h2>{current.word}</h2>
+    <h2>{shown}</h2>
     <div class="videos">
       {#each references as clip (clip)}
         <!-- svelte-ignore a11y_media_has_caption -->
         <video src={referenceUrl(clip)} autoplay loop muted playsinline controls></video>
       {/each}
     </div>
+    {@render picker()}
   </section>
   <Recorder {sentence} {lexicon} onattempt={scored} />
   <Verdict {attempt} {note} />
@@ -64,9 +112,11 @@
   <section class="card">
     <h1>Dagens pass</h1>
     <p>
-      {today.length ? `Klart! ${correct} av ${today.length} tecken rätt.` : "Inget att öva just nu — kom tillbaka senare."}
+      {today.length
+        ? `Klart! ${correct} av ${today.length} tecken rätt.`
+        : "Inget att öva just nu. Välj fler ord, eller kom tillbaka när dagens tecken ska repeteras."}
     </p>
-    <a href="/">Till fri övning</a>
+    {@render picker()}
   </section>
 {:else}
   <section class="card">
@@ -74,3 +124,12 @@
     <p class="dim">{note || "Laddar lexikonet …"}</p>
   </section>
 {/if}
+
+<style>
+  ul {
+    max-height: 40vh; /* the lexicon's categories are 58 of them */
+    overflow-y: auto;
+    margin: 8px 0;
+    padding-left: 20px;
+  }
+</style>
