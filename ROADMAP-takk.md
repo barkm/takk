@@ -16,6 +16,10 @@ The app (user, 2026-09-19): practising TAKK (tecken som alternativ och komplette
 
 ## Decisions
 
+- **The frontend is a SvelteKit app, built and hosted apart from the API** (user decision, 2026-09-20: a real learning app is coming, with lesson flow, progress and phone use, and a Node build step is acceptable). `frontend/` holds it (SvelteKit 2, Svelte 5, TypeScript, Vite, `adapter-static`, prerendered with `ssr = false`), outside the Python package so that `node_modules` and the build never reach the wheel. The API does not serve it: Vite's dev and preview servers proxy `/api` to `127.0.0.1:8002`, so only one port is forwarded from this machine, and a deployed build reaches the API through `VITE_API_BASE`. The user rejected serving the built files from FastAPI as coupling that hurts deployment and availability.
+
+- **The large unchanging files the browser downloads ("media") are meant for a static host, not the API process**: `holistic_landmarker.task` (13.7 MB, `/api/model`) and the lexicon clips (17 GB in `data/raw/sts-lexikon/movies`, `/api/reference/<clip id>`). They are read off disk, while `POST /api/attempt` is what needs torch, the checkpoint and the ~45 s startup that embeds the lexicon. Nothing moves yet; the design rule is that the API hands the frontend URLs for clips and the model rather than paths it assembles itself, so they can be repointed at a CDN server-side. The goal is that searching the lexicon and watching clips keep working while the scoring API is asleep.
+
 - **The app applies the threshold, it does not choose it.** What an attempt has to reach is decided from the model's numbers, in the decisions of ROADMAP.md (a provisional 0.38, `--threshold`).
 
 - **Judging a sentence sign by sign while it is signed was built and then removed** (user, 2026-09-20). It worked: a verdict appeared about one sign behind the signer, from a rest or from the next key word being spoken. The commits are in the history (reverted in `a0d3e0a` and the three before it) if it is ever wanted again.

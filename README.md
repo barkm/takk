@@ -384,6 +384,21 @@ the collection app, forward the port when the machine is remote.
 `scripts/compare_browser_extraction.py` compares the browser's landmarks with the Python extraction
 on the recordings.
 
+### The frontend
+
+The page is being rewritten as a SvelteKit app in `frontend/` (TypeScript, Vite, `adapter-static`),
+which replaces `src/takk/web/practice.html` as it is ported. It is a separate deployment from the API
+and is never served by it (see the decisions in ROADMAP-takk.md): Vite proxies `/api` to the server in
+development and in `preview`, and a deployed build is pointed at the API with `VITE_API_BASE`.
+
+```sh
+uv run takk                      # the API, in one terminal
+cd frontend && npm install       # once
+npm run dev                      # then open http://localhost:5173 (forward this port, not 8002)
+npm run build && npm run preview  # the built site, http://localhost:4173
+npm run check                    # svelte-check
+```
+
 ## Future
 
 - Validate Swedish Sign Language signs from [Svenskt teckenspråkslexikon](https://teckensprakslexikon.su.se/), which have little training data.
