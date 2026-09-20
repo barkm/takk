@@ -7,16 +7,17 @@ const DAY = 24 * 60 * 60 * 1000;
 
 describe("record", () => {
   it("moves an accepted sign up a box and a rejected one back to the first", () => {
-    const first = record({}, "sts:mjölk-1", true, 0);
-    expect(first["sts:mjölk-1"]).toEqual({ box: 1, due: DAY, seen: 0 }); // the first box waits a day
+    const first = record({}, "sts:mjölk-1", true, "mjölk", 0);
+    expect(first["sts:mjölk-1"]).toEqual({ box: 1, due: DAY, seen: 0, word: "mjölk" }); // the first box waits a day
 
-    const second = record(first, "sts:mjölk-1", true, 0);
-    expect(second["sts:mjölk-1"]).toEqual({ box: 2, due: DAY, seen: 0 });
+    const second = record(first, "sts:mjölk-1", true, "mjölk", 0);
+    expect(second["sts:mjölk-1"]).toEqual({ box: 2, due: DAY, seen: 0, word: "mjölk" });
 
-    const third = record(second, "sts:mjölk-1", true, 0);
-    expect(third["sts:mjölk-1"]).toEqual({ box: 3, due: 3 * DAY, seen: 0 });
+    const third = record(second, "sts:mjölk-1", true, "mjölk", 0);
+    expect(third["sts:mjölk-1"]).toEqual({ box: 3, due: 3 * DAY, seen: 0, word: "mjölk" });
 
-    expect(record(third, "sts:mjölk-1", false, 0)["sts:mjölk-1"]).toEqual({ box: 1, due: DAY, seen: 0 });
+    const missed = record(third, "sts:mjölk-1", false, "mjölk", 0);
+    expect(missed["sts:mjölk-1"]).toEqual({ box: 1, due: DAY, seen: 0, word: "mjölk" });
   });
 });
 
@@ -62,9 +63,23 @@ describe("boxes", () => {
     const progress = { "sts:bröd-2": { box: 2, due: DAY }, "sts:livsmedel-1": { box: 1, due: 0 } };
 
     expect(boxes(progress, packs)).toEqual([
+      // no word was stored, so the first pack that names the sign does, not the last one
       { sign: "sts:livsmedel-1", word: "äta", box: 1, due: 0, packs: ["Första tecknen", "Mat och dryck"] },
       // practised but in no pack any more: its own name, which is what the lexicon calls the sign
       { sign: "sts:bröd-2", word: "bröd", box: 2, due: DAY, packs: [] },
+    ]);
+  });
+
+  it("shows the word that was on the card, not another pack's name for the same sign", () => {
+    // sts:spader-00016 is "svart" in Färger and "Oden" in Mytologi: one sign class, two words
+    const both = [
+      { name: "Färger", kind: "category" as const, words: [{ sign: "sts:spader-1", id: "1", word: "svart" }] },
+      { name: "Mytologi", kind: "category" as const, words: [{ sign: "sts:spader-1", id: "2", word: "Oden" }] },
+    ];
+    const progress = { "sts:spader-1": { box: 2, due: DAY, seen: 0, word: "svart" } };
+
+    expect(boxes(progress, both)).toEqual([
+      { sign: "sts:spader-1", word: "svart", box: 2, due: DAY, seen: 0, packs: ["Färger", "Mytologi"] },
     ]);
   });
 });

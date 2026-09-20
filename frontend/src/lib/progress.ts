@@ -11,8 +11,11 @@ const DAY = 24 * 60 * 60 * 1000;
 export const DAYS = [1, 1, 3, 7, 21];
 
 /** A sign's box (1 and up), when it is due again and when it was last practised, in milliseconds
- * since the epoch. Boxes written before `seen` existed simply count as not practised today. */
-export type Learned = { box: number; due: number; seen?: number };
+ * since the epoch, and the word the learner was shown. The word is kept because a box belongs to a
+ * sign class and a class has many words: `sts:spader-00016` is "svart" in Färger and "Oden" in
+ * Mytologi, and what was practised is the one that was on the card. Boxes written before these
+ * fields existed count as not practised today and fall back to a pack's word. */
+export type Learned = { box: number; due: number; seen?: number; word?: string };
 export type Progress = Record<string, Learned>;
 
 export function load(): Progress {
@@ -27,10 +30,11 @@ export function save(progress: Progress) {
   localStorage.setItem(KEY, JSON.stringify(progress));
 }
 
-/** The progress after an attempt of `sign` was accepted or rejected. */
-export function record(progress: Progress, sign: string, correct: boolean, now = Date.now()): Progress {
+/** The progress after an attempt of `sign`, shown as `word`, was accepted or rejected. */
+export function record(progress: Progress, sign: string, correct: boolean, word = "", now = Date.now()): Progress {
   const box = correct ? Math.min((progress[sign]?.box ?? 0) + 1, DAYS.length) : 1;
-  return { ...progress, [sign]: { box, due: now + DAYS[box - 1] * DAY, seen: now } };
+  const learned = { box, due: now + DAYS[box - 1] * DAY, seen: now };
+  return { ...progress, [sign]: word ? { ...learned, word } : learned };
 }
 
 /** How many signs were practised since midnight, which is what a day's work amounts to. */
@@ -73,13 +77,13 @@ export function boxes(progress: Progress, packs: Pack[]): Row[] {
   const inPacks = new Map<string, string[]>();
   for (const pack of packs)
     for (const word of pack.words) {
-      if (word.word) named.set(word.sign, word.word);
+      if (word.word && !named.has(word.sign)) named.set(word.sign, word.word); // the first pack names it
       inPacks.set(word.sign, [...(inPacks.get(word.sign) ?? []), pack.name]);
     }
   const rows = Object.entries(progress).map(([sign, learned]) => ({
     ...learned,
     sign,
-    word: named.get(sign) ?? signWord(sign),
+    word: learned.word ?? named.get(sign) ?? signWord(sign),
     packs: inPacks.get(sign) ?? [],
   }));
   return rows.sort((a, b) => a.due - b.due || a.word.localeCompare(b.word, "sv"));

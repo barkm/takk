@@ -90,7 +90,7 @@
     const judged = scoredAttempt?.signs[0];
     if (!judged?.usable) return; // a recording that could not be used is not an answer either way
     if (judged.correct) correct += 1;
-    progress = record(progress, judged.sign, !!judged.correct && !peeked); // a looked-up sign is not recalled
+    progress = record(progress, judged.sign, !!judged.correct && !peeked, shown); // a looked-up sign is not recalled
     save(progress);
     // A sign still in the first box comes back at the end of this pass, but only once: a sign that
     // will not come out today should not keep the learner in the same pass.

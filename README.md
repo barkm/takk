@@ -399,6 +399,10 @@ clearing the browser's storage starts the learner over.
 repetition is tried without waiting for it: only what counts as due moves, and an attempt is still
 recorded at the real time.
 
+A box belongs to a sign class, and a class has many words: `sts:spader-00016` is "svart" in Färger
+and "Oden" in Mytologi. The word on the card is therefore stored with the box, so progress is shown
+under the word that was practised rather than whichever pack happened to name the sign last.
+
 "Mina tecken" (`/framsteg`) lists what the boxes hold: how many signs are due now, how many sit in
 each box, and every practised sign with its box, when it is due and which packs it is in, with a
 reset behind a fold. It is also how the spaced repetition is inspected while it is being built.
