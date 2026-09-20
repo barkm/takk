@@ -75,14 +75,19 @@
     begin();
   }
 
-  // Start a turn on the front of the queue: one word, or several inside a sentence to speak while
-  // signing them. A sentence the server could not write leaves the head to be practised on its own,
-  // which is the path that needs no model at all.
+  /** Whether a word is being met for the first time, which is the one turn that is not spoken. */
+  const unmet = (each: PackWord) => !progress[each.sign] && !taught.includes(each.sign);
+
+  // Start a turn on the front of the queue. A word met for the first time is taught by its clip and
+  // signed on its own; every other turn is practised the way TAKK is used, inside a sentence said
+  // aloud — of several words when the queue offers them, of one when it does not. A sentence the
+  // server could not write leaves the words to be signed alone and unspoken, which is the fallback
+  // that needs no model at all.
   async function begin() {
     (attempt = null), (note = ""), (peeked = false), (answered = false), (said = "");
     const words = turn(queue, progress);
     taken = words.slice(0, 1);
-    if (words.length < 2) return;
+    if (!words.length || unmet(words[0])) return;
     writing = true;
     const written = await fetchSentence(words.map((each) => each.sign)).finally(() => (writing = false));
     if (!written.sentence) return;
@@ -122,7 +127,7 @@
   // turn of this pass. Every later turn is a test, so the clip only follows the verdict. Looking it up
   // first is allowed but does not count as recalled. A sentence is only ever made of words already
   // practised on their own, so it is never a tutorial.
-  const teaching = $derived(alone && !!current && !progress[current.sign] && !taught.includes(current.sign));
+  const teaching = $derived(!said && !!current && unmet(current));
   const showClip = $derived(alone && (teaching || peeked || !!attempt));
   const clipsOf = (sign: string) => lexicon?.signs.find((each) => each.sign === sign)?.references ?? [];
   const references = $derived(current ? clipsOf(current.sign) : []);
@@ -197,7 +202,7 @@
     <h1>Dagens pass</h1>
     <p class="dim">
       {finished} av {total} tecken klara.
-      {#if writing}Skriver en mening ...{:else if said}Säg meningen högt medan du tecknar orden i fetstil.{:else if teaching}Nytt tecken: titta på klippet och teckna det.{:else}Repetition.{/if}
+      {#if writing}Skriver en mening ...{:else if said}Säg meningen högt medan du tecknar {taken.length > 1 ? 'orden' : 'ordet'} i fetstil.{:else if teaching}Nytt tecken: titta på klippet och teckna det.{:else}Repetition.{/if}
       {#if needed > 1 && alone}Godkänt {accepts[current.sign] ?? 0} av {needed} gånger.{/if}
       {#if peeked && !attempt}Du tog fram tecknet, så det räknas inte som godkänt.{/if}
       {#if ahead}Passet visas som det ser ut om {ahead} dagar.{/if}
@@ -225,7 +230,7 @@
     {/if}
     {@render picker()}
   </section>
-  <Recorder {sentence} {lexicon} onattempt={scored} />
+  <Recorder {sentence} {lexicon} spoken={!!said} onattempt={scored} />
   <Verdict {attempt} {note} {labels} />
   {#if attempt?.signs.length && alone && word(current.sign) !== shown}
     <section class="card">

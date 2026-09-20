@@ -373,9 +373,10 @@ its signs by when the key words are spoken, and each part is scored against the 
 the sentence, with a verdict per sign. The words are known, so they are not recognized but timed, by
 forced alignment against a Swedish CTC model (`takk/speech.py`, about 1.2 GB, downloaded on the first
 run); a wildcard between them absorbs everything else that is said, so the sentence around the key
-words can be any Swedish. A sentence therefore needs the microphone; a single sign is the whole
-recording and does not. When the number of signs found differs from the sentence's, the page says so
-and nothing is scored.
+words can be any Swedish. Speaking is therefore what locates the signs, and the microphone is needed
+whenever a recording is spoken over; a recording made in silence is scored as one sign, the whole
+recording. When the number of signs found differs from the sentence's, or a word was not heard, the
+page says so and nothing is scored.
 
 The page shows the rate the landmarks are tracked at. Below 20 fps it skips so many camera frames
 that the answer is less reliable, since the model was trained on every frame. The lexicon's

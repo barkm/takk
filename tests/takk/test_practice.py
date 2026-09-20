@@ -71,7 +71,8 @@ def test_attempt_scores_against_the_chosen_sign():
 
     def send(landmarks: np.ndarray, *signs: str) -> dict:
         upload = UploadFile(io.BytesIO(landmarks.astype(np.float32).tobytes()))
-        return asyncio.run(attempt(upload, sign=list(signs), handedness="right", width=640, height=480))
+        # `spoken` is passed because calling the endpoint directly leaves Form(False) as the default
+        return asyncio.run(attempt(upload, sign=list(signs), handedness="right", width=640, height=480, spoken=False))  # fmt: skip
 
     landmarks = attempt_landmarks(("right_hand",))
     closest = {"sign": "A", "score": pytest.approx(1.0)}
@@ -121,7 +122,7 @@ def test_attempt_splits_a_spoken_sentence_by_its_words():
     landmarks = np.concatenate([attempt_landmarks(("right_hand",))] * 2)  # 4 s, a sign in each half
     upload = UploadFile(io.BytesIO(landmarks.astype(np.float32).tobytes()))
     audio = UploadFile(io.BytesIO(wav(np.zeros(4 * SAMPLE_RATE, dtype=np.float32))))
-    result = asyncio.run(attempt(upload, sign=["A", "B"], handedness="right", width=640, height=480, audio=audio, audio_offset=0.1))  # fmt: skip
+    result = asyncio.run(attempt(upload, sign=["A", "B"], handedness="right", width=640, height=480, spoken=True, audio=audio, audio_offset=0.1))  # fmt: skip
     assert result["split"] == "speech"
     assert [s["sign"] for s in result["signs"]] == ["A", "B"] and [s["correct"] for s in result["signs"]] == [True, False]
 
@@ -136,20 +137,36 @@ def test_attempt_refuses_a_sentence_whose_words_were_not_spoken():
     landmarks = np.concatenate([attempt_landmarks(("right_hand",))] * 2)
     upload = UploadFile(io.BytesIO(landmarks.astype(np.float32).tobytes()))
     audio = UploadFile(io.BytesIO(wav(np.zeros(4 * SAMPLE_RATE, dtype=np.float32))))
-    result = asyncio.run(attempt(upload, sign=["A", "B"], handedness="right", width=640, height=480, audio=audio))  # fmt: skip
+    result = asyncio.run(attempt(upload, sign=["A", "B"], handedness="right", width=640, height=480, spoken=True, audio=audio))  # fmt: skip
     assert result["signs"] == [] and result["note"] == NOTES["not_heard"].format(words="A och B")
 
 
-def test_attempt_needs_the_microphone_for_a_sentence_but_not_for_one_sign():
-    """The spoken words are the only thing that splits a sentence, so a sentence without audio is
-    refused rather than split some other way; one sign is the whole recording and needs no audio."""
+def test_attempt_needs_the_microphone_when_it_was_spoken_and_not_otherwise():
+    """The words the signer says are the only thing that locates the signs, so a spoken attempt
+    without audio is refused rather than scored some other way. That holds for a single sign too: the
+    practice session speaks a sentence over every sign it is not teaching from scratch, and the whole
+    recording is only the attempt when nothing was said over it."""
     app = create_app({"A": ["a1"]}, np.array([[0.6, 0.8]]), {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [])
     attempt = next(route for route in app.routes if getattr(route, "path", "") == "/api/attempt").endpoint
     landmarks = np.concatenate([attempt_landmarks(("right_hand",))] * 2)
     upload = lambda: UploadFile(io.BytesIO(landmarks.astype(np.float32).tobytes()))  # noqa: E731
 
-    sentence = asyncio.run(attempt(upload(), sign=["A", "A"], handedness="right", width=640, height=480))
+    sentence = asyncio.run(attempt(upload(), sign=["A", "A"], handedness="right", width=640, height=480, spoken=True))
     assert sentence["signs"] == [] and sentence["note"] == NOTES["no_audio"]
 
-    one = asyncio.run(attempt(upload(), sign=["A"], handedness="right", width=640, height=480))
-    assert one["split"] == "whole" and [s["sign"] for s in one["signs"]] == ["A"]
+    alone = asyncio.run(attempt(upload(), sign=["A"], handedness="right", width=640, height=480, spoken=True))
+    assert alone["signs"] == [] and alone["note"] == NOTES["no_audio"]
+
+    taught = asyncio.run(attempt(upload(), sign=["A"], handedness="right", width=640, height=480, spoken=False))
+    assert taught["split"] == "whole" and [s["sign"] for s in taught["signs"]] == ["A"]
+
+
+def test_attempt_of_one_spoken_sign_is_the_whole_recording_once_the_word_was_heard():
+    """Alignment has nothing to cut for a single word, so its only job is to say the word was said."""
+    app = create_app({"A": ["a1"]}, np.array([[0.6, 0.8]]), {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [(0.5, 0.7, -0.4)])  # fmt: skip
+    attempt = next(route for route in app.routes if getattr(route, "path", "") == "/api/attempt").endpoint
+    upload = UploadFile(io.BytesIO(attempt_landmarks(("right_hand",)).astype(np.float32).tobytes()))
+    audio = UploadFile(io.BytesIO(wav(np.zeros(2 * SAMPLE_RATE, dtype=np.float32))))
+
+    result = asyncio.run(attempt(upload, sign=["A"], handedness="right", width=640, height=480, spoken=True, audio=audio))  # fmt: skip
+    assert result["split"] == "speech" and [s["sign"] for s in result["signs"]] == ["A"]

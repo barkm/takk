@@ -5,11 +5,12 @@
   let {
     sentence,
     lexicon,
+    spoken,
     onattempt,
-  }: { sentence: Sign[]; lexicon: Lexicon; onattempt: (attempt: Attempt | null, note: string) => void } = $props();
+  }: { sentence: Sign[]; lexicon: Lexicon; spoken: boolean; onattempt: (attempt: Attempt | null, note: string) => void } = $props();  // prettier-ignore
 
   const SLOW_FPS = 20; // below this the extractor skips so many camera frames that results suffer
-  const NO_MICROPHONE = "Mikrofonen behövs för en mening: orden du säger är det som delar upp inspelningen i tecken. Ett ensamt tecken går att öva utan den.";
+  const NO_MICROPHONE = "Mikrofonen behövs: orden du säger högt är det som visar var tecknen är i inspelningen.";
 
   let video: HTMLVideoElement;
   let canvas: HTMLCanvasElement;
@@ -35,9 +36,9 @@
       });
   });
 
-  // A sentence is split by the words the signer speaks, so without the microphone there is nothing to
-  // split it with. Refusing here says so before a recording is made and thrown away.
-  const silent = $derived(tracker?.hasAudio === false && sentence.length > 1);
+  // A spoken attempt is located by the words the signer says, so without the microphone there is
+  // nothing to locate it with. Refusing here says so before a recording is made and thrown away.
+  const silent = $derived(tracker?.hasAudio === false && spoken);
 
   function start() {
     if (!tracker || silent) return;
@@ -68,6 +69,7 @@
         handedness,
         video,
         lexicon.fps,
+        spoken,
       );
       onattempt(attempt, "");
     } catch {

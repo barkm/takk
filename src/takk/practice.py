@@ -44,7 +44,7 @@ NOTES = {
     "no_body": "Din överkropp syntes inte. Sitt så att båda axlarna är i bild.",
     "lost_hand": "Går att bedöma, men en hand tappades i {lost:.0%} av bildrutorna medan du tecknade.",
     "ok": "Det ser bra ut.",
-    "no_audio": "Mikrofonen behövs för en mening: orden du säger är det som delar upp inspelningen i tecken.",
+    "no_audio": "Mikrofonen behövs: orden du säger är det som visar var tecknen är i inspelningen.",
     "not_said": "Meningens ord hittades inte i det du sa. Säg vart och ett av dem tydligt.",
     "not_heard": "Hörde inte {words}. Säg hela meningen högt medan du tecknar den.",
 }
@@ -167,19 +167,24 @@ def create_app(
         }  # fmt: skip
 
     @app.post("/api/attempt")
-    async def attempt(landmarks: UploadFile, sign: list[str] = Form(), handedness: str = Form(), width: int = Form(), height: int = Form(), audio: UploadFile | None = None, audio_offset: float = Form(0.0)) -> dict:  # fmt: skip
+    async def attempt(landmarks: UploadFile, sign: list[str] = Form(), handedness: str = Form(), width: int = Form(), height: int = Form(), spoken: bool = Form(False), audio: UploadFile | None = None, audio_offset: float = Form(0.0)) -> dict:  # fmt: skip
         """Score an attempt of one sign or a sentence of several (`sign` repeated, in order): its
         landmarks as float32 (n_frames, N_LANDMARKS, 3), NaN where not detected, at the preparation's
-        frame rate, from frames of `width` x `height` pixels. A sentence is split into its signs
-        first, by the sentence spoken in `audio` (recorded `audio_offset` seconds before the first
-        frame), so it needs the microphone; when the split fails, nothing is scored."""
+        frame rate, from frames of `width` x `height` pixels.
+
+        A `spoken` attempt is one the signer said a sentence over, which is how TAKK is used and how
+        the practice session asks for every sign it is not teaching from scratch. It is located by
+        the words timed in `audio` (recorded `audio_offset` seconds before the first frame), so it
+        needs the microphone, and it is scored only when every word was heard — for a single sign
+        that leaves the whole recording, but only once the word was actually said. An attempt that is
+        not spoken is the whole recording, with no audio needed."""
         if any(s not in index for s in sign):
             raise HTTPException(404, "unknown sign")
         values = np.frombuffer(await landmarks.read(), dtype=np.float32)
         if handedness not in ("left", "right") or width <= 0 or height <= 0 or values.size % (N_LANDMARKS * 3):
             raise HTTPException(400, "malformed attempt")
         values = values.reshape(-1, N_LANDMARKS, 3)
-        if len(sign) == 1:  # one sign is the whole recording, so it needs no microphone
+        if not spoken:  # the whole recording is the attempt, so it needs no microphone
             parts, split = [slice(0, len(values))], "whole"
         elif audio is None:
             return {"threshold": threshold, "note": NOTES["no_audio"], "split": "speech", "signs": []}
