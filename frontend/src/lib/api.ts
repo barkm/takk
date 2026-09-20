@@ -42,6 +42,17 @@ export async function fetchLexicon(): Promise<Lexicon> {
   return { signs: data.signs, fps: data.fps, maxSeconds: data.max_seconds, edges: data.edges };
 }
 
+/** A word of a starter pack: what the learner reads, its lexicon entry, and the sign that scores it
+ * (they differ, because entries sharing a sign form are one class labelled by its lowest entry). */
+export type PackWord = { word: string; id: string; sign: string };
+
+export type Pack = { name: string; words: PackWord[] };
+
+export async function fetchPacks(): Promise<Pack[]> {
+  const response = await fetch(api("/api/packs"));
+  return (await response.json()).packs;
+}
+
 export const referenceUrl = (clip: string) => api(`/api/reference/${encodeURIComponent(clip)}`);
 
 /** Score a recording as an attempt of `signs`, in order. Throws when the server refuses it. */
