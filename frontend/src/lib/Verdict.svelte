@@ -8,9 +8,9 @@
   const headline = $derived.by(() => {
     if (!attempt) return note;
     if (!attempt.signs.length) return attempt.note;
-    if (attempt.signs.length > 1) return `${correct} of ${attempt.signs.length} signs recognized.`;
+    if (attempt.signs.length > 1) return `${correct} av ${attempt.signs.length} tecken kändes igen.`;
     const only = attempt.signs[0];
-    return only.correct ? `Correct: that was ${word(only.sign)}.` : `Not recognized as ${word(only.sign)}.`;
+    return only.correct ? `Rätt: det var ${word(only.sign)}.` : `Kändes inte igen som ${word(only.sign)}.`;
   });
 
   const good = $derived(!!attempt && attempt.signs.length > 0 && correct === attempt.signs.length);
@@ -19,17 +19,17 @@
     if (!sign.usable) return `${word(sign.sign)}: ${sign.note}`;
     const closest =
       sign.closest!.sign === sign.sign
-        ? "also the closest sign in the lexicon"
-        : `closest sign in the lexicon ${word(sign.closest!.sign)} (${entry(sign.closest!.sign)}), score ${sign.closest!.score.toFixed(2)}`;
-    const note = sign.note === "Looks good." ? "" : sign.note;
-    return `${sign.correct ? "✓" : "✗"} ${word(sign.sign)}: score ${sign.score!.toFixed(2)}, ${closest}. ${note}`;
+        ? "också det närmaste tecknet i lexikonet"
+        : `närmaste tecken i lexikonet ${word(sign.closest!.sign)} (${entry(sign.closest!.sign)}), poäng ${sign.closest!.score.toFixed(2)}`;
+    const note = sign.note === "Det ser bra ut." ? "" : sign.note;
+    return `${sign.correct ? "✓" : "✗"} ${word(sign.sign)}: poäng ${sign.score!.toFixed(2)}, ${closest}. ${note}`;
   }
 
   const found = $derived(
     attempt?.split === "speech"
-      ? " The signs were found by the words you spoke."
+      ? " Tecknen hittades utifrån orden du sa."
       : attempt?.split === "rests"
-        ? " The signs were found by the rests between them."
+        ? " Tecknen hittades utifrån pauserna mellan dem."
         : "",
   );
 </script>
@@ -43,7 +43,7 @@
           <li class:ok={sign.correct} class:bad={!sign.correct}>{line(sign)}</li>
         {/each}
       </ul>
-      <p class="dim">A score of at least {attempt.threshold.toFixed(2)} counts as the sign.{found}</p>
+      <p class="dim">En poäng på minst {attempt.threshold.toFixed(2)} räknas som tecknet.{found}</p>
     {/if}
   </section>
 {/if}

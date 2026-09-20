@@ -14,7 +14,7 @@
   let canvas: HTMLCanvasElement;
   let tracker: Tracker | null = $state(null);
   let starting: Promise<Tracker> | null = null;
-  let status = $state("Loading the landmark model...");
+  let status = $state("Laddar teckenmodellen...");
   let handedness: "left" | "right" = $state("right");
   let recording = $state(false);
   let scoring = $state(false);
@@ -24,12 +24,12 @@
   // The camera starts once, however fast signs are picked, and keeps running between attempts.
   $effect(() => {
     starting ??= Tracker.start(video, canvas, lexicon.edges, (fps) => {
-      const slow = fps < SLOW_FPS ? " — slower than the camera, so results are less reliable" : "";
-      status = `Tracking live on the ${tracker?.delegate} at ${fps.toFixed(0)} fps${slow}`;
+      const slow = fps < SLOW_FPS ? " — långsammare än kameran, så resultatet blir mindre tillförlitligt" : "";
+      status = `Följer tecknen live på ${tracker?.delegate} i ${fps.toFixed(0)} fps${slow}`;
     })
       .then((started) => (tracker = started))
       .catch((error) => {
-        status = `No access to the camera: ${error.message}`;
+        status = `Ingen åtkomst till kameran: ${error.message}`;
         throw error;
       });
   });
@@ -52,7 +52,7 @@
     if (ticker) clearInterval(ticker);
     const taken = await tracker.stopRecording();
     if (!taken) return;
-    if (taken.frames.length < 2) return onattempt(null, "The recording is empty.");
+    if (taken.frames.length < 2) return onattempt(null, "Inspelningen är tom.");
     scoring = true;
     try {
       const attempt = await scoreAttempt(
@@ -66,7 +66,7 @@
       );
       onattempt(attempt, "");
     } catch {
-      onattempt(null, "Scoring failed. Please record again.");
+      onattempt(null, "Bedömningen misslyckades. Spela in igen.");
     } finally {
       scoring = false;
     }
@@ -91,17 +91,17 @@
   <p class="dim">{status}</p>
   <p class="row">
     <button disabled={!tracker || scoring} onclick={() => (recording ? stop() : start())}>
-      {recording ? "Stop" : "Record"}
+      {recording ? "Stoppa" : "Spela in"}
     </button>
     <span class="dim">{recording ? `${seconds.toFixed(1)} s` : ""}</span>
     <label class="row dim">
-      I sign with my
-      <input type="radio" name="handedness" value="right" bind:group={handedness} /> right
-      <input type="radio" name="handedness" value="left" bind:group={handedness} /> left hand
+      Jag tecknar med
+      <input type="radio" name="handedness" value="right" bind:group={handedness} /> höger
+      <input type="radio" name="handedness" value="left" bind:group={handedness} /> vänster hand
     </label>
   </p>
   {#if scoring}
-    <p class="dim">Scoring...</p>
+    <p class="dim">Bedömer...</p>
   {/if}
 </section>
 

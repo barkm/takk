@@ -13,7 +13,7 @@
   $effect(() => {
     fetchLexicon()
       .then((loaded) => (lexicon = loaded))
-      .catch(() => (note = "The server does not answer. Start it with uv run takk."));
+      .catch(() => (note = "Servern svarar inte. Starta den med uv run takk."));
   });
 
   function pick(sign: Sign) {
@@ -40,7 +40,7 @@
   <Verdict {attempt} {note} />
 {:else}
   <section class="card">
-    <h1>Practice a sign or a sentence</h1>
-    <p class="dim">{note || "Loading the lexicon …"}</p>
+    <h1>Öva ett tecken eller en mening</h1>
+    <p class="dim">{note || "Laddar lexikonet …"}</p>
   </section>
 {/if}

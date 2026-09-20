@@ -7,18 +7,18 @@
 <section class="card">
   <h2>{sentence.map((sign) => word(sign.sign)).join(" ")}</h2>
   <p class="dim">
-    Each search result you pick adds a sign; several make a sentence. Watch the clips, then record
-    yourself signing them in order. Say the sentence aloud as you sign it, as TAKK is spoken and signed
-    at once: the signs are found by when you say their words. Without a microphone, lower your hands
-    between the signs instead. Press space to start and stop recording.
+    Varje sökträff du väljer lägger till ett tecken; flera blir en mening. Titta på klippen och spela
+    sedan in dig själv när du tecknar dem i ordning. Säg meningen högt medan du tecknar den, för TAKK
+    talas och tecknas samtidigt: tecknen hittas utifrån när du säger deras ord. Utan mikrofon sänker du
+    händerna mellan tecknen i stället. Tryck på mellanslag för att starta och stoppa inspelningen.
   </p>
-  <button class="secondary" onclick={onclear}>Clear</button>
+  <button class="secondary" onclick={onclear}>Rensa</button>
   <div class="videos">
     {#each sentence as sign, i (i)}
       <figure>
         <figcaption>
           {i + 1}. {word(sign.sign)}
-          <button class="secondary" onclick={() => onremove(i)}>Remove</button>
+          <button class="secondary" onclick={() => onremove(i)}>Ta bort</button>
         </figcaption>
         {#each sign.references as clip (clip)}
           <!-- svelte-ignore a11y_media_has_caption -->

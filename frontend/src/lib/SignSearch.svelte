@@ -17,8 +17,8 @@
 </script>
 
 <section class="card">
-  <h1>Practice a sign or a sentence</h1>
-  <input type="search" placeholder="Search for a word" autocomplete="off" bind:value={query} />
+  <h1>Öva ett tecken eller en mening</h1>
+  <input type="search" placeholder="Sök efter ett ord" autocomplete="off" bind:value={query} />
   <div class="matches">
     {#each found as sign (sign.sign)}
       <button class="secondary" onclick={() => onpick(sign)}>{word(sign.sign)} ({entry(sign.sign)})</button>
