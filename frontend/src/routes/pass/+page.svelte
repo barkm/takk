@@ -17,10 +17,13 @@
     chosenWords,
     load,
     loadChosen,
+    loadNewPerDay,
+    metToday,
     practisedToday,
     record,
     save,
     saveChosen,
+    saveNewPerDay,
     session,
     type Progress,
   } from "$lib/progress";
@@ -29,6 +32,7 @@
   let lexicon = $state<Lexicon | null>(null);
   let packs: Pack[] = $state([]);
   let chosen: string[] = $state([]);
+  let perDay = $state(5); // new words a day, the learner's own number
   let progress: Progress = $state({});
   let today: PackWord[] = $state([]);
   let at = $state(0);
@@ -45,6 +49,7 @@
         (lexicon = loadedLexicon), (packs = loadedPacks);
         progress = load();
         chosen = loadChosen(packs);
+        perDay = loadNewPerDay();
         restart();
       })
       .catch(() => (note = "Servern svarar inte. Starta den med uv run takk."));
@@ -56,8 +61,13 @@
 
   // Today's signs are picked once, not derived: a scored attempt changes the progress they come from.
   function restart() {
-    today = session(chosenWords(packs, chosen), progress, 5, Date.now() + ahead * 24 * 60 * 60 * 1000);
+    today = session(chosenWords(packs, chosen), progress, 5, Date.now() + ahead * 24 * 60 * 60 * 1000, perDay);
     (at = 0), (correct = 0), (attempt = null), (note = ""), (peeked = false), (repeated = []);
+  }
+
+  function setPerDay(value: number) {
+    (perDay = Math.max(value, 0)), saveNewPerDay(perDay);
+    restart();
   }
 
   function choose(name: string, on: boolean) {
@@ -75,7 +85,7 @@
 
   const current = $derived(today[at]);
   // Whether another pass would have anything in it, which is what makes the summary offer one.
-  const waiting = $derived(session(chosenWords(packs, chosen), progress, 1, Date.now() + ahead * 24 * 60 * 60 * 1000).length > 0);  // prettier-ignore
+  const waiting = $derived(session(chosenWords(packs, chosen), progress, 1, Date.now() + ahead * 24 * 60 * 60 * 1000, perDay).length > 0);  // prettier-ignore
   const shown = $derived(current ? (current.word ?? word(current.sign)) : "");
   // A word never practised is being taught, so its clip is shown; a repetition is a test, and the
   // clip only follows the verdict. Looking it up first is allowed but does not move the sign up a box.
@@ -107,6 +117,17 @@
 {#snippet picker()}
   <details>
     <summary>Övar på: {chosen.join(", ") || "inget valt"}</summary>
+    <label class="perday">
+      Nya tecken per dag:
+      <input
+        type="number"
+        min="0"
+        max="50"
+        value={perDay}
+        onchange={(event) => setPerDay(Number(event.currentTarget.value))}
+      />
+      <span class="dim">{metToday(progress)} nya tecken mötta idag av {perDay}. Repetitioner begränsas inte.</span>
+    </label>
     <ul>
       {#each packs as pack (pack.name)}
         <li>
@@ -170,7 +191,7 @@
     <p>
       {today.length
         ? `Klart! ${correct} av ${today.length} tecken rätt, ${practisedToday(progress)} tecken övade idag.`
-        : "Inget att öva just nu. Välj fler ord, eller kom tillbaka när dagens tecken ska repeteras."}
+        : `Inget att öva just nu. ${metToday(progress) >= perDay ? `Du har mött dagens ${perDay} nya tecken.` : "Välj fler ord,"} Kom tillbaka när dagens tecken ska repeteras.`}
     </p>
     {#if waiting}
       <button onclick={restart}>Ett pass till</button>
@@ -187,6 +208,10 @@
 {/if}
 
 <style>
+  .perday input {
+    width: 4em;
+  }
+
   .form {
     margin: 8px 0;
     font-style: italic;

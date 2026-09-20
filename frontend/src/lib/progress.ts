@@ -5,6 +5,7 @@ import { word as signWord, type Pack, type PackWord } from "$lib/api";
 
 const KEY = "takk.progress";
 const CHOSEN = "takk.packs";
+const DAILY = "takk.new-per-day";
 const DAY = 24 * 60 * 60 * 1000;
 /** Days until a sign in each box is due again. The first box waits a day like the second: a sign that
  * was missed comes back within the same pass, so a finished pass is finished. */
@@ -13,9 +14,15 @@ export const DAYS = [1, 1, 3, 7, 21];
 /** A sign's box (1 and up), when it is due again and when it was last practised, in milliseconds
  * since the epoch, and the word the learner was shown. The word is kept because a box belongs to a
  * sign class and a class has many words: `sts:spader-00016` is "svart" in Färger and "Oden" in
- * Mytologi, and what was practised is the one that was on the card. Boxes written before these
- * fields existed count as not practised today and fall back to a pack's word. */
-export type Learned = { box: number; due: number; seen?: number; word?: string };
+ * Mytologi, and what was practised is the one that was on the card. `first` is when the sign was met
+ * for the first time, which is the only way to tell a new word from a missed old one: both sit in the
+ * first box. Boxes written before these fields existed count as neither practised nor met today and
+ * fall back to a pack's word. */
+export type Learned = { box: number; due: number; seen?: number; first?: number; word?: string };
+
+/** How many words a learner meets for the first time in a day, until they say otherwise. Repetitions
+ * are never capped: the limit is there so that a day's new words come back as a day's repetitions. */
+export const NEW_PER_DAY = 5;
 export type Progress = Record<string, Learned>;
 
 export function load(): Progress {
@@ -33,7 +40,7 @@ export function save(progress: Progress) {
 /** The progress after an attempt of `sign`, shown as `word`, was accepted or rejected. */
 export function record(progress: Progress, sign: string, correct: boolean, word = "", now = Date.now()): Progress {
   const box = correct ? Math.min((progress[sign]?.box ?? 0) + 1, DAYS.length) : 1;
-  const learned = { box, due: now + DAYS[box - 1] * DAY, seen: now };
+  const learned = { box, due: now + DAYS[box - 1] * DAY, seen: now, first: progress[sign]?.first ?? now };
   return { ...progress, [sign]: word ? { ...learned, word } : learned };
 }
 
@@ -41,6 +48,22 @@ export function record(progress: Progress, sign: string, correct: boolean, word 
 export function practisedToday(progress: Progress, now = Date.now()): number {
   const midnight = new Date(now).setHours(0, 0, 0, 0);
   return Object.values(progress).filter((learned) => (learned.seen ?? 0) >= midnight).length;
+}
+
+/** How many words were met for the first time since midnight, which the day's new words are capped by. */
+export function metToday(progress: Progress, now = Date.now()): number {
+  const midnight = new Date(now).setHours(0, 0, 0, 0);
+  return Object.values(progress).filter((learned) => (learned.first ?? 0) >= midnight).length;
+}
+
+/** How many new words a day the learner has asked for. */
+export function loadNewPerDay(): number {
+  const stored = Number(localStorage.getItem(DAILY));
+  return Number.isFinite(stored) && stored > 0 ? stored : NEW_PER_DAY;
+}
+
+export function saveNewPerDay(perDay: number) {
+  localStorage.setItem(DAILY, String(perDay));
 }
 
 /** The packs the learner practises, the starter packs until they choose otherwise. */
@@ -91,10 +114,15 @@ export function boxes(progress: Progress, packs: Pack[]): Row[] {
   return rows.sort((a, b) => a.due - b.due || a.word.localeCompare(b.word, "sv"));
 }
 
-/** The signs of today's session: the due ones first, then words never practised, at most `size`. */
-export function session(words: PackWord[], progress: Progress, size = 5, now = Date.now()): PackWord[] {
+/** The signs of today's session: the due ones first, then words never practised, at most `size`.
+ *
+ * Only as many new words are taken as the day has left of `perDay`, so that meeting a word is a
+ * decision made once a day rather than however many passes are run; repetitions are never held back.
+ */
+export function session(words: PackWord[], progress: Progress, size = 5, now = Date.now(), perDay = NEW_PER_DAY): PackWord[] {  // prettier-ignore
   const due = words.filter((word) => progress[word.sign] && progress[word.sign].due <= now);
   due.sort((a, b) => progress[a.sign].due - progress[b.sign].due);
-  const fresh = words.filter((word) => !progress[word.sign]);
+  const left = Math.max(perDay - metToday(progress, now), 0);
+  const fresh = words.filter((word) => !progress[word.sign]).slice(0, left);
   return [...due, ...fresh].slice(0, size);
 }

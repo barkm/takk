@@ -392,7 +392,13 @@ move it up a box. Each sign has a Leitner box and a next-due date in the browser
 3, 7 and 21 days) and a rejected one puts it back in the first. A sign that ends up in the first box
 comes back at the end of the same pass, once, so a pass drills what was missed but cannot trap a
 learner on one sign. The summary says how many signs were practised today and offers another pass
-while anything is due or unpractised. Nothing is stored on the server, so
+while anything is due or unpractised.
+
+A day introduces at most a set number of new words, five until the learner changes it next to the
+pack picker; repetitions are never held back. Without the cap a session fills every spare slot from
+9,887 unpractised words, so a keen day leaves a month of repetitions behind it. Each box keeps the
+time its sign was first met, which is the only way to tell a new word from an old one that was
+missed: both sit in the first box. Nothing is stored on the server, so
 clearing the browser's storage starts the learner over.
 
 `/pass?days=1` shows the session as it will look that many days from now, which is how the spaced

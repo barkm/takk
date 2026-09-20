@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { boxes, chosenWords, practisedToday, record, session } from "$lib/progress";
+import { boxes, chosenWords, metToday, practisedToday, record, session } from "$lib/progress";
 
 const word = (name: string) => ({ word: name, id: name, sign: `sts:${name}-1` });
 const DAY = 24 * 60 * 60 * 1000;
@@ -8,16 +8,17 @@ const DAY = 24 * 60 * 60 * 1000;
 describe("record", () => {
   it("moves an accepted sign up a box and a rejected one back to the first", () => {
     const first = record({}, "sts:mjölk-1", true, "mjölk", 0);
-    expect(first["sts:mjölk-1"]).toEqual({ box: 1, due: DAY, seen: 0, word: "mjölk" }); // the first box waits a day
+    // the first box waits a day, and the time the sign was first met is kept from here on
+    expect(first["sts:mjölk-1"]).toEqual({ box: 1, due: DAY, seen: 0, first: 0, word: "mjölk" });
 
     const second = record(first, "sts:mjölk-1", true, "mjölk", 0);
-    expect(second["sts:mjölk-1"]).toEqual({ box: 2, due: DAY, seen: 0, word: "mjölk" });
+    expect(second["sts:mjölk-1"]).toEqual({ box: 2, due: DAY, seen: 0, first: 0, word: "mjölk" });
 
     const third = record(second, "sts:mjölk-1", true, "mjölk", 0);
-    expect(third["sts:mjölk-1"]).toEqual({ box: 3, due: 3 * DAY, seen: 0, word: "mjölk" });
+    expect(third["sts:mjölk-1"]).toEqual({ box: 3, due: 3 * DAY, seen: 0, first: 0, word: "mjölk" });
 
     const missed = record(third, "sts:mjölk-1", false, "mjölk", 0);
-    expect(missed["sts:mjölk-1"]).toEqual({ box: 1, due: DAY, seen: 0, word: "mjölk" });
+    expect(missed["sts:mjölk-1"]).toEqual({ box: 1, due: DAY, seen: 0, first: 0, word: "mjölk" });
   });
 });
 
@@ -96,5 +97,25 @@ describe("practisedToday", () => {
     };
 
     expect(practisedToday(progress, noon)).toBe(1);
+  });
+});
+
+describe("the day's new words", () => {
+  const words = [word("mamma"), word("pappa"), word("hej")];
+  const noon = new Date("2026-09-20T12:00:00").getTime();
+
+  it("stops at the learner's number, however many passes are run", () => {
+    const met = record({}, "sts:mamma-1", true, "mamma", noon);
+
+    expect(metToday(met, noon)).toBe(1);
+    expect(session(words, met, 5, noon, 2)).toEqual([word("pappa")]); // one of the day's two is met
+    expect(session(words, met, 5, noon, 1)).toEqual([]); // and none is left at a limit of one
+  });
+
+  it("holds no repetition back, and counts a word met yesterday as met", () => {
+    const yesterday = { "sts:mamma-1": { box: 1, due: noon - DAY, seen: noon - DAY, first: noon - DAY } };
+
+    expect(metToday(yesterday, noon)).toBe(0);
+    expect(session(words, yesterday, 5, noon, 0)).toEqual([word("mamma")]); // due, so it comes back
   });
 });
