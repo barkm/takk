@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { boxes, chosenWords, metToday, practisedToday, record, session } from "$lib/progress";
+import { boxes, chosenWords, loadNewPerDay, metToday, practisedToday, record, saveNewPerDay, session } from "$lib/progress";
 
 const word = (name: string) => ({ word: name, id: name, sign: `sts:${name}-1` });
 const DAY = 24 * 60 * 60 * 1000;
@@ -117,5 +117,22 @@ describe("the day's new words", () => {
 
     expect(metToday(yesterday, noon)).toBe(0);
     expect(session(words, yesterday, 5, noon, 0)).toEqual([word("mamma")]); // due, so it comes back
+  });
+});
+
+describe("loadNewPerDay", () => {
+  it("keeps a chosen zero, which is a day of repetitions only", () => {
+    const stored = new Map<string, string>(); // the tests run without a browser
+    Object.assign(globalThis, {
+      localStorage: {
+        getItem: (key: string) => stored.get(key) ?? null,
+        setItem: (key: string, value: string) => stored.set(key, value),
+      },
+    });
+
+    expect(loadNewPerDay()).toBe(5); // never chosen
+
+    saveNewPerDay(0);
+    expect(loadNewPerDay()).toBe(0);
   });
 });

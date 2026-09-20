@@ -56,10 +56,12 @@ export function metToday(progress: Progress, now = Date.now()): number {
   return Object.values(progress).filter((learned) => (learned.first ?? 0) >= midnight).length;
 }
 
-/** How many new words a day the learner has asked for. */
+/** How many new words a day the learner has asked for. Zero is an answer: it is a day of repetitions
+ * only, so it has to be told apart from having never chosen. */
 export function loadNewPerDay(): number {
-  const stored = Number(localStorage.getItem(DAILY));
-  return Number.isFinite(stored) && stored > 0 ? stored : NEW_PER_DAY;
+  const stored = localStorage.getItem(DAILY);
+  const perDay = Number(stored);
+  return stored !== null && Number.isFinite(perDay) && perDay >= 0 ? perDay : NEW_PER_DAY;
 }
 
 export function saveNewPerDay(perDay: number) {
