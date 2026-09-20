@@ -55,7 +55,6 @@
         <p id="tracking" class="dim"></p>
         <p class="row">
           <button id="record" disabled>Record</button>
-          <label><input id="live" type="checkbox" /> Judge each sign as I sign it</label>
           <span id="timer" class="dim"></span>
           <label class="row dim">I sign with my <input type="radio" name="handedness" value="right" checked /> right <input type="radio" name="handedness" value="left" /> left hand</label>
         </p>
@@ -87,8 +86,6 @@
       const COLORS = { left_hand: "#60a5fa", right_hand: "#f87171", upper_body: "#a0a6b2", lips: "#f472b6" };
       const id = (sign) => sign.match(/\d+$/)?.[0] ?? "";
       let signs = [], sentence = [], fps = 30, maxSeconds = 4, edges = {}, starting = null, landmarker = null, recorded = null, recorder = null, audioStart = 0;
-      let live = false, following = null, audioChunks = [], originFrame = 0, nextIndex = 0; // live mode, see follow
-      const TICK = 500; // milliseconds between asking whether the sign being signed is over
 
       function search() {
         const query = el("search").value.trim().toLowerCase();
@@ -202,21 +199,17 @@
       function recordAudio() {
         const tracks = el("camera").srcObject.getAudioTracks();
         if (!tracks.length) return (recorder = null);
-        audioChunks = [];
+        const chunks = [];
         recorder = new MediaRecorder(new MediaStream(tracks));
-        recorder.ondataavailable = (event) => audioChunks.push(event.data);
+        recorder.ondataavailable = (event) => chunks.push(event.data);
         recorder.onstart = () => (audioStart = performance.now() / 1000);
-        recorder.stopped = new Promise((resolve) => (recorder.onstop = () => resolve(new Blob(audioChunks))));
-        // Live mode sends the audio while it is still being recorded, so it needs it in pieces; the
-        // first piece carries the header, so the pieces so far always concatenate into a readable one.
-        live ? recorder.start(TICK) : recorder.start();
+        recorder.stopped = new Promise((resolve) => (recorder.onstop = () => resolve(new Blob(chunks))));
+        recorder.start();
       }
 
       function record() {
         recorded = [];
-        (live = el("live").checked), (originFrame = 0), (nextIndex = 0);
         recordAudio();
-        if (live) (following = follow()), listening();
         el("camera").classList.add("recording");
         el("record").textContent = "Stop";
         clearResult();
@@ -224,7 +217,7 @@
         window.ticker = setInterval(() => {
           const seconds = (Date.now() - started) / 1000;
           el("timer").textContent = `${seconds.toFixed(1)} s`;
-          if (!live && seconds > maxSeconds * sentence.length) stop(); // live mode runs until the sentence is done
+          if (seconds > maxSeconds * sentence.length) stop();
         }, 100);
       }
 
@@ -232,66 +225,17 @@
         if (!recorded) return; // the time limit and the button can both stop a recording
         clearInterval(window.ticker);
         const frames = recorded;
-        recorded = null; // ends the live loop after the request it is waiting for
-        await following;
+        recorded = null;
+        let audio = null;
+        if (recorder) (recorder.stop(), (audio = await recorder.stopped), (recorder = null));
         el("camera").classList.remove("recording");
         el("record").textContent = "Record";
         el("record").disabled = true;
         try {
-          if (!live) {
-            let audio = null;
-            if (recorder) (recorder.stop(), (audio = await recorder.stopped), (recorder = null));
-            await score(frames, audio);
-          } else {
-            if (nextIndex < sentence.length) await ask(frames, true); // the sign still being signed
-            el("detail").textContent = nextIndex < sentence.length ? "The recording stopped before the rest of the sentence." : "";
-          }
+          await score(frames, audio);
         } finally {
-          if (recorder) (recorder.stop(), (recorder = null));
           el("record").disabled = false;
         }
-      }
-
-      // Live mode: keep asking whether the sign being signed is over until the sentence is done. One
-      // request at a time, so a slow answer slows the loop down instead of piling requests up.
-      async function follow() {
-        while (recorded && nextIndex < sentence.length) {
-          await ask(recorded, false);
-          await new Promise((resolve) => setTimeout(resolve, TICK));
-        }
-      }
-
-      function listening() {
-        el("detail").textContent = nextIndex < sentence.length ? `Waiting for ${word(sentence[nextIndex].sign)} to be over...` : "";
-      }
-
-      // Ask whether the sign at `nextIndex` is over, sending the recording from where it started, and
-      // show its verdict when it is. `final` judges it as it stands, for a recording that is stopping.
-      async function ask(frames, final) {
-        if (!frames || frames.length < 2) return;
-        const all = resample(frames), stride = N_LANDMARKS * 3;
-        if (all.length / stride - originFrame < 2) return;
-        const body = new FormData();
-        body.append("landmarks", new Blob([all.buffer.slice(originFrame * stride * 4)]), "landmarks.f32");
-        for (const s of sentence.slice(nextIndex, nextIndex + 2)) body.append("sign", s.sign); // this sign and the next
-        body.append("handedness", document.querySelector("input[name=handedness]:checked").value);
-        body.append("width", el("camera").videoWidth);
-        body.append("height", el("camera").videoHeight);
-        body.append("final", final);
-        if (audioChunks.length) {
-          body.append("audio", new Blob(audioChunks), "audio");
-          body.append("audio_start", frames[0].time - audioStart + originFrame / fps);
-        }
-        const response = await fetch("/api/next", { method: "POST", body });
-        if (!response.ok) return; // a tick that fails changes nothing; the next one sends more
-        const result = await response.json();
-        if (!result.sign) return; // the sign is not over yet
-        el("results").append(verdict(result.sign));
-        (originFrame += Math.round(result.seconds * fps)), (nextIndex += 1);
-        el("verdict").className = "";
-        el("verdict").textContent = `${nextIndex} of ${sentence.length} signs done.`;
-        listening();
-        if (nextIndex >= sentence.length) stop();
       }
 
       // The landmarks at the preparation's constant frame rate: at every 1 / fps seconds the latest
@@ -305,18 +249,6 @@
           landmarks.set(frames[j].landmarks, i * N_LANDMARKS * 3);
         }
         return landmarks;
-      }
-
-      // One sign's verdict, as a list item.
-      function verdict(s) {
-        const item = document.createElement("li");
-        item.className = s.correct ? "ok" : "bad";
-        if (!s.usable) item.textContent = `${word(s.sign)}: ${s.note}`;
-        else {
-          const closest = s.closest.sign === s.sign ? "also the closest sign in the lexicon" : `closest sign in the lexicon ${word(s.closest.sign)} (${id(s.closest.sign)}), score ${s.closest.score.toFixed(2)}`;
-          item.textContent = `${s.correct ? "✓" : "✗"} ${word(s.sign)}: score ${s.score.toFixed(2)}, ${closest}. ${s.note === "Looks good." ? "" : s.note}`;
-        }
-        return item;
       }
 
       async function score(frames, audio) {
@@ -348,7 +280,16 @@
         el("verdict").textContent = result.signs.length === 1
           ? (correct ? `Correct: that was ${word(result.signs[0].sign)}.` : `Not recognized as ${word(result.signs[0].sign)}.`)
           : `${correct} of ${result.signs.length} signs recognized.`;
-        for (const s of result.signs) el("results").append(verdict(s));
+        for (const s of result.signs) {
+          const item = document.createElement("li");
+          item.className = s.correct ? "ok" : "bad";
+          if (!s.usable) item.textContent = `${word(s.sign)}: ${s.note}`;
+          else {
+            const closest = s.closest.sign === s.sign ? "also the closest sign in the lexicon" : `closest sign in the lexicon ${word(s.closest.sign)} (${id(s.closest.sign)}), score ${s.closest.score.toFixed(2)}`;
+            item.textContent = `${s.correct ? "✓" : "✗"} ${word(s.sign)}: score ${s.score.toFixed(2)}, ${closest}. ${s.note === "Looks good." ? "" : s.note}`;
+          }
+          el("results").append(item);
+        }
         const found = result.split === "speech" ? " The signs were found by the words you spoke." : result.split === "rests" ? " The signs were found by the rests between them." : "";
         el("detail").textContent = `A score of at least ${result.threshold.toFixed(2)} counts as the sign.${found}`;
       }
