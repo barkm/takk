@@ -5,9 +5,8 @@
   let {
     sentence,
     lexicon,
-    spoken,
     onattempt,
-  }: { sentence: Sign[]; lexicon: Lexicon; spoken: boolean; onattempt: (attempt: Attempt | null, note: string) => void } = $props();  // prettier-ignore
+  }: { sentence: Sign[]; lexicon: Lexicon; onattempt: (attempt: Attempt | null, note: string) => void } = $props();
 
   const SLOW_FPS = 20; // below this the extractor skips so many camera frames that results suffer
   const NO_MICROPHONE = "Mikrofonen behövs: orden du säger högt är det som visar var tecknen är i inspelningen.";
@@ -36,9 +35,9 @@
       });
   });
 
-  // A spoken attempt is located by the words the signer says, so without the microphone there is
+  // Every attempt is located by the words the signer says, so without the microphone there is
   // nothing to locate it with. Refusing here says so before a recording is made and thrown away.
-  const silent = $derived(tracker?.hasAudio === false && spoken);
+  const silent = $derived(tracker?.hasAudio === false);
 
   function start() {
     if (!tracker || silent) return;
@@ -69,7 +68,6 @@
         handedness,
         video,
         lexicon.fps,
-        spoken,
       );
       onattempt(attempt, "");
     } catch {

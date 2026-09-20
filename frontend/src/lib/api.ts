@@ -32,8 +32,6 @@ export type Attempt = {
   /** Empty when the recording could not be split into the sentence's signs; `note` says why. */
   signs: Judgement[];
   note: string;
-  /** How the sentence was split: by the spoken words, or not at all when it is a single sign. */
-  split: "speech" | "whole";
 };
 
 export async function fetchLexicon(): Promise<Lexicon> {
@@ -76,9 +74,8 @@ export async function fetchForm(entryId: string): Promise<string> {
 
 export const referenceUrl = (clip: string) => api(`/api/reference/${encodeURIComponent(clip)}`);
 
-/** Score a recording as an attempt of `signs`, in order. A `spoken` attempt is one a sentence was
- * said over, and its signs are located by those words, so it needs the microphone. Throws when the
- * server refuses it. */
+/** Score a recording as an attempt of `signs`, in order. Every attempt is spoken and its signs are
+ * located by the words said over it, so it needs the microphone. Throws when the server refuses it. */
 export async function scoreAttempt(
   frames: Frame[],
   audio: Blob | null,
@@ -87,7 +84,6 @@ export async function scoreAttempt(
   handedness: "left" | "right",
   video: HTMLVideoElement,
   fps: number,
-  spoken: boolean,
 ): Promise<Attempt> {
   const body = new FormData();
   const landmarks = resample(frames, fps);
@@ -97,7 +93,6 @@ export async function scoreAttempt(
     body.append("audio_offset", String(frames[0].time - audioStart));
   }
   for (const sign of signs) body.append("sign", sign);
-  body.append("spoken", String(spoken));
   body.append("handedness", handedness);
   body.append("width", String(video.videoWidth));
   body.append("height", String(video.videoHeight));

@@ -202,7 +202,7 @@
     <h1>Dagens pass</h1>
     <p class="dim">
       {finished} av {total} tecken klara.
-      {#if writing}Skriver en mening ...{:else if said}Säg meningen högt medan du tecknar {taken.length > 1 ? 'orden' : 'ordet'} i fetstil.{:else if teaching}Nytt tecken: titta på klippet och teckna det.{:else}Repetition.{/if}
+      {#if writing}Skriver en mening ...{:else if said}Säg meningen högt medan du tecknar {taken.length > 1 ? "orden" : "ordet"} i fetstil.{:else if teaching}Nytt tecken: titta på klippet, säg ordet högt och teckna det.{:else}Repetition. Säg ordet högt medan du tecknar det.{/if}
       {#if needed > 1 && alone}Godkänt {accepts[current.sign] ?? 0} av {needed} gånger.{/if}
       {#if peeked && !attempt}Du tog fram tecknet, så det räknas inte som godkänt.{/if}
       {#if ahead}Passet visas som det ser ut om {ahead} dagar.{/if}
@@ -230,7 +230,7 @@
     {/if}
     {@render picker()}
   </section>
-  <Recorder {sentence} {lexicon} spoken={!!said} onattempt={scored} />
+  <Recorder {sentence} {lexicon} onattempt={scored} />
   <Verdict {attempt} {note} {labels} />
   {#if attempt?.signs.length && alone && word(current.sign) !== shown}
     <section class="card">

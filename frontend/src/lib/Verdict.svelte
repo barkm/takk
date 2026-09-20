@@ -31,7 +31,6 @@
     return `${sign.correct ? "✓" : "✗"} ${shown(sign.sign)}: poäng ${sign.score!.toFixed(2)}, ${closest}. ${note}`;
   }
 
-  const found = $derived(attempt?.split === "speech" ? " Tecknen hittades utifrån orden du sa." : "");
 </script>
 
 {#if headline}
@@ -43,7 +42,7 @@
           <li class:ok={sign.correct} class:bad={!sign.correct}>{line(sign)}</li>
         {/each}
       </ul>
-      <p class="dim">En poäng på minst {attempt.threshold.toFixed(2)} räknas som tecknet.{found}</p>
+      <p class="dim">En poäng på minst {attempt.threshold.toFixed(2)} räknas som tecknet.</p>
     {/if}
   </section>
 {/if}

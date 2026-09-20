@@ -10,12 +10,12 @@ references. The attempt counts as the sign when the score reaches a global thres
 the whole glossary with the highest score is reported too, so a wrong attempt shows what it resembled.
 
 An attempt can also be a sentence of several signs, as TAKK signs the key words of a spoken
-sentence. The recording is split into its signs by the speech and each part is scored as an attempt
-of the sign at its place in the sentence: the signer speaks a whole Swedish sentence and the key
-words are timed in it (`speech`). A sentence therefore needs the microphone. Splitting at the rests
-between the signs instead was removed (see ROADMAP-takk.md step 3): it could not tell a sign the
-signer skipped from a sign it had failed to find, so it voided the whole sentence and with it the
-verdicts on the signs that were right, while the speech split scores a skipped sign as a miss.
+sentence. Every attempt is spoken, one sign or many: the signer says a whole Swedish sentence, its
+key words are timed in the audio, and each part of the recording is scored as an attempt of the sign
+at its place. The microphone is therefore always needed. Splitting at the rests between the signs
+instead was removed (see ROADMAP-takk.md step 3): it could not tell a sign the signer skipped from a
+sign it had failed to find, so it voided the whole sentence and with it the verdicts on the signs
+that were right, while the speech split scores a skipped sign as a miss.
 """
 
 import anthropic
@@ -167,42 +167,37 @@ def create_app(
         }  # fmt: skip
 
     @app.post("/api/attempt")
-    async def attempt(landmarks: UploadFile, sign: list[str] = Form(), handedness: str = Form(), width: int = Form(), height: int = Form(), spoken: bool = Form(False), audio: UploadFile | None = None, audio_offset: float = Form(0.0)) -> dict:  # fmt: skip
+    async def attempt(landmarks: UploadFile, sign: list[str] = Form(), handedness: str = Form(), width: int = Form(), height: int = Form(), audio: UploadFile | None = None, audio_offset: float = Form(0.0)) -> dict:  # fmt: skip
         """Score an attempt of one sign or a sentence of several (`sign` repeated, in order): its
         landmarks as float32 (n_frames, N_LANDMARKS, 3), NaN where not detected, at the preparation's
         frame rate, from frames of `width` x `height` pixels.
 
-        A `spoken` attempt is one the signer said a sentence over, which is how TAKK is used and how
-        the practice session asks for every sign it is not teaching from scratch. It is located by
-        the words timed in `audio` (recorded `audio_offset` seconds before the first frame), so it
-        needs the microphone, and it is scored only when every word was heard — for a single sign
-        that leaves the whole recording, but only once the word was actually said. An attempt that is
-        not spoken is the whole recording, with no audio needed."""
+        Every attempt is spoken, which is how TAKK is used, so `audio` is required (recorded
+        `audio_offset` seconds before the first frame): the signs are located by their words timed in
+        it, and scored only when every word was heard. For a single sign that leaves the whole
+        recording, so the alignment's only job there is to say the word was said at all."""
         if any(s not in index for s in sign):
             raise HTTPException(404, "unknown sign")
         values = np.frombuffer(await landmarks.read(), dtype=np.float32)
         if handedness not in ("left", "right") or width <= 0 or height <= 0 or values.size % (N_LANDMARKS * 3):
             raise HTTPException(400, "malformed attempt")
         values = values.reshape(-1, N_LANDMARKS, 3)
-        if not spoken:  # the whole recording is the attempt, so it needs no microphone
-            parts, split = [slice(0, len(values))], "whole"
-        elif audio is None:
-            return {"threshold": threshold, "note": NOTES["no_audio"], "split": "speech", "signs": []}
-        else:
-            words = [spoken_word(s) for s in sign]
-            spans = aligner(decode_audio(await audio.read()), words)
-            if spans is None:
-                return {"threshold": threshold, "note": NOTES["not_said"], "split": "speech", "signs": []}
-            # The alignment is a Viterbi path and always returns one, so silence aligns as readily as
-            # speech; the score is what says the words were spoken at all (see takk.speech).
-            unheard = [word for word, (_, _, score) in zip(words, spans) if score < MIN_WORD_SCORE]
-            if unheard:
-                print(f"a sentence was refused, the words scoring {[round(s, 2) for *_, s in spans]}")  # while MIN_WORD_SCORE is provisional
-                return {"threshold": threshold, "note": NOTES["not_heard"].format(words=" och ".join(unheard)), "split": "speech", "signs": []}  # fmt: skip
-            parts, split = split_speech(spans, audio_offset, len(values), config.fps), "speech"
+        if audio is None:
+            return {"threshold": threshold, "note": NOTES["no_audio"], "signs": []}
+        words = [spoken_word(s) for s in sign]
+        spans = aligner(decode_audio(await audio.read()), words)
+        if spans is None:
+            return {"threshold": threshold, "note": NOTES["not_said"], "signs": []}
+        # The alignment is a Viterbi path and always returns one, so silence aligns as readily as
+        # speech; the score is what says the words were spoken at all (see takk.speech).
+        unheard = [word for word, (_, _, score) in zip(words, spans) if score < MIN_WORD_SCORE]
+        if unheard:
+            print(f"an attempt was refused, the words scoring {[round(s, 2) for *_, s in spans]}")  # while MIN_WORD_SCORE is provisional
+            return {"threshold": threshold, "note": NOTES["not_heard"].format(words=" och ".join(unheard)), "signs": []}  # fmt: skip
+        parts = split_speech(spans, audio_offset, len(values), config.fps)
         if len(parts) != len(sign) or any(part.stop - part.start < 2 for part in parts):
-            return {"threshold": threshold, "note": NOTES["not_said"], "split": split, "signs": []}
+            return {"threshold": threshold, "note": NOTES["not_said"], "signs": []}
         signs = [judge(values[part], s, handedness, width, height) for part, s in zip(parts, sign)]
-        return {"threshold": threshold, "note": "", "split": split, "signs": signs}
+        return {"threshold": threshold, "note": "", "signs": signs}
 
     return app

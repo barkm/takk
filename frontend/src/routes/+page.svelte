@@ -32,7 +32,6 @@
   {#if sentence.length}
     <Sentence {sentence} onremove={remove} onclear={() => ((sentence = []), (attempt = null), (note = ""))} />
     <Recorder
-      spoken={sentence.length > 1}
       {sentence}
       {lexicon}
       onattempt={(scored, said) => ((attempt = scored), (note = said))}
