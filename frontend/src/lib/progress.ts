@@ -1,13 +1,13 @@
 // What the learner has practised, kept in the browser (step 8 of ROADMAP-takk.md): no accounts and
 // no state on the server for as long as that holds. One Leitner box per sign: an accepted attempt
 // moves it up a box, a rejected one back to the first, and the box says how long until it is due.
-import type { Pack, PackWord } from "$lib/api";
+import { word as signWord, type Pack, type PackWord } from "$lib/api";
 
 const KEY = "takk.progress";
 const CHOSEN = "takk.packs";
 const DAY = 24 * 60 * 60 * 1000;
 /** Days until a sign in each box is due again. The first box is practised within the same session. */
-const DAYS = [0, 1, 3, 7, 21];
+export const DAYS = [0, 1, 3, 7, 21];
 
 /** A sign's box (1 and up) and when it is due again, in milliseconds since the epoch. */
 export type Learned = { box: number; due: number };
@@ -53,6 +53,28 @@ export function chosenWords(packs: Pack[], chosen: string[]): PackWord[] {
   for (const pack of packs.filter((pack) => chosen.includes(pack.name)))
     for (const word of pack.words) words.set(word.sign, words.get(word.sign) ?? word);
   return [...words.values()];
+}
+
+/** A practised sign, as the progress page shows it: soonest due first. */
+export type Row = Learned & { sign: string; word: string; packs: string[] };
+
+/** Everything practised so far, with the word to show it by and the packs it is in. A sign no longer
+ * in any pack is still listed, by the word its sign is named for: it was practised all the same. */
+export function boxes(progress: Progress, packs: Pack[]): Row[] {
+  const named = new Map<string, string>(); // the packs hold 14,000 words, so they are walked once
+  const inPacks = new Map<string, string[]>();
+  for (const pack of packs)
+    for (const word of pack.words) {
+      if (word.word) named.set(word.sign, word.word);
+      inPacks.set(word.sign, [...(inPacks.get(word.sign) ?? []), pack.name]);
+    }
+  const rows = Object.entries(progress).map(([sign, learned]) => ({
+    ...learned,
+    sign,
+    word: named.get(sign) ?? signWord(sign),
+    packs: inPacks.get(sign) ?? [],
+  }));
+  return rows.sort((a, b) => a.due - b.due || a.word.localeCompare(b.word, "sv"));
 }
 
 /** The signs of today's session: the due ones first, then words never practised, at most `size`. */

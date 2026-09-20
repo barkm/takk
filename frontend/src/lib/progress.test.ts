@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { chosenWords, record, session } from "$lib/progress";
+import { boxes, chosenWords, record, session } from "$lib/progress";
 
 const word = (name: string) => ({ word: name, id: name, sign: `sts:${name}-1` });
 const DAY = 24 * 60 * 60 * 1000;
@@ -46,5 +46,22 @@ describe("chosenWords", () => {
       { sign: "sts:bröd-2" },
     ]);
     expect(chosenWords(packs, [])).toEqual([]);
+  });
+});
+
+describe("boxes", () => {
+  const packs = [
+    { name: "Första tecknen", kind: "pack" as const, words: [{ sign: "sts:livsmedel-1", word: "äta" }] },
+    { name: "Mat och dryck", kind: "category" as const, words: [{ sign: "sts:livsmedel-1" }] },
+  ];
+
+  it("shows each practised sign by its pack's word, soonest due first", () => {
+    const progress = { "sts:bröd-2": { box: 2, due: DAY }, "sts:livsmedel-1": { box: 1, due: 0 } };
+
+    expect(boxes(progress, packs)).toEqual([
+      { sign: "sts:livsmedel-1", word: "äta", box: 1, due: 0, packs: ["Första tecknen", "Mat och dryck"] },
+      // practised but in no pack any more: its own name, which is what the lexicon calls the sign
+      { sign: "sts:bröd-2", word: "bröd", box: 2, due: DAY, packs: [] },
+    ]);
   });
 });

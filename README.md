@@ -396,6 +396,10 @@ clearing the browser's storage starts the learner over.
 repetition is tried without waiting for it: only what counts as due moves, and an attempt is still
 recorded at the real time.
 
+"Mina tecken" (`/framsteg`) lists what the boxes hold: how many signs are due now, how many sit in
+each box, and every practised sign with its box, when it is due and which packs it is in, with a
+reset behind a fold. It is also how the spaced repetition is inspected while it is being built.
+
 The learner chooses what the session draws from, by turning packs on and off. A pack is a starter
 pack or one of the lexicon's categories, which to the learner are the same kind of thing: a named
 list of words. `GET /api/packs` serves all of them (`takk/vocabulary.py`), the starter packs first,

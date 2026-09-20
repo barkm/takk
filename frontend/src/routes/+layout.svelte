@@ -7,6 +7,7 @@
 <main>
   <nav>
     <a href="/pass">Dagens pass</a>
+    <a href="/framsteg">Mina tecken</a>
     <a href="/">Fri övning</a>
   </nav>
   {@render children()}
