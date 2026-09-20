@@ -31,11 +31,9 @@ Aligner = Callable[[np.ndarray, list[str]], list[tuple[float, float]] | None]
 
 def decode_audio(data: bytes) -> np.ndarray:
     """A recording's audio as mono float32 at `SAMPLE_RATE`, from any container ffmpeg reads (the
-    browser picks its own, see practice.html). Whatever decoded is returned even when ffmpeg fails,
-    since live mode sends a recording that is still being written and so ends mid-stream; too little
-    audio to align simply leaves the caller without a boundary."""
+    browser picks its own, see practice.html)."""
     command = ["ffmpeg", "-v", "error", "-i", "pipe:0", "-f", "f32le", "-ac", "1", "-ar", str(SAMPLE_RATE), "pipe:1"]  # fmt: skip
-    audio = subprocess.run(command, input=data, capture_output=True, check=False).stdout
+    audio = subprocess.run(command, input=data, capture_output=True, check=True).stdout
     return np.frombuffer(audio, dtype=np.float32)
 
 
@@ -77,24 +75,6 @@ def load_aligner(device: str = "cpu") -> Aligner:
     model = AutoModelForCTC.from_pretrained(MODEL).to(device).eval()
     processor = AutoProcessor.from_pretrained(MODEL)
     return lambda audio, words: align_words(audio, words, model, processor, device)
-
-
-# Seconds of audio that must follow a word before it counts as spoken, see spoken_boundary. It is
-# also about the right context the model needs, as its emissions are not causal.
-TAIL = 0.3
-
-
-def spoken_boundary(spans: list[tuple[float, float]], duration: float) -> float | None:
-    """Where to cut between two key words of a sentence being signed live: halfway from the first
-    word's end to the second word's start, once the second word has been spoken. None while it has
-    not been. Forced alignment always places a word somewhere, so it cannot report one as missing;
-    an unspoken word is crammed against the end of the audio, because the wildcard before it matches
-    everything and scores better than any character. A word therefore counts as spoken only once
-    `TAIL` seconds of audio follow it."""
-    (_, first_end), (second_start, second_end) = spans
-    if second_end > duration - TAIL:
-        return None
-    return (first_end + second_start) / 2
 
 
 def split_speech(spans: list[tuple[float, float]], offset: float, n_frames: int, fps: float) -> list[slice]:
