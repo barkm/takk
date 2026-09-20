@@ -40,6 +40,7 @@ MAX_WORKERS = 8
 BASE_URL = "https://teckensprakslexikon.su.se"
 ENTRIES_FILE = "entries.jsonl"  # one line per crawled lexicon id, written by scripts/download_sts_lexikon.py
 GROUPS_FILE = "groups.jsonl"  # one line per crawled same-form group
+CATEGORIES_FILE = "categories.jsonl"  # one line per crawled category, with the lexicon ids in it
 # A Swedish sign is a different sign from an ASL sign with the same meaning (prepared labels, recordings)
 LABEL_PREFIX = "sts:"
 
@@ -77,6 +78,24 @@ def parse_entry(page: str | None) -> dict:
 
 def parse_group(page: str) -> list[str]:
     """The lexicon ids on an `/ord/<id>/kan-aven-betyda` page, which include the entry's own."""
+    return sorted({match for match in re.findall(r'href="/ord/(\d+)"', page)})
+
+
+def parse_category_index(page: str) -> list[tuple[str, str]]:
+    """The categories of the `/kategori` page as (slug, name), in the order the lexicon lists them.
+
+    The lexicon sorts its entries into subject categories of its own ("Djur", "Kläder"), which the
+    practice app builds its word sets from (see ROADMAP-takk.md). The index lists the top categories;
+    a category page splits further ("Djur > fisk"), which is not crawled.
+    """
+    links = re.findall(r'href="/kategori/([a-z0-9-]+)"[^>]*>([^<]+)<', page)
+    # the link text is the name followed by the number of subcategories ("Geografi\n (9)")
+    names = {slug: re.sub(r"\s*\(\d+\)$", "", re.sub(r"\s+", " ", html.unescape(name)).strip()) for slug, name in links}  # fmt: skip
+    return list(names.items())
+
+
+def parse_category_page(page: str) -> list[str]:
+    """The lexicon ids listed on one page of a `/kategori/<slug>` listing, empty past the last page."""
     return sorted({match for match in re.findall(r'href="/ord/(\d+)"', page)})
 
 

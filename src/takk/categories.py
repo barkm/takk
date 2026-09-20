@@ -1,27 +1,28 @@
-"""The word sets a learner practises from: a category of everyday Swedish words, each one a lexicon
-sign the app can score.
+"""The word sets a learner practises from: the lexicon's own subject categories.
 
-The sets are written once, offline, by `scripts/categorize_signs.py` (see the decisions in
-ROADMAP-takk.md) into `categories.json` next to this file, so nothing here calls an LLM.
+Svenskt teckenspråkslexikon sorts its entries into Swedish subject categories of its own ("Djur",
+"Kläder", "Mat och dryck", see https://teckensprakslexikon.su.se/kategori), which
+`scripts/download_sts_lexikon.py` crawls into `data/raw/sts-lexikon/categories.jsonl`. Nothing is
+generated here, and no LLM is involved (see step 6 of ROADMAP-takk.md).
+
+A category lists lexicon ids, which are the clip ids of the prepared glossary, so an id maps to the
+sign of the clip it was extracted from. Entries sharing a sign form are one sign, so several ids of a
+category can be the same sign; it is kept once, in the lexicon's own order.
 """
 
-import re
-from collections.abc import Iterable
 from pathlib import Path
 
-PATH = Path(__file__).parent / "categories.json"
-ENTRY = re.compile(r"-(\d+)$")
+import polars as pl
+
+from isolated_sign_validation.datasets.sts_lexikon import CATEGORIES_FILE, RAW_DIR
 
 
-def word(sign: str) -> str:
-    """The Swedish word a lexicon sign is signed for ("sts:platta slag-25563" -> "platta slag")."""
-    return ENTRY.sub("", sign.removeprefix("sts:"))
-
-
-def sign_by_word(signs: Iterable[str]) -> dict[str, str]:
-    """The sign of each lowercased word. Several signs share a word when the lexicon has separate
-    entries for its meanings; the lowest entry number wins, as the lexicon lists it first."""
-    found: dict[str, str] = {}
-    for sign in sorted(signs, key=lambda sign: int(match.group(1)) if (match := ENTRY.search(sign)) else 0):
-        found.setdefault(word(sign).lower(), sign)
-    return found
+def sign_categories(clips: pl.DataFrame, raw_dir: Path = RAW_DIR) -> dict[str, list[str]]:
+    """The signs of each category, by its Swedish name. `clips` are the glossary's prepared clips."""
+    sign_of = dict(zip(clips["clip_id"], clips["sign"]))
+    categories = {}
+    for row in pl.read_ndjson(raw_dir / CATEGORIES_FILE).iter_rows(named=True):
+        signs = list(dict.fromkeys(sign_of[clip_id] for clip_id in row["ids"] if clip_id in sign_of))
+        if signs:
+            categories[row["name"]] = signs
+    return categories

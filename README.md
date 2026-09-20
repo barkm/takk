@@ -403,15 +403,14 @@ npm test                         # the landmark layout and the resampling
 
 ### The word sets
 
-The lessons are built from categories of everyday Swedish words (mat och dryck, djur, ...), which the
-lexicon crawl does not have. `scripts/categorize_signs.py` asks Claude for the words of each category
-once, keeps the ones the lexicon has a sign for, and writes them to `src/takk/categories.json`, which
-is committed and read from there at run time. A full run is one request per category and costs cents.
+The lessons are built from the lexicon's own subject categories (Djur, Kläder, Mat och dryck, ...,
+listed at https://teckensprakslexikon.su.se/kategori and shown on every entry page). The crawler
+fetches them into `data/raw/sts-lexikon/categories.jsonl`, and `takk/categories.py` maps each
+category's lexicon ids to the glossary's signs. Nothing is generated: a re-run of the crawler picks up
+categories the lexicon has added.
 
 ```sh
-export ANTHROPIC_API_KEY=...            # or a profile from `ant auth login`
-uv run scripts/categorize_signs.py
-uv run scripts/categorize_signs.py --categories djur   # this category again, the others untouched
+uv run scripts/download_sts_lexikon.py   # phase 3 crawls the categories
 ```
 
 ## Future
