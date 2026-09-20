@@ -1,6 +1,6 @@
 """Practicing signs: pick a sign of a glossary, sign it in front of the webcam, and learn whether it was that sign.
 
-A small web app (`scripts/practice.py`, `web/practice.html`). The browser extracts the landmarks
+A small web app (`main.py`, `web/practice.html`). The browser extracts the landmarks
 itself, with the same HolisticLandmarker setup as `extraction.py` (see the browser extraction
 findings in ROADMAP.md), and sends only those: the video never leaves the user's device. The backend
 checks and prepares the attempt like any recording, embeds it, and scores it against the glossary
@@ -16,6 +16,7 @@ follows the rests instead (split_signs), and the signer has to lower their hands
 """
 
 import re
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -24,12 +25,13 @@ from fastapi.responses import FileResponse
 from torch import nn
 
 from isolated_sign_validation.checks import check_clip
-from isolated_sign_validation.collection import WEB_DIR
 from isolated_sign_validation.dataset import collate
 from isolated_sign_validation.extraction import MODEL_PATH, VideoInfo
 from isolated_sign_validation.landmarks import N_LANDMARKS, SKELETON_EDGES
 from isolated_sign_validation.preparation import ONE_HANDED, PrepConfig, hand_presence, hide_low_hands, mirror, prepare_clip
-from isolated_sign_validation.speech import Aligner, decode_audio, split_speech
+from takk.speech import Aligner, decode_audio, split_speech
+
+WEB_DIR = Path(__file__).parent / "web"
 
 # Seconds without a raised hand that end a sign of a sentence. Inside a sign the hands are lost for
 # at most 0.23 s in the Swedish browser recordings; lowering the hands and raising them again takes longer.

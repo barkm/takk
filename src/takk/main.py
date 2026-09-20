@@ -8,7 +8,7 @@ of random wrong signs accepted; similar signs get through more often.
 
 Run from the repo root, then open http://localhost:8002 (the browser only gives access to the
 camera on localhost or over https, so forward the port when the machine is remote):
-    uv run scripts/practice.py
+    uv run takk
 Embedding the glossary takes about a minute on the CPU. The embeddings are cached next to the run
 (outputs/runs/<run>/embeddings_<glossary>.npy) and computed again only when the run's model or the
 glossary is newer than the cache.
@@ -24,11 +24,11 @@ import uvicorn
 from isolated_sign_validation.collection import video_paths
 from isolated_sign_validation.dataset import SignDataset
 from isolated_sign_validation.extraction import download_model
-from isolated_sign_validation.practice import create_app, sign_means
 from isolated_sign_validation.preparation import PrepConfig, PreparedData
-from isolated_sign_validation.speech import MODEL as SPEECH_MODEL
-from isolated_sign_validation.speech import load_aligner
 from isolated_sign_validation.training import embed, load_run
+from takk.practice import create_app, sign_means
+from takk.speech import MODEL as SPEECH_MODEL
+from takk.speech import load_aligner
 
 RUNS_DIR = Path("outputs/runs")
 

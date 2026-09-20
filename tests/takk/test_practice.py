@@ -8,9 +8,9 @@ from fastapi import HTTPException, UploadFile
 from torch import nn
 
 from isolated_sign_validation.landmarks import LANDMARK_SLICES, N_LANDMARKS
-from isolated_sign_validation.practice import create_app, prepare_attempt, sign_means, split_signs, spoken_word
 from isolated_sign_validation.preparation import PrepConfig, mirror, prepare_clip
-from isolated_sign_validation.speech import SAMPLE_RATE
+from takk.practice import create_app, prepare_attempt, sign_means, split_signs, spoken_word
+from takk.speech import SAMPLE_RATE
 
 from test_speech import wav
 

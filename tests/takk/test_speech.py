@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import numpy as np
 import torch
 
-from isolated_sign_validation.speech import SAMPLE_RATE, align_words, decode_audio, split_speech, word_targets
+from takk.speech import SAMPLE_RATE, align_words, decode_audio, split_speech, word_targets
 
 VOCAB = {"<pad>": 0, "A": 1, "B": 2, "C": 3}
 

@@ -18,9 +18,16 @@ dependencies = [
     "yt-dlp[default]>=2026.8.19",
 ]
 
+[project.scripts]
+takk = "takk.main:main"
+
 [build-system]
 requires = ["uv_build>=0.11.5,<0.12"]
 build-backend = "uv_build"
+
+# Two packages in one repository: the ISV model and data work, and the TAKK app built on it.
+[tool.uv.build-backend]
+module-name = ["isolated_sign_validation", "takk"]
 
 [dependency-groups]
 dev = [
