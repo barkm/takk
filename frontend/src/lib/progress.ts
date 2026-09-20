@@ -6,11 +6,13 @@ import { word as signWord, type Pack, type PackWord } from "$lib/api";
 const KEY = "takk.progress";
 const CHOSEN = "takk.packs";
 const DAY = 24 * 60 * 60 * 1000;
-/** Days until a sign in each box is due again. The first box is practised within the same session. */
-export const DAYS = [0, 1, 3, 7, 21];
+/** Days until a sign in each box is due again. The first box waits a day like the second: a sign that
+ * was missed comes back within the same pass, so a finished pass is finished. */
+export const DAYS = [1, 1, 3, 7, 21];
 
-/** A sign's box (1 and up) and when it is due again, in milliseconds since the epoch. */
-export type Learned = { box: number; due: number };
+/** A sign's box (1 and up), when it is due again and when it was last practised, in milliseconds
+ * since the epoch. Boxes written before `seen` existed simply count as not practised today. */
+export type Learned = { box: number; due: number; seen?: number };
 export type Progress = Record<string, Learned>;
 
 export function load(): Progress {
@@ -28,7 +30,13 @@ export function save(progress: Progress) {
 /** The progress after an attempt of `sign` was accepted or rejected. */
 export function record(progress: Progress, sign: string, correct: boolean, now = Date.now()): Progress {
   const box = correct ? Math.min((progress[sign]?.box ?? 0) + 1, DAYS.length) : 1;
-  return { ...progress, [sign]: { box, due: now + DAYS[box - 1] * DAY } };
+  return { ...progress, [sign]: { box, due: now + DAYS[box - 1] * DAY, seen: now } };
+}
+
+/** How many signs were practised since midnight, which is what a day's work amounts to. */
+export function practisedToday(progress: Progress, now = Date.now()): number {
+  const midnight = new Date(now).setHours(0, 0, 0, 0);
+  return Object.values(progress).filter((learned) => (learned.seen ?? 0) >= midnight).length;
 }
 
 /** The packs the learner practises, the starter packs until they choose otherwise. */

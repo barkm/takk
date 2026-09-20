@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { boxes, chosenWords, record, session } from "$lib/progress";
+import { boxes, chosenWords, practisedToday, record, session } from "$lib/progress";
 
 const word = (name: string) => ({ word: name, id: name, sign: `sts:${name}-1` });
 const DAY = 24 * 60 * 60 * 1000;
@@ -8,12 +8,15 @@ const DAY = 24 * 60 * 60 * 1000;
 describe("record", () => {
   it("moves an accepted sign up a box and a rejected one back to the first", () => {
     const first = record({}, "sts:mjölk-1", true, 0);
-    expect(first["sts:mjölk-1"]).toEqual({ box: 1, due: 0 }); // the first box is due in the same session
+    expect(first["sts:mjölk-1"]).toEqual({ box: 1, due: DAY, seen: 0 }); // the first box waits a day
 
     const second = record(first, "sts:mjölk-1", true, 0);
-    expect(second["sts:mjölk-1"]).toEqual({ box: 2, due: DAY });
+    expect(second["sts:mjölk-1"]).toEqual({ box: 2, due: DAY, seen: 0 });
 
-    expect(record(second, "sts:mjölk-1", false, 0)["sts:mjölk-1"]).toEqual({ box: 1, due: 0 });
+    const third = record(second, "sts:mjölk-1", true, 0);
+    expect(third["sts:mjölk-1"]).toEqual({ box: 3, due: 3 * DAY, seen: 0 });
+
+    expect(record(third, "sts:mjölk-1", false, 0)["sts:mjölk-1"]).toEqual({ box: 1, due: DAY, seen: 0 });
   });
 });
 
@@ -63,5 +66,18 @@ describe("boxes", () => {
       // practised but in no pack any more: its own name, which is what the lexicon calls the sign
       { sign: "sts:bröd-2", word: "bröd", box: 2, due: DAY, packs: [] },
     ]);
+  });
+});
+
+describe("practisedToday", () => {
+  it("counts the signs practised since midnight, whenever in the day it is asked", () => {
+    const noon = new Date("2026-09-20T12:00:00").getTime();
+    const progress = {
+      "sts:mjölk-1": { box: 2, due: noon + DAY, seen: noon - 60_000 },
+      "sts:bröd-2": { box: 1, due: noon, seen: noon - 20 * 60 * 60 * 1000 }, // practised yesterday
+      "sts:ost-3": { box: 3, due: noon }, // a box written before the app kept the time
+    };
+
+    expect(practisedToday(progress, noon)).toBe(1);
   });
 });

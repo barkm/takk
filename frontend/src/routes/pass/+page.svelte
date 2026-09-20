@@ -13,7 +13,17 @@
     type PackWord,
     type Sign,
   } from "$lib/api";
-  import { chosenWords, load, loadChosen, record, save, saveChosen, session, type Progress } from "$lib/progress";
+  import {
+    chosenWords,
+    load,
+    loadChosen,
+    practisedToday,
+    record,
+    save,
+    saveChosen,
+    session,
+    type Progress,
+  } from "$lib/progress";
   import { page } from "$app/state";
 
   let lexicon = $state<Lexicon | null>(null);
@@ -27,6 +37,7 @@
   let correct = $state(0);
   let peeked = $state(false);
   let form = $state(""); // the lexicon's description of the current sign, fetched per card
+  let repeated: string[] = $state([]); // the signs already given a second turn in this pass
 
   $effect(() => {
     Promise.all([fetchLexicon(), fetchPacks()])
@@ -46,7 +57,7 @@
   // Today's signs are picked once, not derived: a scored attempt changes the progress they come from.
   function restart() {
     today = session(chosenWords(packs, chosen), progress, 5, Date.now() + ahead * 24 * 60 * 60 * 1000);
-    (at = 0), (correct = 0), (attempt = null), (note = ""), (peeked = false);
+    (at = 0), (correct = 0), (attempt = null), (note = ""), (peeked = false), (repeated = []);
   }
 
   function choose(name: string, on: boolean) {
@@ -63,6 +74,8 @@
   });
 
   const current = $derived(today[at]);
+  // Whether another pass would have anything in it, which is what makes the summary offer one.
+  const waiting = $derived(session(chosenWords(packs, chosen), progress, 1, Date.now() + ahead * 24 * 60 * 60 * 1000).length > 0);  // prettier-ignore
   const shown = $derived(current ? (current.word ?? word(current.sign)) : "");
   // A word never practised is being taught, so its clip is shown; a repetition is a test, and the
   // clip only follows the verdict. Looking it up first is allowed but does not move the sign up a box.
@@ -79,6 +92,11 @@
     if (judged.correct) correct += 1;
     progress = record(progress, judged.sign, !!judged.correct && !peeked); // a looked-up sign is not recalled
     save(progress);
+    // A sign still in the first box comes back at the end of this pass, but only once: a sign that
+    // will not come out today should not keep the learner in the same pass.
+    if (progress[judged.sign].box === 1 && !repeated.includes(judged.sign)) {
+      (repeated = [...repeated, judged.sign]), (today = [...today, current]);
+    }
   }
 
   function next() {
@@ -151,9 +169,14 @@
     <h1>Dagens pass</h1>
     <p>
       {today.length
-        ? `Klart! ${correct} av ${today.length} tecken rätt.`
+        ? `Klart! ${correct} av ${today.length} tecken rätt, ${practisedToday(progress)} tecken övade idag.`
         : "Inget att öva just nu. Välj fler ord, eller kom tillbaka när dagens tecken ska repeteras."}
     </p>
+    {#if waiting}
+      <button onclick={restart}>Ett pass till</button>
+    {:else if today.length}
+      <p class="dim">Inget mer att öva idag — kom tillbaka i morgon.</p>
+    {/if}
     {@render picker()}
   </section>
 {:else}
