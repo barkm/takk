@@ -8,8 +8,10 @@ const KEY = "takk.progress";
 const CHOSEN = "takk.packs";
 const SETTINGS = { size: "takk.pass-size", accepts: "takk.accepts" };
 const DAY = 24 * 60 * 60 * 1000;
-/** Days until a sign in each box is due again. The first box waits a day like the second: a sign that
- * was missed comes back within the same pass, so a finished pass is finished. */
+/** Days until a sign in each box is due again, and how many boxes there are. The first box waits a day
+ * like the second, so a word is met on three days running before the first real gap at box 3: a word
+ * is only in the first box because it is new or was missed, and one good day of either is thin
+ * evidence. Changing this array is the whole schedule, and `Math.min` keeps a word in the last box. */
 export const DAYS = [1, 1, 3, 7, 21];
 
 /** A sign's box (1 and up), when it is due again and when it was last practised, in milliseconds
