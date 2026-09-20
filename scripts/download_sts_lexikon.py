@@ -7,9 +7,7 @@ which skips what an earlier run already has, so an interrupted run resumes when 
    an id that is not a published entry is recorded with null fields so it is not fetched again).
 2. `/ord/<id>/kan-aven-betyda` for every entry that shares its sign form with others, appended to
    `groups.jsonl`. These groups become the sign classes (see `datasets/sts_lexikon.py`).
-3. `/kategori` and every subject category it lists, appended to `categories.jsonl`. The practice app
-   builds its word sets from them (see ROADMAP-takk.md).
-4. The `-tecken.mp4` of every entry, into `movies/`, mirroring the paths on the site (~21,700
+3. The `-tecken.mp4` of every entry, into `movies/`, mirroring the paths on the site (~21,700
    clips, ~16 GB).
 
 The lexicon is CC BY-NC-SA 4.0 and its robots.txt allows crawling; keep `--workers` modest anyway.
@@ -21,7 +19,6 @@ Run from the repo root:
 """
 
 import argparse
-import itertools
 import json
 import time
 import urllib.error
@@ -35,12 +32,9 @@ from tqdm import tqdm
 
 from isolated_sign_validation.datasets.sts_lexikon import (
     BASE_URL,
-    CATEGORIES_FILE,
     ENTRIES_FILE,
     GROUPS_FILE,
     RAW_DIR,
-    parse_category_index,
-    parse_category_page,
     parse_entry,
     parse_group,
     sign_classes,
@@ -110,30 +104,6 @@ def crawl_groups(raw_dir: Path, workers: int) -> None:
     crawl(todo, members, workers, out, "groups")
 
 
-def crawl_categories(raw_dir: Path, workers: int) -> None:
-    """Fetch the listing of every subject category that is not in categories.jsonl yet.
-
-    A listing is paginated 60 entries to a page, and the pages past the last one are empty, so each
-    category is followed until a page lists nothing. The TAKK app builds its word sets from these
-    (see ROADMAP-takk.md).
-    """
-    out = raw_dir / CATEGORIES_FILE
-    index = parse_category_index(fetch_page(f"{BASE_URL}/kategori") or "")
-    todo = [(slug, name) for slug, name in index if slug not in crawled_ids(out)]
-    print(f"{len(index)} categories, {len(todo)} to go")
-
-    def listing(category: tuple[str, str]) -> dict:
-        slug, name = category
-        ids: list[str] = []
-        for page in itertools.count(1):
-            found = parse_category_page(fetch_page(f"{BASE_URL}/kategori/{slug}?page={page}") or "")
-            if not found:
-                return {"id": slug, "name": name, "ids": sorted(set(ids))}
-            ids += found
-
-    crawl(todo, listing, workers, out, "categories")
-
-
 def download_video(video: str, raw_dir: Path) -> None:
     """Download the sign video at the site path `video` into `raw_dir`, unless it is already there."""
     path = raw_dir / video.lstrip("/")
@@ -167,7 +137,6 @@ def main() -> None:
 
     crawl_entries(args.raw_dir, args.max_id, args.workers)
     crawl_groups(args.raw_dir, args.workers)
-    crawl_categories(args.raw_dir, args.workers)
     download_videos(args.raw_dir, args.workers)
 
     entries = pl.read_ndjson(args.raw_dir / ENTRIES_FILE).filter(pl.col("video").is_not_null())

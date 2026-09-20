@@ -404,13 +404,18 @@ npm test                         # the landmark layout and the resampling
 ### The word sets
 
 The lessons are built from the lexicon's own subject categories (Djur, Kläder, Mat och dryck, ...,
-listed at https://teckensprakslexikon.su.se/kategori and shown on every entry page). The crawler
-fetches them into `data/raw/sts-lexikon/categories.jsonl`, and `takk/categories.py` maps each
-category's lexicon ids to the glossary's signs. Nothing is generated: a re-run of the crawler picks up
-categories the lexicon has added.
+listed at https://teckensprakslexikon.su.se/kategori). Every entry page names the ones it belongs to,
+as a path ("Sport > klubbar och föreningar > NHL"), and the crawl stores them in the `categories`
+field of each entry, together with the entry's other wording (`also`: the sign for "arbetsvetenskap"
+is also "ergonomi"), its English translation and its hit counts in the lexicon, the corpus and the
+surveys. `takk/categories.py` maps a category's lexicon ids to the glossary's signs. Nothing is
+generated: re-running the crawler picks up whatever the lexicon has changed.
+
+The category listing pages are not used: they miss categories an entry page names (15 of 84 in a
+sample of 120 entries) and hide the deeper levels of the path.
 
 ```sh
-uv run scripts/download_sts_lexikon.py   # phase 3 crawls the categories
+uv run scripts/download_sts_lexikon.py   # the entry pages carry the categories
 ```
 
 ## Future

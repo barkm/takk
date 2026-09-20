@@ -2,12 +2,20 @@ import json
 
 import polars as pl
 
-from isolated_sign_validation.datasets.sts_lexikon import parse_entry, parse_group, read_videos, sign_classes
+from isolated_sign_validation.datasets.sts_lexikon import (
+    FIELDS,
+    parse_categories,
+    parse_entry,
+    parse_group,
+    read_videos,
+    sign_classes,
+)
 
 # the markup of an /ord/<id> page, cut down to the parts the adapter reads
 ENTRY_PAGE = """
 <title>kär - Svenskt teckenspr&aring;kslexikon</title>
 <h1 class="">k&auml;r</h1>
+<div class="font-caeciliae mb-2 text-lg text-gray-600">vara k&auml;r, bli k&auml;r</div>
 <video class="js-player mainvideo h-auto w-full">
     <source src="/movies/06/kar-06051-tecken.mp4?v=2026-04-14" type="video/mp4">
 </video>
@@ -20,6 +28,12 @@ ENTRY_PAGE = """
         KÄR
     <br />
 </p>
+<b>English:</b> in love<br />
+<h4 class="font-thesans-semibold text-lg">Ämne</h4>
+<a class="underline" href="/kategori/sex-och-samlevnad">Sex och samlevnad</a>
+<a class="underline" href="/kategori/kanslor-karlek">K&auml;nslor &gt; k&auml;rlek</a>
+<h4 class="font-thesans-semibold text-lg">Förekomster</h4>
+<p>Lexikonet: 3 träffar <br /><a href="https://teckensprakskorpus.su.se/">Korpusmaterial: 1 av totalt 4 träffar </a><br />Enkäter: 0 träffar </p>
 <h4 class="font-thesans-semibold text-lg">Transkription</h4>
 <div class="font-trans">􌤕􌥆􌤵􌤷</div>
 <p>
@@ -47,6 +61,13 @@ def test_parse_entry():
     assert entry["transcription"] == "􌤕􌥆􌤵􌤷"
     assert entry["gloss"] == "KÄR"
     assert entry["same_form"]
+    assert entry["also"] == "vara kär, bli kär"  # the other wording the same sign is used for
+    assert entry["english"] == "in love"
+    assert entry["categories"] == [
+        {"slug": "sex-och-samlevnad", "path": "Sex och samlevnad"},
+        {"slug": "kanslor-karlek", "path": "Känslor > kärlek"},  # the deeper levels as the page writes them
+    ]
+    assert (entry["lexicon_hits"], entry["corpus_hits"], entry["corpus_total"], entry["survey_hits"]) == (3, 1, 4, 0)
 
 
 def test_parse_entry_without_a_sign_video():
@@ -54,8 +75,15 @@ def test_parse_entry_without_a_sign_video():
     without_video = parse_entry(ENTRY_PAGE.replace("-tecken.mp4", "-fras-1.mp4"))  # only an example sentence
 
     assert missing == without_video
-    assert set(missing) == {"word", "video", "form", "transcription", "gloss", "same_form"}
+    assert set(missing) == set(FIELDS)
     assert not any(missing.values())
+
+
+def test_parse_entry_of_an_entry_in_no_category():
+    page = ENTRY_PAGE.replace('href="/kategori/sex-och-samlevnad"', 'href="/annat"').replace('href="/kategori/kanslor-karlek"', 'href="/annat"')  # fmt: skip
+
+    assert parse_entry(page)["categories"] == []  # most entries are in none
+    assert parse_categories('<a href="/kategori">Ämne</a>') == []  # the menu link is not a category
 
 
 def test_parse_entry_without_a_gloss():

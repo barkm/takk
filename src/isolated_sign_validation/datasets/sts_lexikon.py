@@ -45,6 +45,14 @@ CATEGORIES_FILE = "categories.jsonl"  # one line per crawled category, with the 
 LABEL_PREFIX = "sts:"
 
 
+FIELDS = ("word", "also", "video", "form", "transcription", "gloss", "english", "same_form", "categories", "lexicon_hits", "corpus_hits", "corpus_total", "survey_hits")  # fmt: skip
+
+
+def _count(match: re.Match | None) -> int | None:
+    """The first group of `match` as a number, or None if it didn't match."""
+    return int(match.group(1)) if match else None
+
+
 def _text(match: re.Match | None) -> str | None:
     """The first group of `match` as plain text, or None if it didn't match or is the empty dash."""
     if match is None:
@@ -54,7 +62,7 @@ def _text(match: re.Match | None) -> str | None:
 
 
 def parse_entry(page: str | None) -> dict:
-    """The fields of an `/ord/<id>` page: word, video, form, transcription, gloss and same_form.
+    """Everything an `/ord/<id>` page says about the entry, as one row.
 
     All fields are null for a page that doesn't exist (`page` is None) or holds no sign video: the
     lexicon ids are sparse, and not every id is a published entry. `video` is the path of the sign
@@ -62,18 +70,49 @@ def parse_entry(page: str | None) -> dict:
     notation (identical for entries of one form, so it checks the classes), `gloss` the entry's
     gloss in the STS corpus if it has one, and `same_form` whether the entry shares its form with
     others, in which case `/ord/<id>/kan-aven-betyda` lists them.
+
+    The rest is what the page shows around the sign: `also` the other Swedish wording of the same
+    entry under its title ("arbetsvetenskap" is also "ergonomi"), `categories` the lexicon's own
+    subject categories as (slug, path) with the path as published ("Djur > fisk"), `english` the
+    English translation, and the four hit counts of the
+    "Förekomster" section. The page's "Uppdaterat" date is the day the page was rendered, the same on
+    every entry, so it is not read. The practice app builds its word sets from `categories` and
+    can order them by `corpus_hits` (see ROADMAP-takk.md). The example sentences, which sit in a
+    Livewire block mixed with other entries' films, are not read either.
     """
     video = re.search(r'<source src="(/movies/[^"?]+-tecken\.mp4)', page) if page else None
     if page is None or video is None:
-        return dict.fromkeys(("word", "video", "form", "transcription", "gloss", "same_form"))
+        return dict.fromkeys(FIELDS)
+    hits = _text(re.search(r"Förekomster</h4>\s*<p>(.*?)</p>", page, re.S)) or ""
+    corpus = re.search(r"Korpusmaterial: (\d+) av totalt (\d+)", hits)
     return {
         "word": _text(re.search(r"<h1[^>]*>(.*?)</h1>", page, re.S)),
+        "also": _text(re.search(r'<div class="font-caeciliae[^"]*">(.*?)</div>', page, re.S)),
         "video": video.group(1),
         "form": _text(re.search(r"Formbeskrivning</h4>\s*<p>(.*?)</p>", page, re.S)),
         "transcription": _text(re.search(r'<div class="font-trans">(.*?)</div>', page, re.S)),
         "gloss": _text(re.search(r"Glosa i STS-korpus:</b>(.*?)<br", page, re.S)),
+        "english": _text(re.search(r"<b>English:</b>(.*?)<br", page, re.S)),
         "same_form": bool(re.search(r"/ord/\d+/kan-aven-betyda", page)),
+        "categories": parse_categories(page),
+        "lexicon_hits": _count(re.search(r"Lexikonet: (\d+)", hits)),
+        "corpus_hits": int(corpus.group(1)) if corpus else None,
+        "corpus_total": int(corpus.group(2)) if corpus else None,
+        "survey_hits": _count(re.search(r"Enkäter: (\d+)", hits)),
     }
+
+
+def parse_categories(page: str) -> list[dict]:
+    """The subject categories of an `/ord/<id>` page, as the slug and the path the page shows.
+
+    The lexicon sorts its entries into Swedish subject categories of its own, nested a few levels
+    deep ("Sport > klubbar och föreningar > NHL", https://teckensprakslexikon.su.se/kategori). Many
+    entries are in none. The category listings on the site are not the same data: they miss some of
+    an entry's categories and hide the deeper levels, so the entry page is the source.
+    """
+    links = re.findall(r'href="/kategori/([a-z0-9-]+)"[^>]*>([^<]+)<', page)
+    paths = {slug: re.sub(r"\s+", " ", html.unescape(path)).strip() for slug, path in links}
+    return [{"slug": slug, "path": path} for slug, path in paths.items()]
 
 
 def parse_group(page: str) -> list[str]:
