@@ -84,7 +84,7 @@ def test_attempt_scores_against_the_chosen_sign():
 
     landmarks = attempt_landmarks(("right_hand",))
     closest = {"sign": "A", "score": pytest.approx(1.0)}
-    a = {"sign": "A", "usable": True, "note": "Looks good.", "score": pytest.approx(1.0), "correct": True, "closest": closest}
+    a = {"sign": "A", "usable": True, "note": "Det ser bra ut.", "score": pytest.approx(1.0), "correct": True, "closest": closest}
     assert send(landmarks, "A") == {"threshold": 0.7, "note": "", "split": "whole", "signs": [a]}
     (b,) = send(landmarks, "B")["signs"]
     assert b["closest"] == closest and b["correct"] is False and b["score"] == pytest.approx(0.6)

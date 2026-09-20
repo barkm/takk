@@ -31,6 +31,18 @@ from isolated_sign_validation.landmarks import N_LANDMARKS, SKELETON_EDGES
 from isolated_sign_validation.preparation import ONE_HANDED, PrepConfig, hand_presence, hide_low_hands, mirror, prepare_clip
 from takk.speech import Aligner, decode_audio, split_speech
 
+# Everything the learner reads is Swedish (see ROADMAP-takk.md): the app is for practising TAKK.
+NOTES = {
+    "empty": "Inspelningen är tom.",
+    "recorded": "Inspelat.",
+    "no_hands": "Inga händer syntes. Har du händerna i bild när du tecknar?",
+    "short": "Bara {seconds:.1f} s tecknande syntes. Spela in igen, lite långsammare.",
+    "long": "{seconds:.0f} s tecknande syntes, vilket är för långt för ett tecken.",
+    "no_body": "Din överkropp syntes inte. Sitt så att båda axlarna är i bild.",
+    "lost_hand": "Går att bedöma, men en hand tappades i {lost:.0%} av bildrutorna medan du tecknade.",
+    "ok": "Det ser bra ut.",
+}
+
 # Seconds without a raised hand that end a sign of a sentence. Inside a sign the hands are lost for
 # at most 0.23 s in the Swedish browser recordings; lowering the hands and raising them again takes longer.
 MIN_REST = 0.4
@@ -133,7 +145,7 @@ def create_app(
 
     def judge(values: np.ndarray, sign: str, handedness: str, width: int, height: int) -> dict:
         """Score the landmarks of one sign as an attempt of `sign`."""
-        usable, note, _ = check_clip(values, VideoInfo(config.fps, width, height), config)
+        usable, note, _ = check_clip(values, VideoInfo(config.fps, width, height), config, notes=NOTES)
         frames = prepare_attempt(values, config.fps, width / height, handedness, config) if usable else None
         if frames is None:
             return {"sign": sign, "usable": False, "note": note}
@@ -166,9 +178,9 @@ def create_app(
             parts, split = split_signs(values, width / height, config), "rests"
         if len(parts) != len(sign) or any(part.stop - part.start < 2 for part in parts):
             note = (
-                "The words of the sentence were not found in what you said. Say each of them clearly."
+                "Meningens ord hittades inte i det du sa. Säg vart och ett av dem tydligt."
                 if split == "speech"
-                else f"{len(parts)} signs were found, but the sentence has {len(sign)}. Lower your hands between the signs."
+                else f"{len(parts)} tecken hittades, men meningen har {len(sign)}. Sänk händerna mellan tecknen."
             )
             return {"threshold": threshold, "note": note, "split": split, "signs": []}
         signs = [judge(values[part], s, handedness, width, height) for part, s in zip(parts, sign)]
