@@ -353,24 +353,25 @@ scored highest, which is what a handful of clips can actually say something abou
 
 ## Practicing signs
 
-`scripts/practice.py` serves the product itself as a small web app: search the Swedish lexicon for a
-word, watch its clip, sign it to the webcam, and learn whether it was that sign. The landmarks are
-extracted in the browser, live on the GPU while the camera runs (the CPU if there is no GPU), with the
-same MediaPipe version and model as `extraction.py`, and drawn over the camera image; only the
-landmarks of a recording are sent to the server, the video never leaves the device. The server checks
-and prepares the attempt like a recording, embeds it with the run's model, and accepts it when its
-mean cosine similarity to the sign's lexicon clips reaches `--threshold` (a provisional 0.38, see
-ROADMAP.md). It also names the closest sign of the whole lexicon:
+The app itself lives in its own package, `src/takk/` (see ROADMAP-takk.md); everything else in this
+repository is the isolated sign verification work it is built on. It serves a small web app: search
+the Swedish lexicon for a word, watch its clip, sign it to the webcam, and learn whether it was that
+sign. The landmarks are extracted in the browser, live on the GPU while the camera runs (the CPU if
+there is no GPU), with the same MediaPipe version and model as `extraction.py`, and drawn over the
+camera image; only the landmarks of a recording are sent to the server, the video never leaves the
+device. The server checks and prepares the attempt like a recording, embeds it with the run's model,
+and accepts it when its mean cosine similarity to the sign's lexicon clips reaches `--threshold` (a
+provisional 0.38, see ROADMAP.md). It also names the closest sign of the whole lexicon:
 
 ```sh
-uv run scripts/practice.py   # then open http://localhost:8002
+uv run takk   # then open http://localhost:8002
 ```
 
 Picking several words makes a sentence, as TAKK signs the key words of a spoken sentence. Sign them
 in order and say the sentence aloud while you sign, the way TAKK is used: the recording is split into
 its signs by when the key words are spoken, and each part is scored against the sign at its place in
 the sentence, with a verdict per sign. The words are known, so they are not recognized but timed, by
-forced alignment against a Swedish CTC model (`speech.py`, about 1.2 GB, downloaded on the first run
+forced alignment against a Swedish CTC model (`takk/speech.py`, about 1.2 GB, downloaded on the first run
 and skipped with `--no-speech`); a wildcard between them absorbs everything else that is said, so the
 sentence around the key words can be any Swedish. Without a microphone the recording is split at the
 rests instead, and the hands have to be lowered between the signs. Either way, when the number of

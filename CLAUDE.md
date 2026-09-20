@@ -6,7 +6,7 @@ Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-s
 
 This system takes as input a sequence of human pose landmarks and a sign, and outputs yes/no depending on whether the landmark sequence is signing that sign. See README.md for the approach, datasets, and evaluation protocol.
 
-**Read ROADMAP.md at the start of a session.** It holds the current plan, step status, open decisions and findings. Keep it updated: mark steps done, record decisions and new findings, and change the plan there when it changes.
+**Read the roadmap at the start of a session.** ROADMAP.md holds the plan, step status, open decisions and findings of the verification work; ROADMAP-takk.md the same for the TAKK app. Read the one for the package you touch, both when a change crosses. Keep it updated: mark steps done, record decisions and new findings, and change the plan there when it changes.
 
 Key constraints:
 - **Open vocabulary.** The model must validate signs not seen during training, from few (possibly one) reference clips. Frame it as embedding + similarity verification, not closed-set classification.
@@ -16,7 +16,7 @@ Key constraints:
 - **Optimize for model quality.** Deployment constraints (model size, latency) and threshold selection are out of scope for now.
 - **Use uv, never bare python/pip.** `uv add` for dependencies, `uv run` for scripts, `uvx` for one-off CLI tools.
 - **Data lives in the git-ignored `data/` directory** (raw downloads in `data/raw/`, converted landmark stores in `data/processed/<dataset>/`).
-- **Code layout.** Library code in `src/isolated_sign_validation/`: common landmark format in `landmarks.py`, one adapter per dataset in `datasets/`, splits in `splits.py`, training data preparation in `preparation.py` (cached in `data/prepared/`), PyTorch dataset and augmentation in `dataset.py`, k-shot verification evaluation in `evaluation.py`. One-off scripts in `scripts/`, tests in `tests/` (`uv run pytest`).
+- **Code layout.** Two packages. `src/isolated_sign_validation/` is the verification problem: common landmark format in `landmarks.py`, one adapter per dataset in `datasets/`, splits in `splits.py`, training data preparation in `preparation.py` (cached in `data/prepared/`), PyTorch dataset and augmentation in `dataset.py`, k-shot verification evaluation in `evaluation.py`. `src/takk/` is the TAKK practice app (`uv run takk`), which imports the other package; nothing imports it back (`tests/test_layout.py`). One-off scripts in `scripts/`, tests in `tests/` with the app's in `tests/takk/` (`uv run pytest`).
 - **Headless machine.** The machine is used remotely over SSH with no display. Use matplotlib's Agg backend and save figures to the git-ignored `outputs/` directory; never `plt.show()`.
 - **Long term (not in scope yet):** Swedish Sign Language signs from teckensprakslexikon.su.se.
 
