@@ -13,6 +13,7 @@
     type Sign,
   } from "$lib/api";
   import { chosenWords, load, loadChosen, record, save, saveChosen, session, type Progress } from "$lib/progress";
+  import { page } from "$app/state";
 
   let lexicon = $state<Lexicon | null>(null);
   let packs: Pack[] = $state([]);
@@ -35,9 +36,13 @@
       .catch(() => (note = "Servern svarar inte. Starta den med uv run takk."));
   });
 
+  // `?days=1` picks the session as it will look a day from now, to try the spaced repetition without
+  // waiting for it. Only what counts as due moves; an attempt is still recorded at the real time.
+  const ahead = $derived(Number(new URLSearchParams(page.url.search).get("days")) || 0);
+
   // Today's signs are picked once, not derived: a scored attempt changes the progress they come from.
   function restart() {
-    today = session(chosenWords(packs, chosen), progress);
+    today = session(chosenWords(packs, chosen), progress, 5, Date.now() + ahead * 24 * 60 * 60 * 1000);
     (at = 0), (correct = 0), (attempt = null), (note = "");
   }
 
@@ -91,7 +96,10 @@
 {#if lexicon && current}
   <section class="card">
     <h1>Dagens pass</h1>
-    <p class="dim">Tecken {at + 1} av {today.length}. Titta på klippet och teckna ordet.</p>
+    <p class="dim">
+      Tecken {at + 1} av {today.length}. Titta på klippet och teckna ordet.
+      {#if ahead}Passet visas som det ser ut om {ahead} dagar.{/if}
+    </p>
     <h2>{shown}</h2>
     <div class="videos">
       {#each references as clip (clip)}

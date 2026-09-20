@@ -390,6 +390,10 @@ one at a time. Each sign has a Leitner box and a next-due date in the browser's 
 7 and 21 days) and a rejected one puts it back in the first. Nothing is stored on the server, so
 clearing the browser's storage starts the learner over.
 
+`/pass?days=1` shows the session as it will look that many days from now, which is how the spaced
+repetition is tried without waiting for it: only what counts as due moves, and an attempt is still
+recorded at the real time.
+
 The learner chooses what the session draws from, by turning packs on and off. A pack is a starter
 pack or one of the lexicon's categories, which to the learner are the same kind of thing: a named
 list of words. `GET /api/packs` serves all of them (`takk/vocabulary.py`), the starter packs first,
