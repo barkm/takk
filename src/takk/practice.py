@@ -29,7 +29,7 @@ from isolated_sign_validation.dataset import collate
 from isolated_sign_validation.extraction import MODEL_PATH, VideoInfo
 from isolated_sign_validation.landmarks import N_LANDMARKS, SKELETON_EDGES
 from isolated_sign_validation.preparation import ONE_HANDED, PrepConfig, hand_presence, hide_low_hands, mirror, prepare_clip
-from takk.speech import Aligner, decode_audio, split_speech
+from takk.speech import MIN_WORD_SCORE, Aligner, decode_audio, split_speech
 from takk.vocabulary import spoken_word
 
 # Everything the learner reads is Swedish (see ROADMAP-takk.md): the app is for practising TAKK.
@@ -44,6 +44,7 @@ NOTES = {
     "ok": "Det ser bra ut.",
     "no_audio": "Mikrofonen behövs för en mening: orden du säger är det som delar upp inspelningen i tecken.",
     "not_said": "Meningens ord hittades inte i det du sa. Säg vart och ett av dem tydligt.",
+    "not_heard": "Hörde inte {words}. Säg hela meningen högt medan du tecknar den.",
 }
 
 def sign_means(embeddings: np.ndarray, labels: np.ndarray, n_signs: int) -> np.ndarray:
@@ -165,7 +166,16 @@ def create_app(
         elif audio is None:
             return {"threshold": threshold, "note": NOTES["no_audio"], "split": "speech", "signs": []}
         else:
-            spans = aligner(decode_audio(await audio.read()), [spoken_word(s) for s in sign])
+            words = [spoken_word(s) for s in sign]
+            spans = aligner(decode_audio(await audio.read()), words)
+            if spans is None:
+                return {"threshold": threshold, "note": NOTES["not_said"], "split": "speech", "signs": []}
+            # The alignment is a Viterbi path and always returns one, so silence aligns as readily as
+            # speech; the score is what says the words were spoken at all (see takk.speech).
+            unheard = [word for word, (_, _, score) in zip(words, spans) if score < MIN_WORD_SCORE]
+            if unheard:
+                print(f"a sentence was refused, the words scoring {[round(s, 2) for *_, s in spans]}")  # while MIN_WORD_SCORE is provisional
+                return {"threshold": threshold, "note": NOTES["not_heard"].format(words=" och ".join(unheard)), "split": "speech", "signs": []}  # fmt: skip
             parts, split = split_speech(spans, audio_offset, len(values), config.fps), "speech"
         if len(parts) != len(sign) or any(part.stop - part.start < 2 for part in parts):
             return {"threshold": threshold, "note": NOTES["not_said"], "split": split, "signs": []}

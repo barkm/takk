@@ -11,6 +11,11 @@ matches any audio; only the key words themselves have to be spoken as they are w
 and the rest of the recipe, is that of KBLab's `easyaligner` (https://github.com/kb-labb/easyaligner,
 MIT), which applies the wildcard at the ends of a transcript; the library itself is built for batch
 alignment of long recordings and pins an older torch, so only its approach is used here.
+
+Forced alignment is a Viterbi path, so it never fails: silence aligns as readily as speech, only
+badly. Each word therefore comes back with the alignment's score for it, and whether it was spoken at
+all is that score against `MIN_WORD_SCORE` — without the check, a sentence signed in silence is cut
+at arbitrary places and scored as if the words had been heard.
 """
 
 import subprocess
@@ -26,7 +31,15 @@ from transformers import AutoModelForCTC, AutoProcessor
 MODEL = "KBLab/wav2vec2-large-voxrex-swedish"
 SAMPLE_RATE = 16000
 
-Aligner = Callable[[np.ndarray, list[str]], list[tuple[float, float]] | None]
+# The lowest mean log probability of a word's characters that still counts as spoken. Aligned against
+# silence or room noise the words of a sentence score -5.4 to -3.9 (measured on this model with
+# `hej` and `mamma`), while a word actually spoken scores near 0. Provisional, as the threshold of
+# ROADMAP.md is: it separates silence from speech, and mumbling has not been measured.
+MIN_WORD_SCORE = -3.0
+
+# Each word of a sentence as (start, end, score): when it was spoken, in seconds, and how well it
+# aligned. None when the words cannot be aligned at all.
+Aligner = Callable[[np.ndarray, list[str]], list[tuple[float, float, float]] | None]
 
 
 def decode_audio(data: bytes) -> np.ndarray:
@@ -51,9 +64,10 @@ def word_targets(words: list[str], vocab: dict[str, int]) -> tuple[list[int], li
     return targets, spans
 
 
-def align_words(audio: np.ndarray, words: list[str], model: torch.nn.Module, processor, device: str) -> list[tuple[float, float]] | None:  # fmt: skip
-    """When each of `words` is spoken in `audio`, as (start, end) seconds. None when they cannot be
-    aligned: a word of unknown characters, or audio too short for them."""
+def align_words(audio: np.ndarray, words: list[str], model: torch.nn.Module, processor, device: str) -> list[tuple[float, float, float]] | None:  # fmt: skip
+    """When each of `words` is spoken in `audio`, as (start, end) seconds, with the mean score of its
+    characters, which is how well it matches what was said (see `MIN_WORD_SCORE`). None when they
+    cannot be aligned at all: a word of unknown characters, or audio too short for them."""
     targets = word_targets(words, processor.tokenizer.get_vocab())
     if targets is None:
         return None
@@ -67,7 +81,8 @@ def align_words(audio: np.ndarray, words: list[str], model: torch.nn.Module, pro
     alignment, scores = F.forced_align(emissions, torch.tensor([targets], device=device), blank=processor.tokenizer.pad_token_id)  # fmt: skip
     tokens = F.merge_tokens(alignment[0], scores[0])  # one span per target, blanks and repeats merged
     seconds = len(audio) / SAMPLE_RATE / emissions.shape[1]
-    return [(tokens[first].start * seconds, tokens[last].end * seconds) for first, last in spans]
+    heard = [float(np.mean([token.score for token in tokens[first : last + 1]])) for first, last in spans]
+    return [(tokens[first].start * seconds, tokens[last].end * seconds, score) for (first, last), score in zip(spans, heard)]
 
 
 def load_aligner(device: str = "cpu") -> Aligner:
@@ -77,11 +92,11 @@ def load_aligner(device: str = "cpu") -> Aligner:
     return lambda audio, words: align_words(audio, words, model, processor, device)
 
 
-def split_speech(spans: list[tuple[float, float]], offset: float, n_frames: int, fps: float) -> list[slice]:
+def split_speech(spans: list[tuple[float, float, float]], offset: float, n_frames: int, fps: float) -> list[slice]:
     """The signs of a recording at the preparation's frame rate, one per spoken word of `spans`, cut
     halfway between one word's end and the next one's start: a sign runs alongside its word but may
     start before it or end after it. `offset` is how far into the audio the first frame was captured."""
-    cuts = [(end + start) / 2 for (_, end), (start, _) in zip(spans[:-1], spans[1:])]
+    cuts = [(end + start) / 2 for (_, end, _), (start, _, _) in zip(spans[:-1], spans[1:])]
     inner = np.maximum.accumulate(np.clip(np.round((np.array(cuts) - offset) * fps), 0, n_frames)).astype(int)
     edges = [0, *inner.tolist(), n_frames]
     return [slice(a, b) for a, b in zip(edges[:-1], edges[1:])]
