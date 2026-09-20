@@ -3,6 +3,7 @@
   import Verdict from "$lib/Verdict.svelte";
   import {
     fetchLexicon,
+    fetchForm,
     fetchPacks,
     referenceUrl,
     word,
@@ -25,6 +26,7 @@
   let note = $state("");
   let correct = $state(0);
   let peeked = $state(false);
+  let form = $state(""); // the lexicon's description of the current sign, fetched per card
 
   $effect(() => {
     Promise.all([fetchLexicon(), fetchPacks()])
@@ -52,6 +54,13 @@
     saveChosen(chosen);
     restart();
   }
+
+  // What the lexicon says the hands do, which is the only teaching text besides the clip.
+  $effect(() => {
+    const entryId = today[at]?.id;
+    form = "";
+    if (entryId) fetchForm(entryId).then((described) => (form = described));
+  });
 
   const current = $derived(today[at]);
   const shown = $derived(current ? (current.word ?? word(current.sign)) : "");
@@ -115,6 +124,7 @@
           <video src={referenceUrl(clip)} autoplay loop muted playsinline controls></video>
         {/each}
       </div>
+      {#if form}<p class="form">{form}</p>{/if}
     {:else}
       <p class="dim">Teckna ordet ur minnet. Klippet visas när du har spelat in.</p>
       <button class="secondary" onclick={() => (peeked = true)}>Jag kommer inte ihåg — visa tecknet</button>
@@ -154,6 +164,11 @@
 {/if}
 
 <style>
+  .form {
+    margin: 8px 0;
+    font-style: italic;
+  }
+
   ul {
     max-height: 40vh; /* the lexicon's categories are 58 of them */
     overflow-y: auto;

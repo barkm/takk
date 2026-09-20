@@ -45,7 +45,7 @@ export async function fetchLexicon(): Promise<Lexicon> {
 /** A word to practise: the sign that scores it, and the word to show when the sign is not named for
  * it (entries sharing a sign form are one class labelled by its lowest entry, so "äta" is scored as
  * `sts:livsmedel-01265`). */
-export type PackWord = { sign: string; word?: string };
+export type PackWord = { sign: string; id: string; word?: string };
 
 /** A named list of words the learner can turn on: a starter pack or one of the lexicon's categories. */
 export type Pack = { name: string; kind: "pack" | "category"; words: PackWord[] };
@@ -53,6 +53,12 @@ export type Pack = { name: string; kind: "pack" | "category"; words: PackWord[] 
 export async function fetchPacks(): Promise<Pack[]> {
   const response = await fetch(api("/api/packs"));
   return (await response.json()).packs;
+}
+
+/** How the lexicon describes the form of an entry's sign, in Swedish. Empty when it describes none. */
+export async function fetchForm(entryId: string): Promise<string> {
+  const response = await fetch(api(`/api/form/${encodeURIComponent(entryId)}`));
+  return (await response.json()).form;
 }
 
 export const referenceUrl = (clip: string) => api(`/api/reference/${encodeURIComponent(clip)}`);

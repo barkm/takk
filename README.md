@@ -400,6 +400,11 @@ recorded at the real time.
 each box, and every practised sign with its box, when it is due and which packs it is in, with a
 reset behind a fold. It is also how the spaced repetition is inspected while it is being built.
 
+A card also shows how the lexicon describes the sign, in Swedish ("Flata handen, framåtriktad och
+uppåtvänd, förs åt vänster ..."), which is the only teaching text the lexicon publishes and is on all
+but 30 of the entries with a video. It comes from `GET /api/form/{entry}` per card, since the whole
+glossary's descriptions are about 3 MB, and the entry is the word's own rather than the sign class's.
+
 The verdict names the word the learner was asked to sign, not the sign that scored it: signs of one
 form are one class named after its lowest entry, so "grön" is scored as `sts:land-00416`, and the
 pass says so in a line of its own rather than answering "det var land".

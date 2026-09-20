@@ -36,14 +36,14 @@ describe("session", () => {
 
 describe("chosenWords", () => {
   const packs = [
-    { name: "Första tecknen", kind: "pack" as const, words: [{ sign: "sts:mjölk-1", word: "mjölk" }] },
-    { name: "Mat och dryck", kind: "category" as const, words: [{ sign: "sts:mjölk-1" }, { sign: "sts:bröd-2" }] },
+    { name: "Första tecknen", kind: "pack" as const, words: [{ sign: "sts:mjölk-1", id: "1", word: "mjölk" }] },
+    { name: "Mat och dryck", kind: "category" as const, words: [{ sign: "sts:mjölk-1", id: "1" }, { sign: "sts:bröd-2", id: "2" }] },
   ];
 
   it("takes the chosen packs only, and a sign in two of them once", () => {
     expect(chosenWords(packs, ["Första tecknen", "Mat och dryck"])).toEqual([
-      { sign: "sts:mjölk-1", word: "mjölk" }, // the word of the pack that named it wins
-      { sign: "sts:bröd-2" },
+      { sign: "sts:mjölk-1", id: "1", word: "mjölk" }, // the word of the pack that named it wins
+      { sign: "sts:bröd-2", id: "2" },
     ]);
     expect(chosenWords(packs, [])).toEqual([]);
   });
@@ -51,8 +51,8 @@ describe("chosenWords", () => {
 
 describe("boxes", () => {
   const packs = [
-    { name: "Första tecknen", kind: "pack" as const, words: [{ sign: "sts:livsmedel-1", word: "äta" }] },
-    { name: "Mat och dryck", kind: "category" as const, words: [{ sign: "sts:livsmedel-1" }] },
+    { name: "Första tecknen", kind: "pack" as const, words: [{ sign: "sts:livsmedel-1", id: "1", word: "äta" }] },
+    { name: "Mat och dryck", kind: "category" as const, words: [{ sign: "sts:livsmedel-1", id: "1" }] },
   ];
 
   it("shows each practised sign by its pack's word, soonest due first", () => {
