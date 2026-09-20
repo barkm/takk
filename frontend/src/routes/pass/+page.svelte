@@ -14,16 +14,17 @@
     type Sign,
   } from "$lib/api";
   import {
+    advance,
     chosenWords,
+    DEFAULTS,
     load,
     loadChosen,
-    loadNewPerDay,
-    metToday,
+    loadSetting,
     practisedToday,
     record,
     save,
     saveChosen,
-    saveNewPerDay,
+    saveSetting,
     session,
     type Progress,
   } from "$lib/progress";
@@ -32,16 +33,18 @@
   let lexicon = $state<Lexicon | null>(null);
   let packs: Pack[] = $state([]);
   let chosen: string[] = $state([]);
-  let perDay = $state(5); // new words a day, the learner's own number
+  let size = $state(DEFAULTS.size); // words in a pass, the learner's own number
+  let needed = $state(DEFAULTS.accepts); // accepted attempts before a word is finished
   let progress: Progress = $state({});
-  let today: PackWord[] = $state([]);
-  let at = $state(0);
+  let queue: PackWord[] = $state([]); // the turns left in the pass, the current one first
+  let accepts: Record<string, number> = $state({}); // accepted attempts per sign, in this pass alone
+  let taught: string[] = $state([]); // the signs whose clip has already been shown in this pass
+  let answered = $state(false); // whether this turn's answer is in, so a second recording is a retry
+  let total = $state(0);
   let attempt: Attempt | null = $state(null);
   let note = $state("");
-  let correct = $state(0);
   let peeked = $state(false);
   let form = $state(""); // the lexicon's description of the current sign, fetched per card
-  let repeated: string[] = $state([]); // the signs already given a second turn in this pass
 
   $effect(() => {
     Promise.all([fetchLexicon(), fetchPacks()])
@@ -49,7 +52,7 @@
         (lexicon = loadedLexicon), (packs = loadedPacks);
         progress = load();
         chosen = loadChosen(packs);
-        perDay = loadNewPerDay();
+        (size = loadSetting("size")), (needed = loadSetting("accepts"));
         restart();
       })
       .catch(() => (note = "Servern svarar inte. Starta den med uv run takk."));
@@ -59,14 +62,16 @@
   // waiting for it. Only what counts as due moves; an attempt is still recorded at the real time.
   const ahead = $derived(Number(new URLSearchParams(page.url.search).get("days")) || 0);
 
-  // Today's signs are picked once, not derived: a scored attempt changes the progress they come from.
+  // The pass's signs are picked once, not derived: a scored attempt changes the progress they come from.
   function restart() {
-    today = session(chosenWords(packs, chosen), progress, 5, Date.now() + ahead * 24 * 60 * 60 * 1000, perDay);
-    (at = 0), (correct = 0), (attempt = null), (note = ""), (peeked = false), (repeated = []);
+    queue = session(chosenWords(packs, chosen), progress, size, Date.now() + ahead * 24 * 60 * 60 * 1000);
+    (total = queue.length), (accepts = {}), (taught = []), (answered = false);
+    (attempt = null), (note = ""), (peeked = false);
   }
 
-  function setPerDay(value: number) {
-    (perDay = Math.max(value, 0)), saveNewPerDay(perDay);
+  function setSetting(name: "size" | "accepts", value: number) {
+    saveSetting(name, value);
+    (size = loadSetting("size")), (needed = loadSetting("accepts"));
     restart();
   }
 
@@ -76,20 +81,22 @@
     restart();
   }
 
+  const current = $derived(queue[0]);
   // What the lexicon says the hands do, which is the only teaching text besides the clip.
   $effect(() => {
-    const entryId = today[at]?.id;
+    const entryId = current?.id;
     form = "";
     if (entryId) fetchForm(entryId).then((described) => (form = described));
   });
 
-  const current = $derived(today[at]);
   // Whether another pass would have anything in it, which is what makes the summary offer one.
-  const waiting = $derived(session(chosenWords(packs, chosen), progress, 1, Date.now() + ahead * 24 * 60 * 60 * 1000, perDay).length > 0);  // prettier-ignore
+  const waiting = $derived(session(chosenWords(packs, chosen), progress, 1, Date.now() + ahead * 24 * 60 * 60 * 1000).length > 0);  // prettier-ignore
   const shown = $derived(current ? (current.word ?? word(current.sign)) : "");
-  // A word never practised is being taught, so its clip is shown; a repetition is a test, and the
-  // clip only follows the verdict. Looking it up first is allowed but does not move the sign up a box.
-  const teaching = $derived(!!current && !progress[current.sign]);
+  const finished = $derived(Object.values(accepts).filter((count) => count >= needed).length);
+  // The tutorial belongs to the very first time a word is met: a word never practised, on its first
+  // turn of this pass. Every later turn is a test, so the clip only follows the verdict. Looking it up
+  // first is allowed but does not count as recalled.
+  const teaching = $derived(!!current && !progress[current.sign] && !taught.includes(current.sign));
   const showClip = $derived(teaching || peeked || !!attempt);
   // The Recorder scores a sentence, so one word is a sentence of one sign, with the sign's lexicon clips.
   const references = $derived(lexicon?.signs.find((sign) => sign.sign === current?.sign)?.references ?? []);
@@ -99,35 +106,41 @@
     (attempt = scoredAttempt), (note = said);
     const judged = scoredAttempt?.signs[0];
     if (!judged?.usable) return; // a recording that could not be used is not an answer either way
-    if (judged.correct) correct += 1;
-    progress = record(progress, judged.sign, !!judged.correct && !peeked, shown); // a looked-up sign is not recalled
+    if (answered) return; // a second recording of the same card is a retry: a verdict, but not an answer
+    (answered = true), (taught = [...taught, judged.sign]);
+    const ok = !!judged.correct && !peeked; // a looked-up sign is not recalled
+    const count = (accepts[judged.sign] ?? 0) + (ok ? 1 : 0);
+    accepts = { ...accepts, [judged.sign]: count };
+    // The box only moves when the word's fate is settled: it is finished, or it was missed and drops
+    // back to the first box. An accept that leaves it short of `needed` keeps it in the pass instead.
+    if (!ok) progress = record(progress, judged.sign, false, shown);
+    else if (count >= needed) progress = record(progress, judged.sign, true, shown);
+    else return;
     save(progress);
-    // A sign still in the first box comes back at the end of this pass, but only once: a sign that
-    // will not come out today should not keep the learner in the same pass.
-    if (progress[judged.sign].box === 1 && !repeated.includes(judged.sign)) {
-      (repeated = [...repeated, judged.sign]), (today = [...today, current]);
-    }
   }
 
   function next() {
-    (at += 1), (attempt = null), (note = ""), (peeked = false);
+    queue = advance(queue, accepts, needed);
+    (attempt = null), (note = ""), (peeked = false), (answered = false);
   }
 </script>
 
 {#snippet picker()}
   <details>
     <summary>Övar på: {chosen.join(", ") || "inget valt"}</summary>
-    <label class="perday">
-      Nya tecken per dag:
-      <input
-        type="number"
-        min="0"
-        max="50"
-        value={perDay}
-        onchange={(event) => setPerDay(Number(event.currentTarget.value))}
-      />
-      <span class="dim">{metToday(progress)} nya tecken mötta idag av {perDay}. Repetitioner begränsas inte.</span>
+    <label class="number">
+      Tecken per pass:
+      <input type="number" min="1" max="50" value={size} onchange={(e) => setSetting("size", Number(e.currentTarget.value))} />
     </label>
+    <label class="number">
+      Rätt per tecken:
+      <input type="number" min="1" max="10" value={needed} onchange={(e) => setSetting("accepts", Number(e.currentTarget.value))} />
+    </label>
+    <p class="dim">
+      Tecken som ska repeteras kommer först, och nya tecken fyller på upp till {size}. Ett tecken är klart
+      när det har godkänts {needed} gånger, och flyttas då upp en låda. {practisedToday(progress)} tecken
+      övade idag.
+    </p>
     <ul>
       {#each packs as pack (pack.name)}
         <li>
@@ -150,9 +163,10 @@
   <section class="card">
     <h1>Dagens pass</h1>
     <p class="dim">
-      Tecken {at + 1} av {today.length}.
+      {finished} av {total} tecken klara.
       {#if teaching}Nytt tecken: titta på klippet och teckna det.{:else}Repetition.{/if}
-      {#if peeked && !attempt}Du tog fram tecknet, så det stannar kvar till nästa pass.{/if}
+      {#if needed > 1}Godkänt {accepts[current.sign] ?? 0} av {needed} gånger.{/if}
+      {#if peeked && !attempt}Du tog fram tecknet, så det räknas inte som godkänt.{/if}
       {#if ahead}Passet visas som det ser ut om {ahead} dagar.{/if}
     </p>
     <h2>{shown}</h2>
@@ -182,20 +196,20 @@
   {/if}
   {#if attempt?.signs.length}
     <section class="card">
-      <button onclick={next}>{at + 1 < today.length ? "Nästa tecken" : "Avsluta passet"}</button>
+      <button onclick={next}>{advance(queue, accepts, needed).length ? "Nästa tecken" : "Avsluta passet"}</button>
     </section>
   {/if}
 {:else if lexicon}
   <section class="card">
     <h1>Dagens pass</h1>
     <p>
-      {today.length
-        ? `Klart! ${correct} av ${today.length} tecken rätt, ${practisedToday(progress)} tecken övade idag.`
-        : `Inget att öva just nu. ${metToday(progress) >= perDay ? `Du har mött dagens ${perDay} nya tecken.` : "Välj fler ord,"} Kom tillbaka när dagens tecken ska repeteras.`}
+      {total
+        ? `Klart! ${total} tecken igenom, ${practisedToday(progress)} tecken övade idag.`
+        : "Inget att öva just nu. Välj fler ord, eller kom tillbaka när dagens tecken ska repeteras."}
     </p>
     {#if waiting}
       <button onclick={restart}>Ett pass till</button>
-    {:else if today.length}
+    {:else if total}
       <p class="dim">Inget mer att öva idag — kom tillbaka i morgon.</p>
     {/if}
     {@render picker()}
@@ -208,7 +222,7 @@
 {/if}
 
 <style>
-  .perday input {
+  .number input {
     width: 4em;
   }
 

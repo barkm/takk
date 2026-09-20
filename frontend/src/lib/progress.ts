@@ -1,11 +1,12 @@
 // What the learner has practised, kept in the browser (step 8 of ROADMAP-takk.md): no accounts and
-// no state on the server for as long as that holds. One Leitner box per sign: an accepted attempt
-// moves it up a box, a rejected one back to the first, and the box says how long until it is due.
+// no state on the server for as long as that holds. One Leitner box per sign, saying how long until
+// it is due: a word moves up a box once a pass has accepted it `accepts` times, and back to the first
+// box the moment it is missed.
 import { word as signWord, type Pack, type PackWord } from "$lib/api";
 
 const KEY = "takk.progress";
 const CHOSEN = "takk.packs";
-const DAILY = "takk.new-per-day";
+const SETTINGS = { size: "takk.pass-size", accepts: "takk.accepts" };
 const DAY = 24 * 60 * 60 * 1000;
 /** Days until a sign in each box is due again. The first box waits a day like the second: a sign that
  * was missed comes back within the same pass, so a finished pass is finished. */
@@ -20,9 +21,10 @@ export const DAYS = [1, 1, 3, 7, 21];
  * fall back to a pack's word. */
 export type Learned = { box: number; due: number; seen?: number; first?: number; word?: string };
 
-/** How many words a learner meets for the first time in a day, until they say otherwise. Repetitions
- * are never capped: the limit is there so that a day's new words come back as a day's repetitions. */
-export const NEW_PER_DAY = 5;
+/** The learner's own numbers, until they say otherwise: `size` words in a pass, and `accepts` accepted
+ * attempts of each before it is finished and moves up a box. */
+export const DEFAULTS = { size: 5, accepts: 2 };
+export type Setting = keyof typeof DEFAULTS;
 export type Progress = Record<string, Learned>;
 
 export function load(): Progress {
@@ -37,7 +39,10 @@ export function save(progress: Progress) {
   localStorage.setItem(KEY, JSON.stringify(progress));
 }
 
-/** The progress after an attempt of `sign`, shown as `word`, was accepted or rejected. */
+/** The progress after a turn of `sign`, shown as `word`, finished the word or missed it. It is called
+ * once a word's fate in the pass is settled, not on every turn: an accepted attempt that still leaves
+ * the word short of its accepts changes nothing, so a word met today and left unfinished is met again
+ * from the start, with its tutorial, rather than sitting half-learned in a box. */
 export function record(progress: Progress, sign: string, correct: boolean, word = "", now = Date.now()): Progress {
   const box = correct ? Math.min((progress[sign]?.box ?? 0) + 1, DAYS.length) : 1;
   const learned = { box, due: now + DAYS[box - 1] * DAY, seen: now, first: progress[sign]?.first ?? now };
@@ -50,22 +55,15 @@ export function practisedToday(progress: Progress, now = Date.now()): number {
   return Object.values(progress).filter((learned) => (learned.seen ?? 0) >= midnight).length;
 }
 
-/** How many words were met for the first time since midnight, which the day's new words are capped by. */
-export function metToday(progress: Progress, now = Date.now()): number {
-  const midnight = new Date(now).setHours(0, 0, 0, 0);
-  return Object.values(progress).filter((learned) => (learned.first ?? 0) >= midnight).length;
+/** One of the learner's numbers, their default until it is chosen. Both count things a pass cannot
+ * have none of, so anything below 1 is not an answer and falls back to the default. */
+export function loadSetting(name: Setting): number {
+  const value = Number(localStorage.getItem(SETTINGS[name]));
+  return Number.isFinite(value) && value >= 1 ? Math.floor(value) : DEFAULTS[name];
 }
 
-/** How many new words a day the learner has asked for. Zero is an answer: it is a day of repetitions
- * only, so it has to be told apart from having never chosen. */
-export function loadNewPerDay(): number {
-  const stored = localStorage.getItem(DAILY);
-  const perDay = Number(stored);
-  return stored !== null && Number.isFinite(perDay) && perDay >= 0 ? perDay : NEW_PER_DAY;
-}
-
-export function saveNewPerDay(perDay: number) {
-  localStorage.setItem(DAILY, String(perDay));
+export function saveSetting(name: Setting, value: number) {
+  localStorage.setItem(SETTINGS[name], String(Math.max(Math.floor(value), 1)));
 }
 
 /** The packs the learner practises, the starter packs until they choose otherwise. */
@@ -127,15 +125,20 @@ export function boxes(progress: Progress, packs: Pack[]): Row[] {
   return rows.sort((a, b) => a.due - b.due || a.word.localeCompare(b.word, "sv"));
 }
 
-/** The signs of today's session: the due ones first, then words never practised, at most `size`.
- *
- * Only as many new words are taken as the day has left of `perDay`, so that meeting a word is a
- * decision made once a day rather than however many passes are run; repetitions are never held back.
- */
-export function session(words: PackWord[], progress: Progress, size = 5, now = Date.now(), perDay = NEW_PER_DAY): PackWord[] {  // prettier-ignore
+/** The signs of one pass: `size` of them, the due ones first and soonest due first, filled up with
+ * words never practised when fewer than `size` are due. A pass is therefore the same length whatever
+ * the boxes hold, and new words arrive only as far as the repetitions leave room for them. */
+export function session(words: PackWord[], progress: Progress, size = DEFAULTS.size, now = Date.now()): PackWord[] {
   const due = words.filter((word) => progress[word.sign] && progress[word.sign].due <= now);
   due.sort((a, b) => progress[a.sign].due - progress[b.sign].due);
-  const left = Math.max(perDay - metToday(progress, now), 0);
-  const fresh = words.filter((word) => !progress[word.sign]).slice(0, left);
+  const fresh = words.filter((word) => !progress[word.sign]);
   return [...due, ...fresh].slice(0, size);
+}
+
+/** The turns left in a pass after the current one, given how often each sign has been accepted in it.
+ * A word short of `needed` goes back to the end of the queue, so the pass cycles until every word has
+ * been accepted `needed` times, and a missed word comes back in the same pass. */
+export function advance(queue: PackWord[], accepts: Record<string, number>, needed: number): PackWord[] {
+  const [current, ...rest] = queue;
+  return (accepts[current.sign] ?? 0) >= needed ? rest : [...rest, current];
 }
