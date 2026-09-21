@@ -121,7 +121,7 @@
       {writing ? "Skriver sagan …" : "Skriv sagan"}
     </button>
     {#if pool.length < 2}
-      <p class="dim">Lär dig några <a href="/">nya ord</a> först — sagan skrivs av det du kan.</p>
+      <p class="dim">Lär dig några <a href="/träna/nya">nya ord</a> först — sagan skrivs av det du kan.</p>
     {/if}
     {#if note}<p class="dim">{note}</p>{/if}
   </section>

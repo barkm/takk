@@ -34,7 +34,7 @@
   <h1>Mina tecken</h1>
   {#if rows.length}
     <p>
-      {rows.length} tecken övade, {due} att repetera nu. <a href="/saga">Sagan</a> skrivs av dem, med
+      {rows.length} tecken övade, {due} att repetera nu. <a href="/träna/repetera">Sagan</a> skrivs av dem, med
       tyngdpunkt på dem som sitter sämst.
     </p>
     <ul class="boxes">
@@ -43,7 +43,7 @@
       {/each}
     </ul>
   {:else}
-    <p>Inga tecken övade än. Börja med <a href="/">nya ord</a>.</p>
+    <p>Inga tecken övade än. Börja med <a href="/träna/nya">nya ord</a>.</p>
   {/if}
   {#if note}<p class="dim">{note}</p>{/if}
 </section>
