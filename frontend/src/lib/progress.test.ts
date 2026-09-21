@@ -22,32 +22,59 @@ describe("record", () => {
       word: "mjölk",
     });
 
-    const second = record(first, "sts:mjölk-1", true, "mjölk", 0);
+    // each answer on the day the box before it fell due, since a sign answered early does not move
+    const second = record(first, "sts:mjölk-1", true, "mjölk", DAY);
     expect(second["sts:mjölk-1"]).toEqual({
       box: 2,
-      due: 3 * DAY,
-      seen: 0,
+      due: 4 * DAY,
+      seen: DAY,
       first: 0,
       word: "mjölk",
     });
 
-    const third = record(second, "sts:mjölk-1", true, "mjölk", 0);
+    const third = record(second, "sts:mjölk-1", true, "mjölk", 4 * DAY);
     expect(third["sts:mjölk-1"]).toEqual({
       box: 3,
-      due: 7 * DAY,
-      seen: 0,
+      due: 11 * DAY,
+      seen: 4 * DAY,
       first: 0,
       word: "mjölk",
     });
 
-    const missed = record(third, "sts:mjölk-1", false, "mjölk", 0);
+    const missed = record(third, "sts:mjölk-1", false, "mjölk", 4 * DAY);
     expect(missed["sts:mjölk-1"]).toEqual({
       box: 1,
-      due: DAY,
-      seen: 0,
+      due: 5 * DAY,
+      seen: 4 * DAY,
       first: 0,
       word: "mjölk",
     });
+  });
+
+  it("neither promotes nor reschedules a sign answered before it was due", () => {
+    const progress = { "sts:mjölk-1": { box: 2, due: 3 * DAY, seen: 0, first: 0, word: "mjölk" } };
+
+    // accepted on the first day: the box claims three, which this answer has not tested, so only the
+    // time the sign was last seen moves
+    expect(record(progress, "sts:mjölk-1", true, "mjölk", DAY)["sts:mjölk-1"]).toEqual({
+      box: 2,
+      due: 3 * DAY,
+      seen: DAY,
+      first: 0,
+      word: "mjölk",
+    });
+
+    // a miss is evidence whatever the day: the interval was already too long
+    expect(record(progress, "sts:mjölk-1", false, "mjölk", DAY)["sts:mjölk-1"]).toEqual({
+      box: 1,
+      due: 2 * DAY,
+      seen: DAY,
+      first: 0,
+      word: "mjölk",
+    });
+
+    // and the same sign, answered on the day it fell due, moves up as before
+    expect(record(progress, "sts:mjölk-1", true, "mjölk", 3 * DAY)["sts:mjölk-1"].box).toBe(3);
   });
 });
 

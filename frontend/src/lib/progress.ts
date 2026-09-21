@@ -45,8 +45,17 @@ export function save(progress: Progress) {
  * the word short of its accepts changes nothing, so a word met today and left unfinished is met again
  * from the start, with its tutorial, rather than sitting half-learned in a box. */
 export function record(progress: Progress, sign: string, correct: boolean, word = "", now = Date.now()): Progress {
-  const box = correct ? Math.min((progress[sign]?.box ?? 0) + 1, DAYS.length) : 1;
-  const learned = { box, due: now + DAYS[box - 1] * DAY, seen: now, first: progress[sign]?.first ?? now };
+  const previous = progress[sign];
+  // A sign answered before it was due keeps its box and its date (user, 2026-09-21). A box is a claim
+  // about an interval — the third means "still remembered after seven days" — and an answer on the
+  // second day has not tested that, so promoting would push the next repetition out to an interval
+  // that was never met, and a word could climb out of the boxes by being drilled in one sitting. A
+  // miss is evidence whatever the day, since forgetting a sign that was not due means its interval
+  // was already too long, so a miss always falls back to the first box.
+  const early = correct && previous && previous.due > now;
+  const box = early ? previous.box : correct ? Math.min((previous?.box ?? 0) + 1, DAYS.length) : 1;
+  const due = early ? previous.due : now + DAYS[box - 1] * DAY;
+  const learned = { box, due, seen: now, first: previous?.first ?? now };
   return { ...progress, [sign]: word ? { ...learned, word } : learned };
 }
 
