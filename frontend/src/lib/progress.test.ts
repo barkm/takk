@@ -9,10 +9,11 @@ const word = (name: string) => ({
   sign: `sts:${name}-1`,
 });
 const DAY = 24 * 60 * 60 * 1000;
+const milk = { sign: "sts:mjölk-1", id: "1", word: "mjölk" }; // a card: the sign, its lexicon entry and its word
 
 describe("record", () => {
   it("moves an accepted sign up a box and a rejected one back to the first", () => {
-    const first = record({}, "sts:mjölk-1", true, "mjölk", 0);
+    const first = record({}, milk, true, 0);
     // the first box waits a day, and the time the sign was first met is kept from here on
     expect(first["sts:mjölk-1"]).toEqual({
       box: 1,
@@ -20,34 +21,38 @@ describe("record", () => {
       seen: 0,
       first: 0,
       word: "mjölk",
+      id: "1",
     });
 
     // each answer on the day the box before it fell due, since a sign answered early does not move
-    const second = record(first, "sts:mjölk-1", true, "mjölk", DAY);
+    const second = record(first, milk, true, DAY);
     expect(second["sts:mjölk-1"]).toEqual({
       box: 2,
       due: 4 * DAY,
       seen: DAY,
       first: 0,
       word: "mjölk",
+      id: "1",
     });
 
-    const third = record(second, "sts:mjölk-1", true, "mjölk", 4 * DAY);
+    const third = record(second, milk, true, 4 * DAY);
     expect(third["sts:mjölk-1"]).toEqual({
       box: 3,
       due: 11 * DAY,
       seen: 4 * DAY,
       first: 0,
       word: "mjölk",
+      id: "1",
     });
 
-    const missed = record(third, "sts:mjölk-1", false, "mjölk", 4 * DAY);
+    const missed = record(third, milk, false, 4 * DAY);
     expect(missed["sts:mjölk-1"]).toEqual({
       box: 1,
       due: 5 * DAY,
       seen: 4 * DAY,
       first: 0,
       word: "mjölk",
+      id: "1",
     });
   });
 
@@ -56,25 +61,27 @@ describe("record", () => {
 
     // accepted on the first day: the box claims three, which this answer has not tested, so only the
     // time the sign was last seen moves
-    expect(record(progress, "sts:mjölk-1", true, "mjölk", DAY)["sts:mjölk-1"]).toEqual({
+    expect(record(progress, milk, true, DAY)["sts:mjölk-1"]).toEqual({
       box: 2,
       due: 3 * DAY,
       seen: DAY,
       first: 0,
       word: "mjölk",
+      id: "1",
     });
 
     // a miss is evidence whatever the day: the interval was already too long
-    expect(record(progress, "sts:mjölk-1", false, "mjölk", DAY)["sts:mjölk-1"]).toEqual({
+    expect(record(progress, milk, false, DAY)["sts:mjölk-1"]).toEqual({
       box: 1,
       due: 2 * DAY,
       seen: DAY,
       first: 0,
       word: "mjölk",
+      id: "1",
     });
 
     // and the same sign, answered on the day it fell due, moves up as before
-    expect(record(progress, "sts:mjölk-1", true, "mjölk", 3 * DAY)["sts:mjölk-1"].box).toBe(3);
+    expect(record(progress, milk, true, 3 * DAY)["sts:mjölk-1"].box).toBe(3);
   });
 });
 
@@ -82,8 +89,8 @@ describe("known", () => {
   const packs = [{ name: "Första tecknen", kind: "pack" as const, words: [word("mamma"), word("hej")] }];
   // mamma is due and in the first box (weight 1), hej is in the last one and due in three weeks (1/21)
   const progress = {
-    "sts:mamma-1": { box: 1, due: 0, seen: 0, word: "mamma" },
-    "sts:hej-1": { box: 4, due: 5 * DAY, seen: 0, word: "hej" },
+    "sts:mamma-1": { box: 1, due: 0, seen: 0, word: "mamma", id: "mamma" },
+    "sts:hej-1": { box: 4, due: 5 * DAY, seen: 0, word: "hej", id: "hej" },
   };
 
   it("draws the weak words far more often than the strong ones", () => {
@@ -97,8 +104,12 @@ describe("known", () => {
     expect(known(packs, {}, 5)).toEqual([]);
   });
 
-  it("keeps a practised sign that is in no pack any more, by the word it was practised as", () => {
-    expect(known([], progress, 1, () => 0)).toEqual([{ sign: "sts:mamma-1", id: "", word: "mamma" }]);
+  it("practises a sign that is in no pack any more, by the card the box kept", () => {
+    // the word and the lexicon entry come from the store, so a pack the crawl dropped changes nothing
+    expect(known([], progress, 1, () => 0)).toEqual([word("mamma")]);
+    // a box written before the entry was stored still practises, with no entry to describe its form
+    const old = { "sts:hej-1": { box: 1, due: 0, word: "hej" } };
+    expect(known([], old, 1, () => 0)).toEqual([{ sign: "sts:hej-1", id: "", word: "hej" }]);
   });
 });
 
@@ -316,15 +327,15 @@ describe("a pass, turn by turn", () => {
     expect(queue).toEqual([word("pappa"), word("mamma")]);
 
     accepts = { ...accepts, "sts:pappa-1": 0 }; // missed: back to the first box, and back in the queue
-    progress = record(progress, "sts:pappa-1", false, "pappa", 0);
+    progress = record(progress, word("pappa"), false, 0);
     queue = advance(queue, [queue[0]], accepts, needed);
     expect(queue).toEqual([word("mamma"), word("pappa")]);
 
     accepts = { ...accepts, "sts:mamma-1": 2 }; // accepted twice: finished, and out of the queue
-    progress = record(progress, "sts:mamma-1", true, "mamma", 0);
+    progress = record(progress, word("mamma"), true, 0);
     expect(progress).toEqual({
-      "sts:pappa-1": { box: 1, due: DAY, seen: 0, first: 0, word: "pappa" },
-      "sts:mamma-1": { box: 1, due: DAY, seen: 0, first: 0, word: "mamma" },
+      "sts:pappa-1": { box: 1, due: DAY, seen: 0, first: 0, word: "pappa", id: "pappa" },
+      "sts:mamma-1": { box: 1, due: DAY, seen: 0, first: 0, word: "mamma", id: "mamma" },
     });
     expect(advance(queue, [queue[0]], accepts, needed)).toEqual([word("pappa")]);
   });
@@ -333,13 +344,13 @@ describe("a pass, turn by turn", () => {
     // A miss puts the word in the first box, and finishing the pass must not carry it back out:
     // otherwise missing a word would promote it further than signing it right the first time.
     const known = { "sts:pappa-1": { box: 3, due: 0, seen: 0, first: 0, word: "pappa" } };
-    const missed = record(known, "sts:pappa-1", false, "pappa", 0);
+    const missed = record(known, word("pappa"), false, 0);
     expect(missed["sts:pappa-1"].box).toBe(1);
 
     // the page passes `!missed.includes(sign)`, so the word finishes where the miss left it
-    expect(record(missed, "sts:pappa-1", false, "pappa", 0)["sts:pappa-1"].box).toBe(1);
+    expect(record(missed, word("pappa"), false, 0)["sts:pappa-1"].box).toBe(1);
     // and a word the pass never missed climbs the one box it earned
-    expect(record(known, "sts:pappa-1", true, "pappa", 0)["sts:pappa-1"].box).toBe(4);
+    expect(record(known, word("pappa"), true, 0)["sts:pappa-1"].box).toBe(4);
   });
 });
 

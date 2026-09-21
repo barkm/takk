@@ -16,11 +16,14 @@ export const DAYS = [1, 3, 7, 21];
 /** A sign's box (1 and up), when it is due again and when it was last practised, in milliseconds
  * since the epoch, and the word the learner was shown. The word is kept because a box belongs to a
  * sign class and a class has many words: `sts:spader-00016` is "svart" in Färger and "Oden" in
- * Mytologi, and what was practised is the one that was on the card. `first` is when the sign was met
- * for the first time, which is the only way to tell a new word from a missed old one: both sit in the
- * first box. Boxes written before these fields existed count as neither practised nor met today and
- * fall back to a pack's word. */
-export type Learned = { box: number; due: number; seen?: number; first?: number; word?: string };
+ * Mytologi, and what was practised is the one that was on the card. `id` is that card's lexicon entry,
+ * kept for the same reason and so that nothing has to be looked up in the packs to practise the word
+ * again: the packs come from the crawl and the boxes from `localStorage`, so an entry dropped from
+ * every pack would otherwise lose the form description its card shows. `first` is when the sign was
+ * met for the first time, which is the only way to tell a new word from a missed old one: both sit in
+ * the first box. Boxes written before these fields existed count as neither practised nor met today,
+ * fall back to a pack's word, and are given an entry the next time the word is practised. */
+export type Learned = { box: number; due: number; seen?: number; first?: number; word?: string; id?: string };
 
 /** The learner's own numbers, until they say otherwise: `size` words in a pass, and `accepts` accepted
  * attempts of each before it is finished and moves up a box. */
@@ -40,12 +43,12 @@ export function save(progress: Progress) {
   localStorage.setItem(KEY, JSON.stringify(progress));
 }
 
-/** The progress after a turn of `sign`, shown as `word`, finished the word or missed it. It is called
+/** The progress after a turn of `card` finished the word or missed it. It is called
  * once a word's fate in the pass is settled, not on every turn: an accepted attempt that still leaves
  * the word short of its accepts changes nothing, so a word met today and left unfinished is met again
  * from the start, with its tutorial, rather than sitting half-learned in a box. */
-export function record(progress: Progress, sign: string, correct: boolean, word = "", now = Date.now()): Progress {
-  const previous = progress[sign];
+export function record(progress: Progress, card: PackWord, correct: boolean, now = Date.now()): Progress {
+  const previous = progress[card.sign];
   // A sign answered before it was due keeps its box and its date (user, 2026-09-21). A box is a claim
   // about an interval — the third means "still remembered after seven days" — and an answer on the
   // second day has not tested that, so promoting would push the next repetition out to an interval
@@ -55,8 +58,10 @@ export function record(progress: Progress, sign: string, correct: boolean, word 
   const early = correct && previous && previous.due > now;
   const box = early ? previous.box : correct ? Math.min((previous?.box ?? 0) + 1, DAYS.length) : 1;
   const due = early ? previous.due : now + DAYS[box - 1] * DAY;
-  const learned = { box, due, seen: now, first: previous?.first ?? now };
-  return { ...progress, [sign]: word ? { ...learned, word } : learned };
+  const learned: Learned = { box, due, seen: now, first: previous?.first ?? now };
+  if (card.word) learned.word = card.word; // the word on the card, not the name of the sign that scores it
+  if (card.id) learned.id = card.id;
+  return { ...progress, [card.sign]: learned };
 }
 
 /** How many signs were practised since midnight, which is what a day's work amounts to. */
@@ -157,11 +162,8 @@ export function session(words: PackWord[], progress: Progress, size = DEFAULTS.s
  * every word is the ordinary schedule's job, whatever this samples. `random` is a parameter so that a
  * test can be deterministic. */
 export function known(packs: Pack[], progress: Progress, size = DEFAULTS.size, random = Math.random): PackWord[] {
-  const inPacks = new Map<string, PackWord>(); // a card's word carries the lexicon entry its clip is
-  for (const pack of packs)
-    for (const each of pack.words) inPacks.set(`${each.sign}\0${each.word ?? signWord(each.sign)}`, each);
   const pool = boxes(progress, packs).map((row) => ({
-    word: inPacks.get(`${row.sign}\0${row.word}`) ?? { sign: row.sign, id: "", word: row.word },
+    word: { sign: row.sign, id: row.id ?? "", word: row.word },
     weight: 1 / DAYS[Math.min(row.box, DAYS.length) - 1],
   }));
   const picked: PackWord[] = [];

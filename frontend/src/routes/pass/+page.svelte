@@ -138,6 +138,8 @@
   const waiting = $derived(review ? known(packs, progress, 1).length > 0 : session(chosenWords(packs, chosen), progress, 1, Date.now() + ahead * 24 * 60 * 60 * 1000).length > 0);  // prettier-ignore
   const shown = $derived(current ? label(current) : "");
   const labels = $derived(Object.fromEntries(taken.map((each) => [each.sign, label(each)])));
+  // The cards of this turn by sign, each under the word it is shown as, which is what the boxes keep.
+  const cards = $derived(Object.fromEntries(taken.map((each) => [each.sign, { ...each, word: label(each) }])));
   const finished = $derived(Object.values(accepts).filter((count) => count >= needed).length);
   // The tutorial belongs to the very first time a word is met: a word never practised, on its first
   // turn of this pass. Every later turn is a test, so the clip only follows the verdict. Looking it up
@@ -169,8 +171,8 @@
     const count = (accepts[sign] ?? 0) + (ok ? 1 : 0);
     accepts = { ...accepts, [sign]: count };
     if (!ok && !missed.includes(sign)) missed = [...missed, sign];
-    if (!ok) progress = record(progress, sign, false, labels[sign]);
-    else if (count >= needed) progress = record(progress, sign, !missed.includes(sign), labels[sign]);
+    if (!ok) progress = record(progress, cards[sign], false);
+    else if (count >= needed) progress = record(progress, cards[sign], !missed.includes(sign));
   }
 
   function next() {
