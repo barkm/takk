@@ -282,16 +282,16 @@
           {#if at % 2}<strong>{part}</strong>{:else}{part}{/if}
         {/each}
       </h2>
-    {:else}
+    {:else if !writing}
       <h2>{shown}</h2>
     {/if}
     {#if showClip}
-      <div class="videos">
-        {#each references as clip (clip)}
+      {#if references.length}
+        <div class="videos">
           <!-- svelte-ignore a11y_media_has_caption -->
-          <video src={referenceUrl(clip)} autoplay loop muted playsinline controls></video>
-        {/each}
-      </div>
+          <video src={referenceUrl(references[0])} autoplay loop muted playsinline controls></video>
+        </div>
+      {/if}
       {#if form}<p class="form">{form}</p>{/if}
     {:else if alone}
       <p class="dim">Teckna ordet ur minnet. Klippet visas när du har spelat in.</p>
@@ -299,15 +299,7 @@
     {/if}
   </section>
   <Recorder bind:this={recorder} {sentence} {lexicon} onattempt={scored} />
-  <Verdict {attempt} {note} {labels} />
-  {#if attempt?.signs.length && alone && word(current.sign) !== shown}
-    <section class="card">
-      <p class="dim">
-        Tecknet för {shown} har samma form som {word(current.sign)} i lexikonet, så det är det namnet
-        modellen räknar med.
-      </p>
-    </section>
-  {/if}
+  <Verdict {attempt} {note} {labels} brief />
   {#if attempt?.signs.length}
     <section class="card">
       <button onclick={next}>{advance(queue, taken, accepts, needed).length ? "Nästa" : "Avsluta passet"}</button>

@@ -4,8 +4,15 @@
   // `labels` gives the word the learner was asked to sign, which is not always what the sign is
   // called: signs of one form are one class named after its lowest entry, so "grön" is scored as
   // `sts:land-00416`. Without it a sign is called what the lexicon calls it, as in free practice.
-  let { attempt, note, labels = {} }: { attempt: Attempt | null; note: string; labels?: Record<string, string> } =
-    $props();
+  // `brief` is the practice session, where a card only has to say whether the sign was right: the
+  // scores, the closest sign and the threshold are for free practice, which is where signs are looked
+  // into (user, 2026-09-21).
+  let {
+    attempt,
+    note,
+    labels = {},
+    brief = false,
+  }: { attempt: Attempt | null; note: string; labels?: Record<string, string>; brief?: boolean } = $props();
 
   const shown = (sign: string) => labels[sign] ?? word(sign);
 
@@ -14,6 +21,7 @@
   const headline = $derived.by(() => {
     if (!attempt) return note;
     if (!attempt.signs.length) return attempt.note;
+    if (brief) return attempt.signs.length > 1 ? `${correct} av ${attempt.signs.length} rätt` : correct ? "Rätt" : "Fel";
     if (attempt.signs.length > 1) return `${correct} av ${attempt.signs.length} tecken kändes igen.`;
     const only = attempt.signs[0];
     return only.correct ? `Rätt: det var ${shown(only.sign)}.` : `Kändes inte igen som ${shown(only.sign)}.`;
@@ -36,7 +44,13 @@
 {#if headline}
   <section class="card">
     <p class="verdict" class:ok={good} class:bad={!good}>{headline}</p>
-    {#if attempt?.signs.length}
+    {#if attempt?.signs.length && brief && attempt.signs.length > 1}
+      <ul>
+        {#each attempt.signs as sign, i (i)}
+          <li class:ok={sign.correct} class:bad={!sign.correct}>{sign.correct ? "✓" : "✗"} {shown(sign.sign)}</li>
+        {/each}
+      </ul>
+    {:else if attempt?.signs.length && !brief}
       <ul>
         {#each attempt.signs as sign, i (i)}
           <li class:ok={sign.correct} class:bad={!sign.correct}>{line(sign)}</li>
