@@ -354,9 +354,9 @@ scored highest, which is what a handful of clips can actually say something abou
 ## Practicing signs
 
 The app itself lives in its own package, `src/takk/` (see ROADMAP-takk.md); everything else in this
-repository is the isolated sign verification work it is built on. It serves a small web app: search
-the Swedish lexicon for a word, watch its clip, sign it to the webcam, and learn whether it was that
-sign. The landmarks are extracted in the browser, live on the GPU while the camera runs (the CPU if
+repository is the isolated sign verification work it is built on. It serves a small web app: learn a
+new Swedish sign from its clip, sign it to the webcam, and repeat what you know by signing your way
+through a story. The landmarks are extracted in the browser, live on the GPU while the camera runs (the CPU if
 there is no GPU), with the same MediaPipe version and model as `extraction.py`, and drawn over the
 camera image; only the landmarks of a recording are sent to the server, the video never leaves the
 device. The server checks and prepares the attempt like a recording, embeds it with the run's model,
@@ -364,19 +364,20 @@ and accepts it when its mean cosine similarity to the sign's lexicon clips reach
 provisional 0.38, see ROADMAP.md). It also names the closest sign of the whole lexicon:
 
 ```sh
-uv run takk   # then open http://localhost:8002
+uv run takk   # the API; the page is the SvelteKit app below
 ```
 
-Picking several words makes a sentence, as TAKK signs the key words of a spoken sentence. Sign them
-in order and say the sentence aloud while you sign, the way TAKK is used: the recording is split into
-its signs by when the key words are spoken, and each part is scored against the sign at its place in
+A part of a story is several signs, as TAKK signs the key words of a spoken sentence. Sign them in
+order and say the part aloud while you sign, the way TAKK is used: the recording is split into its
+signs by when the key words are spoken, and each part is scored against the sign at its place in
 the sentence, with a verdict per sign. The words are known, so they are not recognized but timed, by
 forced alignment against a Swedish CTC model (`takk/speech.py`, about 1.2 GB, downloaded on the first
 run); a wildcard between them absorbs everything else that is said, so the sentence around the key
 words can be any Swedish. Speaking is what locates the signs, so the microphone is always needed,
-for a single sign as much as for a sentence: there the alignment has nothing to cut and its job is
-to say the word was said at all. When the number of signs found differs from the sentence's, or a
-word was not heard, the page says so and nothing is scored.
+for a single sign as much as for a part: there the alignment has nothing to cut and its job is
+to say the word was said at all. When the number of signs found differs from the expected one, the
+page says so and nothing is scored; in a story a word that was not heard is a miss of its sign
+instead, so the story can go on.
 
 The page shows the rate the landmarks are tracked at. Below 20 fps it skips so many camera frames
 that the answer is less reliable, since the model was trained on every frame. The lexicon's
@@ -385,51 +386,40 @@ the collection app, forward the port when the machine is remote.
 `scripts/compare_browser_extraction.py` compares the browser's landmarks with the Python extraction
 on the recordings.
 
-"Dagens pass" (`/pass`) is the practice session. The page opens on the choices — the kind of pass,
-how many signs it holds, how many accepted attempts finish a sign, and which packs it draws new words
-from — and the pass begins when the learner starts it. A daily pass is the signs that are due, filled
-up with words never practised; a review pass ("Repetera allt du kan") draws from every box instead,
-weighted by `1 / DAYS[box - 1]`, so it leans on the words that sit worst and teaches nothing new. A
-word never practised is taught, with its clip; a repetition is a flash card, so the word alone is
-shown and the clip follows the verdict. The sign can be looked up first, which does not move it up a
-box. The summary offers another pass and the settings again.
+The app is two modes. "Nya ord" (`/`) teaches five words never practised, taken from the packs the
+learner has ticked; each card shows the word, its lexicon clip and the lexicon's description of the
+sign's form, and the learner says the word aloud and signs it. A word signed right goes into the
+first Leitner box and the next card follows at once; a missed one is armed for another recording with
+the clip still up. A card is one word: no sentence is written for a word being taught.
 
 Each sign has a Leitner box and a next-due date in the browser's `localStorage`
 (`frontend/src/lib/progress.ts`), the four boxes falling due after 1, 3, 7 and 21 days. A sign moves
-up a box once a pass has accepted it as many times as the learner asked for, two by default, and a
-miss drops it to the first box at once and keeps it there for that pass. A sign is only promoted if
-it was actually due: a box claims its sign is still remembered after that many days, and an answer
-given on the second day of a seven-day box has not tested that, so an early answer moves nothing but
-the time the sign was last seen. A miss counts whatever the day, since forgetting a sign that was not
-due means its interval was already too long. A sign put back in the first box comes back in the same
-pass, so a pass drills what was missed.
+up a box when it is signed right, and a miss drops it to the first box at once. A sign is only
+promoted if it was actually due: a box claims its sign is still remembered after that many days, and
+an answer given on the second day of a seven-day box has not tested that, so an early answer moves
+nothing but the time the sign was last seen. A miss counts whatever the day, since forgetting a sign
+that was not due means its interval was already too long.
 
-The packs say where new words come from and nothing else: repetitions come from every box, so
-unticking a pack stops it teaching new words without stranding the words it already taught. A day
-introduces at most a set number of new words, five until the learner changes it; repetitions are
-never held back. Without the cap a session fills every spare slot from 9,887 unpractised words, so a
-keen day leaves a month of repetitions behind it. Each box keeps the time its sign was first met,
-which is the only way to tell a new word from an old one that was missed: both sit in the first box.
-Nothing is stored on the server, so clearing the browser's storage starts the learner over.
-
-`/pass?days=1` shows the session as it will look that many days from now, which is how the spaced
-repetition is tried without waiting for it: only what counts as due moves, and an attempt is still
-recorded at the real time.
+The packs say where new words come from and nothing else: a story repeats from every box, so
+unticking a pack stops it teaching new words without stranding the words it already taught. Each box
+keeps the time its sign was first met, which is the only way to tell a new word from an old one that
+was missed: both sit in the first box. Nothing is stored on the server, so clearing the browser's
+storage starts the learner over.
 
 A box belongs to a sign class, and a class has many words: `sts:spader-00016` is "svart" in Färger
 and "Oden" in Mytologi. The word on the card is therefore stored with the box, so progress is shown
 under the word that was practised rather than whichever pack happened to name the sign last, and the
 packs listed beside it are the ones that teach that word, not every pack the sign class appears in.
 
-"Sagan" (`/saga`) is a prototype of story mode: the server writes one Swedish story over the words
-the learner already knows (`takk/story.py`, `POST /api/story`), in 3, 6 or 10 parts, and the learner
-reads a part aloud and signs the words marked in it. The words turn green or red and the story goes
-on whatever happened, with a summary at the end. Words are drawn towards the low boxes, so a story
-leans on what sits worst, and nothing new is taught — new words belong to the daily pass. A word the
-learner did not say is a miss of its sign rather than a refused recording (`unheard_is_miss`), which
-is what lets the story keep going. A part is recorded for as long as its text takes to read aloud
-rather than for as long as its signs, since most of a part is spoken and only a few of its words are
-signed.
+"Sagan" (`/saga`) is where everything learned is repeated, and a prototype: the server writes one
+Swedish story in six parts over the words the learner already knows (`takk/story.py`,
+`POST /api/story`), and the learner reads a part aloud and signs the words marked in it. The words
+turn green or red and the story goes on whatever happened, with a summary at the end. Words are drawn
+towards the low boxes, so a story leans on what sits worst, and nothing new is taught — new words are
+learned in "Nya ord". A word the learner did not say is a miss of its sign rather than a refused
+recording (`unheard_is_miss`), which is what lets the story keep going. A part is recorded for as
+long as its text takes to read aloud rather than for as long as its signs, since most of a part is
+spoken and only a few of its words are signed.
 
 "Mina tecken" (`/framsteg`) lists what the boxes hold: how many signs are due now, how many sit in
 each box, and every practised sign with its box, when it is due and which packs it is in, with a
@@ -440,13 +430,10 @@ uppåtvänd, förs åt vänster ..."), which is the only teaching text the lexic
 but 30 of the entries with a video. It comes from `GET /api/form/{entry}` per card, since the whole
 glossary's descriptions are about 3 MB, and the entry is the word's own rather than the sign class's.
 
-A card says only whether the sign was right. The score, the closest sign in the lexicon and the
-threshold are free practice's business, where a sign is looked into; in a pass the answer is right or
-wrong and the next card follows by itself. Nothing is pressed between cards: an accepted sign gives
-way to the next one at once, and a missed one is armed for another recording with its verdict and its
-clip still up, so a pass is signed and spoken from beginning to end without touching anything.
+A card says only whether the sign was right, and nothing is pressed between cards, so a session is
+signed and spoken from beginning to end without touching anything.
 
-The learner chooses what the session draws from, by turning packs on and off. New words are taken
+The learner chooses what the new words come from, by turning packs on and off. New words are taken
 from the chosen packs in turn, a word at a time, so a large pack cannot hide a small one: in plain
 order Djur's 196 words would all come before Mat och dryck's first. A pack is a starter
 pack or one of the lexicon's categories, which to the learner are the same kind of thing: a named
