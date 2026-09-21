@@ -55,10 +55,14 @@
 
   /** Record from now, and wait for the signer to speak. The recording runs from here rather than
    * from the first word because the hands rise before the voice; the server keeps the part around
-   * the speech and drops the rest (`PRE_ROLL` in speech.py). */
-  async function arm() {
+   * the speech and drops the rest (`PRE_ROLL` in speech.py).
+   *
+   * The last verdict is cleared, since it belongs to the recording being replaced. A caller that arms
+   * the same card again after a miss keeps it instead (`keep`), because it is what the learner reads
+   * and it is what shows the clip while they sign it over. */
+  export async function arm(keep = false) {
     if (!tracker || silent) return;
-    onattempt(null, "");
+    if (!keep) onattempt(null, "");
     tracker.resume();
     const again = phase !== "idle";
     phase = "idle"; // the readings stand still while a recording already running is closed and dropped
@@ -135,7 +139,7 @@
   {#if silent}<p class="dim">{NO_MICROPHONE}</p>{/if}
   {#if told}<p class="dim">{told}</p>{/if}
   <p class="row">
-    <button disabled={!tracker || scoring || silent} onclick={arm}>Spela in igen</button>
+    <button disabled={!tracker || scoring || silent} onclick={() => arm()}>Spela in igen</button>
     <span class="dim">{phase === "speaking" ? `${seconds.toFixed(1)} s` : ""}</span>
     <label class="row dim">
       Jag tecknar med

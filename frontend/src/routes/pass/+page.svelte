@@ -53,6 +53,9 @@
   let started = $state(false); // whether a pass is running: the page configures one first, then starts it
   let mode = $state<"dagens" | "alla">("dagens"); // the kind of pass, chosen before it starts
   let form = $state(""); // the lexicon's description of the current sign, fetched per card
+  let recorder: ReturnType<typeof Recorder> | undefined = $state(); // to arm the same card again
+
+  const PAUSE = 2000; // ms to read the verdict before an accepted card gives way to the next one
 
   $effect(() => {
     Promise.all([fetchLexicon(), fetchPacks()])
@@ -153,12 +156,22 @@
   function scored(scoredAttempt: Attempt | null, told: string) {
     (attempt = scoredAttempt), (note = told);
     // A sentence the recording could not be split into its signs is no answer for any of its words,
-    // as an unusable recording is none for one: the boxes are not moved by a bad split.
-    if (!scoredAttempt?.signs.length || scoredAttempt.signs.some((judged) => !judged.usable)) return;
-    if (answered) return; // a second recording of the same card is a retry: a verdict, but not an answer
-    answered = true;
-    for (const judged of scoredAttempt.signs) settle(judged.sign, !!judged.correct && !peeked);
-    save(progress);
+    // as an unusable recording is none for one: the boxes are not moved by a bad split, and the card
+    // is simply recorded again.
+    const judged = scoredAttempt?.signs ?? [];
+    if (!judged.length || judged.some((each) => !each.usable)) return void recorder?.arm(true);
+    if (!answered) {
+      // a second recording of the same card is a retry: a verdict, but not an answer
+      answered = true;
+      for (const each of judged) settle(each.sign, !!each.correct && !peeked);
+      save(progress);
+    }
+    // Nothing is pressed between cards (user, 2026-09-21): an accepted card gives way to the next one
+    // after a pause long enough to read the verdict, and a missed one is armed again at once, with its
+    // verdict and its clip still on screen to sign from. `attempt` still being this one means the
+    // learner has not recorded or moved on in the meantime.
+    if (judged.every((each) => each.correct)) setTimeout(() => attempt === scoredAttempt && next(), PAUSE);
+    else recorder?.arm(true);
   }
 
   /** Record one sign's verdict. The box only moves when the word's fate is settled: it is finished,
@@ -281,7 +294,7 @@
       <button class="secondary" onclick={() => (peeked = true)}>Jag kommer inte ihåg — visa tecknet</button>
     {/if}
   </section>
-  <Recorder {sentence} {lexicon} onattempt={scored} />
+  <Recorder bind:this={recorder} {sentence} {lexicon} onattempt={scored} />
   <Verdict {attempt} {note} {labels} />
   {#if attempt?.signs.length && alone && word(current.sign) !== shown}
     <section class="card">
