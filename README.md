@@ -414,15 +414,16 @@ and "spader" at once. The word the learner picked or practised is therefore stor
 together with its lexicon entry, so progress is shown under that word and a card needs nothing looked
 up to be practised again.
 
-"Repetera" (`/träna/repetera`) is where everything learned is repeated, and a prototype: the server writes one
-Swedish story in six parts over the words the learner already knows (`takk/story.py`,
-`POST /api/story`), and the learner reads a part aloud and signs the words marked in it. The words
-turn green or red and the story goes on whatever happened, with a summary at the end. Words are drawn
-towards the low boxes, so a story leans on what sits worst, and nothing new is taught — new words are
-learned in "Nya ord". A word the learner did not say is a miss of its sign rather than a refused
-recording (`unheard_is_miss`), which is what lets the story keep going. A part is recorded for as
-long as its text takes to read aloud rather than for as long as its signs, since most of a part is
-spoken and only a few of its words are signed.
+"Repetera" (`/träna/repetera`) is where everything learned is repeated: the server writes six lines
+of one Swedish story over the words the learner already knows (`takk/story.py`, `POST /api/story`),
+and the page shows one line at a time with the line before and after it greyed out. The learner reads
+the solid line aloud and signs the words marked in it; the words turn green or red, the story moves
+on whatever happened, and when the last written line is reached the next six are asked for, so there
+is no end. Words are drawn towards the low boxes, so a story leans on what sits worst, and nothing
+new is taught — new words are learned in "Nya ord". A word the learner did not say is a miss of its
+sign rather than a refused recording (`unheard_is_miss`), which is what lets the story keep going. A
+line is recorded for as long as its text takes to read aloud rather than for as long as its signs,
+since most of a line is spoken and only a few of its words are signed.
 
 "Framsteg" (`/framsteg`) lists what the boxes hold: how many signs are due now, how many sit in each
 box, and every picked and practised sign with its box and when it is due, with a reset behind a fold. It is also how the spaced repetition is inspected while it is being built.
