@@ -385,22 +385,32 @@ the collection app, forward the port when the machine is remote.
 `scripts/compare_browser_extraction.py` compares the browser's landmarks with the Python extraction
 on the recordings.
 
-"Dagens pass" (`/pass`) is the practice session: the words that are due, then words never practised,
-one at a time. A word never practised is taught, with its clip; a repetition is a flash card, so the
-word alone is shown and the clip follows the verdict. The sign can be looked up first, which does not
-move it up a box. Each sign has a Leitner box and a next-due date in the browser's `localStorage`
-(`frontend/src/lib/progress.ts`); an accepted attempt moves the sign up a box (due again after 1, 1,
-3, 7 and 21 days) and a rejected one puts it back in the first. A sign that ends up in the first box
-comes back at the end of the same pass, once, so a pass drills what was missed but cannot trap a
-learner on one sign. The summary says how many signs were practised today and offers another pass
-while anything is due or unpractised.
+"Dagens pass" (`/pass`) is the practice session. The page opens on the choices — the kind of pass,
+how many signs it holds, how many accepted attempts finish a sign, and which packs it draws new words
+from — and the pass begins when the learner starts it. A daily pass is the signs that are due, filled
+up with words never practised; a review pass ("Repetera allt du kan") draws from every box instead,
+weighted by `1 / DAYS[box - 1]`, so it leans on the words that sit worst and teaches nothing new. A
+word never practised is taught, with its clip; a repetition is a flash card, so the word alone is
+shown and the clip follows the verdict. The sign can be looked up first, which does not move it up a
+box. The summary offers another pass and the settings again.
 
-A day introduces at most a set number of new words, five until the learner changes it next to the
-pack picker; repetitions are never held back. Without the cap a session fills every spare slot from
-9,887 unpractised words, so a keen day leaves a month of repetitions behind it. Each box keeps the
-time its sign was first met, which is the only way to tell a new word from an old one that was
-missed: both sit in the first box. Nothing is stored on the server, so
-clearing the browser's storage starts the learner over.
+Each sign has a Leitner box and a next-due date in the browser's `localStorage`
+(`frontend/src/lib/progress.ts`), the four boxes falling due after 1, 3, 7 and 21 days. A sign moves
+up a box once a pass has accepted it as many times as the learner asked for, two by default, and a
+miss drops it to the first box at once and keeps it there for that pass. A sign is only promoted if
+it was actually due: a box claims its sign is still remembered after that many days, and an answer
+given on the second day of a seven-day box has not tested that, so an early answer moves nothing but
+the time the sign was last seen. A miss counts whatever the day, since forgetting a sign that was not
+due means its interval was already too long. A sign put back in the first box comes back in the same
+pass, so a pass drills what was missed.
+
+The packs say where new words come from and nothing else: repetitions come from every box, so
+unticking a pack stops it teaching new words without stranding the words it already taught. A day
+introduces at most a set number of new words, five until the learner changes it; repetitions are
+never held back. Without the cap a session fills every spare slot from 9,887 unpractised words, so a
+keen day leaves a month of repetitions behind it. Each box keeps the time its sign was first met,
+which is the only way to tell a new word from an old one that was missed: both sit in the first box.
+Nothing is stored on the server, so clearing the browser's storage starts the learner over.
 
 `/pass?days=1` shows the session as it will look that many days from now, which is how the spaced
 repetition is tried without waiting for it: only what counts as due moves, and an attempt is still
@@ -417,7 +427,9 @@ reads a part aloud and signs the words marked in it. The words turn green or red
 on whatever happened, with a summary at the end. Words are drawn towards the low boxes, so a story
 leans on what sits worst, and nothing new is taught — new words belong to the daily pass. A word the
 learner did not say is a miss of its sign rather than a refused recording (`unheard_is_miss`), which
-is what lets the story keep going.
+is what lets the story keep going. A part is recorded for as long as its text takes to read aloud
+rather than for as long as its signs, since most of a part is spoken and only a few of its words are
+signed.
 
 "Mina tecken" (`/framsteg`) lists what the boxes hold: how many signs are due now, how many sit in
 each box, and every practised sign with its box, when it is due and which packs it is in, with a

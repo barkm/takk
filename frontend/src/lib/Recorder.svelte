@@ -10,12 +10,16 @@
     lexicon,
     onattempt,
     unheardIsMiss = false,
+    limit,
   }: {
     sentence: Sign[];
     lexicon: Lexicon;
     onattempt: (attempt: Attempt | null, note: string) => void;
     /** Story mode: a word that was not said is a miss of its sign rather than a refused recording. */
     unheardIsMiss?: boolean;
+    /** How long the recording may run, in seconds. A card is as long as its signs, which is the
+     * default; a part of a story is as long as its text, most of which is spoken and not signed. */
+    limit?: number;
   } = $props();
 
   const SLOW_FPS = 20; // below this the extractor skips so many camera frames that results suffer
@@ -91,7 +95,7 @@
     if (phase === "armed" && Date.now() - since > IDLE * 1000) return void arm();
     if (phase !== "speaking") return;
     seconds = (Date.now() - since) / 1000;
-    if (seconds > lexicon.maxSeconds * sentence.length) stop();
+    if (seconds > (limit ?? lexicon.maxSeconds * sentence.length)) stop();
   }
 
   async function stop() {

@@ -19,6 +19,11 @@
   // whatever the verdict was. Only words already practised are used — new ones belong to the daily
   // pass — and they are drawn towards the low boxes, so a story leans on the weak words.
   const LENGTHS = [3, 6, 10]; // parts in a story: kort, lagom, lång
+  // How long a part may be recorded for: it is read aloud, so its length is its text and not its
+  // signs — a wordy part with one sign would be cut off by the one sign's worth of seconds a card
+  // gets. Swedish read aloud runs at about two words a second; the slack is for reading it at all.
+  const PER_WORD = 0.7;
+  const SLACK = 4;
   const SHOWN = 1800; // ms the coloured words stay up before the next part
 
   let lexicon = $state<Lexicon | null>(null);
@@ -63,6 +68,7 @@
   }
 
   const part = $derived(story[at]);
+  const limit = $derived(part ? part.text.split(/\s+/).length * PER_WORD + SLACK : 0);
   const clipsOf = (sign: string) => lexicon?.signs.find((each) => each.sign === sign)?.references ?? [];
   const sentence: Sign[] = $derived(
     (part?.words ?? [])
@@ -159,7 +165,7 @@
     <p class="dim">Läs högt och teckna de markerade orden.</p>
     {#if note}<p class="dim">{note}</p>{/if}
   </section>
-  <Recorder bind:this={recorder} {sentence} {lexicon} onattempt={scored} unheardIsMiss />
+  <Recorder bind:this={recorder} {sentence} {lexicon} {limit} onattempt={scored} unheardIsMiss />
 {/if}
 
 <style>
