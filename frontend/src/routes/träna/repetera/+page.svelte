@@ -1,11 +1,10 @@
 <script lang="ts">
   import Recorder from "$lib/Recorder.svelte";
+  import { useCamera } from "$lib/camera.svelte";
   import {
-    fetchLexicon,
     fetchStory,
     word,
     type Attempt,
-    type Lexicon,
     type SignWord,
     type Sign,
     type StoryPart,
@@ -25,7 +24,8 @@
   const SLACK = 4;
   const SHOWN = 1800; // ms the coloured words stay up before the next part
 
-  let lexicon = $state<Lexicon | null>(null);
+  const camera = useCamera(); // the camera of the Träna layout, which both modes share
+  const lexicon = $derived(camera.lexicon);
   let progress: Progress = $state({});
   let story: StoryPart[] = $state([]);
   let cards: Record<string, SignWord> = $state({}); // the card behind each word of the story, by word
@@ -39,12 +39,7 @@
   let recorder: ReturnType<typeof Recorder> | undefined = $state();
 
   $effect(() => {
-    fetchLexicon()
-      .then((loaded) => {
-        lexicon = loaded;
-        progress = load();
-      })
-      .catch(() => (note = "Servern svarar inte. Starta den med uv run takk."));
+    progress = load();
   });
 
   const label = (each: SignWord) => each.word ?? word(each.sign);
@@ -148,7 +143,7 @@
     <p class="dim">Läs högt och teckna de markerade orden.</p>
     {#if note}<p class="dim">{note}</p>{/if}
   </section>
-  <Recorder bind:this={recorder} {sentence} {lexicon} {limit} onattempt={scored} unheardIsMiss />
+  <Recorder bind:this={recorder} {sentence} {limit} onattempt={scored} unheardIsMiss />
 {/if}
 
 <style>

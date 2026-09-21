@@ -1,16 +1,8 @@
 <script lang="ts">
   import Recorder from "$lib/Recorder.svelte";
   import Verdict from "$lib/Verdict.svelte";
-  import {
-    fetchForm,
-    fetchLexicon,
-    referenceUrl,
-    word,
-    type Attempt,
-    type Lexicon,
-    type SignWord,
-    type Sign,
-  } from "$lib/api";
+  import { fetchForm, referenceUrl, word, type Attempt, type SignWord, type Sign } from "$lib/api";
+  import { useCamera } from "$lib/camera.svelte";
   import { fresh, load, record, save, type Progress } from "$lib/progress";
 
   // Nya ord (steps 9 and 12 of ROADMAP-takk.md): where a sign the learner picked in Tecken is taught
@@ -20,7 +12,8 @@
   // since there is nothing to test yet.
   const SIZE = 5; // new words in one session
 
-  let lexicon = $state<Lexicon | null>(null);
+  const camera = useCamera(); // the camera of the Träna layout, which both modes share
+  const lexicon = $derived(camera.lexicon);
   let progress: Progress = $state({});
   let queue: SignWord[] = $state([]); // the words left, the current one first
   let started = $state(false);
@@ -31,12 +24,7 @@
   let recorder: ReturnType<typeof Recorder> | undefined = $state();
 
   $effect(() => {
-    fetchLexicon()
-      .then((loaded) => {
-        lexicon = loaded;
-        progress = load();
-      })
-      .catch(() => (note = "Servern svarar inte. Starta den med uv run takk."));
+    progress = load();
   });
 
   /** The word on a card, which is not the name of the sign that scores it when several words share
@@ -77,7 +65,7 @@
 {#if !lexicon}
   <section class="card">
     <h1>Nya ord</h1>
-    <p class="dim">{note || "Laddar lexikonet …"}</p>
+    <p class="dim">{note || "Laddar lexikonet ..."}</p>
   </section>
 {:else if !started}
   <section class="card">
@@ -101,7 +89,7 @@
     {/if}
     {#if form}<p class="form">{form}</p>{/if}
   </section>
-  <Recorder bind:this={recorder} {sentence} {lexicon} onattempt={scored} />
+  <Recorder bind:this={recorder} {sentence} onattempt={scored} />
   <Verdict {attempt} {note} {labels} />
 {:else}
   <section class="card">

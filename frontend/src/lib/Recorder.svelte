@@ -1,20 +1,17 @@
 <script lang="ts">
   import { untrack } from "svelte";
 
-  import { scoreAttempt, type Attempt, type Lexicon, type Sign } from "$lib/api";
-  import { framing, FRAMING } from "$lib/framing";
-  import { Tracker } from "$lib/tracking";
+  import { scoreAttempt, type Attempt, type Sign } from "$lib/api";
+  import { useCamera } from "$lib/camera.svelte";
   import { hear, listening, type Phase } from "$lib/voice";
 
   let {
     sentence,
-    lexicon,
     onattempt,
     unheardIsMiss = false,
     limit,
   }: {
     sentence: Sign[];
-    lexicon: Lexicon;
     onattempt: (attempt: Attempt | null, note: string) => void;
     /** Story mode: a word that was not said is a miss of its sign rather than a refused recording. */
     unheardIsMiss?: boolean;
@@ -23,45 +20,22 @@
     limit?: number;
   } = $props();
 
-  const LOOK = 200; // ms between readings of how the signer sits; faster than that only flickers
   const NO_MICROPHONE = "Mikrofonen behövs: orden du säger högt är det som visar var tecknen är i inspelningen.";
 
   const TICK = 50; // ms between readings of the microphone; each covers the newest 21 ms of sound
   const IDLE = 10; // seconds armed without a word before the recording is thrown away and started over
 
-  let video: HTMLVideoElement;
-  let canvas: HTMLCanvasElement;
-  let tracker = $state<Tracker | null>(null); // the generic, as in the pages: an annotation narrows it to null
-  let starting: Promise<Tracker> | null = null;
-  let status = $state("Laddar teckenmodellen...");
-  let fit = $state(""); // what to fix about the framing, or FRAMING.ok
-  let handedness: "left" | "right" = $state("right");
+  // The camera, the landmarker and the framing feedback belong to the Träna layout, which keeps them
+  // up while the modes come and go (step 12 of ROADMAP-takk.md); this component only records.
+  const camera = useCamera();
+  const tracker = $derived(camera.tracker);
+  const lexicon = $derived(camera.lexicon!); // a mode is only shown once the layout has the lexicon
   let phase = $state<Phase | "idle">("idle");
   let scoring = $state(false);
   let seconds = $state(0);
   let ticker: ReturnType<typeof setInterval> | null = null;
   let ears = listening();
   let since = 0; // when the current phase began, to arm afresh and to time the attempt
-
-  // The camera starts once, however fast signs are picked, and keeps running between attempts.
-  $effect(() => {
-    starting ??= Tracker.start(video, canvas, lexicon.edges)
-      .then((started) => ((tracker = started), (status = ""), started))
-      .catch((error) => {
-        status = `Ingen åtkomst till kameran: ${error.message}`;
-        throw error;
-      });
-  });
-
-  // How the signer sits, read off the frame being tracked right now, so the framing is fixed before
-  // a recording is spent on it. While recording it also asks for the hands.
-  $effect(() => {
-    if (!tracker) return;
-    const looking = setInterval(() => {
-      fit = tracker?.latest ? framing(tracker.latest, recording) : FRAMING.none;
-    }, LOOK);
-    return () => clearInterval(looking);
-  });
 
   // Every attempt is located by the words the signer says, so without the microphone there is
   // nothing to locate it with. Refusing here says so before a recording is made and thrown away.
@@ -121,8 +95,8 @@
         taken.audio,
         taken.audioStart,
         sentence,
-        handedness,
-        video,
+        camera.handedness,
+        camera.video!,
         lexicon.fps,
         unheardIsMiss,
       );
@@ -143,6 +117,7 @@
   }
 
   const recording = $derived(phase !== "idle");
+  $effect(() => void (camera.recording = recording)); // the layout outlines the picture and asks for the hands
   const told = $derived(
     phase === "calibrating" ? "Lyssnar på rummet..." : phase === "armed" ? "Säg meningen när du är redo." : phase === "speaking" ? "Hör dig — teckna medan du talar." : "",
   );
@@ -150,52 +125,12 @@
 
 <svelte:window {onkeydown} />
 
-<section class="card">
-  <div class="view">
-    <!-- svelte-ignore a11y_media_has_caption -->
-    <video bind:this={video} class:recording autoplay muted playsinline></video>
-    <canvas bind:this={canvas}></canvas>
-  </div>
-  <p class="dim">{status || fit}</p>
-  {#if silent}<p class="dim">{NO_MICROPHONE}</p>{/if}
-  {#if told}<p class="dim">{told}</p>{/if}
-  <p class="row">
-    <button disabled={!tracker || scoring || silent} onclick={() => arm()}>Spela in igen</button>
-    <span class="dim">{phase === "speaking" ? `${seconds.toFixed(1)} s` : ""}</span>
-    <label class="row dim">
-      Jag tecknar med
-      <input type="radio" name="handedness" value="right" bind:group={handedness} /> höger
-      <input type="radio" name="handedness" value="left" bind:group={handedness} /> vänster hand
-    </label>
-  </p>
-  {#if scoring}
-    <p class="dim">Bedömer...</p>
-  {/if}
-</section>
-
-<style>
-  .view {
-    position: relative;
-    width: 100%;
-    max-width: 560px;
-    transform: scaleX(-1);
-  }
-
-  video {
-    display: block;
-    width: 100%;
-    border-radius: 8px;
-    background: #000;
-  }
-
-  video.recording {
-    outline: 3px solid var(--bad);
-  }
-
-  canvas {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-  }
-</style>
+{#if silent}<p class="dim">{NO_MICROPHONE}</p>{/if}
+{#if told}<p class="dim">{told}</p>{/if}
+<p class="row">
+  <button disabled={!tracker || scoring || silent} onclick={() => arm()}>Spela in igen</button>
+  <span class="dim">{phase === "speaking" ? `${seconds.toFixed(1)} s` : ""}</span>
+</p>
+{#if scoring}
+  <p class="dim">Bedömer...</p>
+{/if}
