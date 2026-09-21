@@ -102,7 +102,7 @@ export class Tracker {
       const time = metadata.captureTime ?? now;
       last = Math.max(last + 1, Math.round(time)); // VIDEO mode needs increasing timestamps
       const landmarks = layout(this.landmarker.detectForVideo(this.video, last));
-      draw(this.canvas, this.video, landmarks, this.edges);
+      draw(this.canvas, { width: this.video.videoWidth, height: this.video.videoHeight }, landmarks, this.edges);
       if (this.recorded) this.recorded.push({ time: time / 1000, landmarks });
       count += 1;
       if (now - since > 1000) {

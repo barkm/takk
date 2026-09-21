@@ -8,6 +8,7 @@
     type Lexicon,
     type SignWord,
   } from "$lib/api";
+  import { draw, type Frame } from "$lib/landmarks";
   import { add, load, save, type Progress } from "$lib/progress";
   import { Tracker } from "$lib/tracking";
 
@@ -36,6 +37,10 @@
   let handedness: "left" | "right" = $state("right");
   let recording = $state(false);
   let searching = $state(false);
+  // What the rows were searched with, kept as the field keeps the word that found them. Only the
+  // landmarks are kept, never the camera's picture, so the replay is the skeleton that was sent.
+  let signed: Frame[] = $state([]);
+  let replay = $state<HTMLCanvasElement>();
 
   $effect(() => {
     progress = load();
@@ -55,9 +60,23 @@
   const clips = $derived(new Map(lexicon?.signs.map((each) => [each.sign, each.references]) ?? []));
   const label = (each: SignWord) => each.word ?? word(each.sign);
 
+  // The recording plays on a loop beside its results, a frame at the rate the landmarks were sent at.
+  $effect(() => {
+    const canvas = replay;
+    if (!canvas || !signed.length || !lexicon || !video) return;
+    // the canvas keeps the camera's own proportions, since the landmarks are normalised to its frame
+    const size = { width: video.videoWidth, height: video.videoHeight };
+    let at = 0;
+    const shown = setInterval(() => {
+      draw(canvas, size, signed[at].landmarks, lexicon!.edges);
+      at = (at + 1) % signed.length;
+    }, 1000 / lexicon.fps);
+    return () => clearInterval(shown);
+  });
+
   function search(text: string) {
     clearTimeout(timer);
-    query = text;
+    (query = text), (signed = []); // a word search replaces what the rows were found with
     timer = setTimeout(async () => (results = text.trim() ? await fetchSearch(text) : []), WAIT);
   }
 
@@ -77,6 +96,7 @@
     try {
       const found = await searchBySign(taken.frames, handedness, video!, lexicon!.fps);
       (results = found.words), (note = found.note), (query = "");
+      signed = found.words.length ? taken.frames : [];
       if (found.words.length) camera = false; // the rows take over the screen, as they do after a search
     } catch {
       note = "Sökningen misslyckades. Teckna igen.";
@@ -138,6 +158,10 @@
   <p class="dim">{note}</p>
 {/if}
 
+{#if signed.length}
+  <canvas bind:this={replay} class="replay"></canvas>
+{/if}
+
 {#if results.length}
   <button onclick={pickAll}>Lägg till alla</button>
 
@@ -194,6 +218,15 @@
     inset: 0;
     width: 100%;
     height: 100%;
+  }
+
+  .replay {
+    display: block;
+    width: 200px;
+    height: auto; /* the canvas carries the camera's proportions */
+    background: #000;
+    border-radius: 8px;
+    transform: scaleX(-1); /* as the camera is shown, so the replay is the signer's own view */
   }
 
   ul {

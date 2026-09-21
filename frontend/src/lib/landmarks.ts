@@ -38,9 +38,10 @@ export function resample(frames: Frame[], fps: number): Float32Array {
   return landmarks;
 }
 
-/** Draw one frame's landmarks over the camera image. */
-export function draw(canvas: HTMLCanvasElement, video: HTMLVideoElement, landmarks: Float32Array, edges: Edges): void {
-  (canvas.width = video.videoWidth), (canvas.height = video.videoHeight);
+/** Draw one frame's landmarks, at `size` pixels: over the camera image while tracking, and on its own
+ * when a recording is replayed, since nothing of the camera's picture is kept. */
+export function draw(canvas: HTMLCanvasElement, size: { width: number; height: number }, landmarks: Float32Array, edges: Edges): void {
+  (canvas.width = size.width), (canvas.height = size.height);
   const context = canvas.getContext("2d");
   if (!context) return;
   context.lineWidth = 3;
