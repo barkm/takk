@@ -51,6 +51,8 @@
   let attempt: Attempt | null = $state(null);
   let note = $state("");
   let peeked = $state(false);
+  let started = $state(false); // whether a pass is running: the page configures one first, then starts it
+  let mode = $state<"dagens" | "alla">("dagens"); // the kind of pass, chosen before it starts
   let form = $state(""); // the lexicon's description of the current sign, fetched per card
 
   $effect(() => {
@@ -60,7 +62,6 @@
         progress = load();
         chosen = loadChosen(packs);
         (size = loadSetting("size")), (needed = loadSetting("accepts"));
-        restart();
       })
       .catch(() => (note = "Servern svarar inte. Starta den med uv run takk."));
   });
@@ -69,10 +70,10 @@
   // waiting for it. Only what counts as due moves; an attempt is still recorded at the real time.
   const ahead = $derived(Number(new URLSearchParams(page.url.search).get("days")) || 0);
 
-  // `?alla=1` is the review pass: `size` words drawn from everything practised, weighted towards the
-  // low boxes, instead of the due words and the new ones. It teaches nothing new, and `record` leaves
-  // a word that was not due where it is, so it can only repair the boxes.
-  const review = $derived(new URLSearchParams(page.url.search).has("alla"));
+  // "alla" is the review pass: `size` words drawn from everything practised, weighted towards the low
+  // boxes, instead of the due words and the new ones. It teaches nothing new, and `record` leaves a
+  // word that was not due where it is, so it can only repair the boxes.
+  const review = $derived(mode === "alla");
   const title = $derived(review ? "Repetera allt du kan" : "Dagens pass");
 
   // The pass's signs are picked once, not derived: a scored attempt changes the progress they come from.
@@ -80,7 +81,7 @@
     queue = review
       ? known(packs, progress, size)
       : session(chosenWords(packs, chosen), progress, size, Date.now() + ahead * 24 * 60 * 60 * 1000);
-    (total = queue.length), (accepts = {}), (taught = []), (missed = []);
+    (total = queue.length), (accepts = {}), (taught = []), (missed = []), (started = true);
     begin();
   }
 
@@ -115,13 +116,11 @@
   function setSetting(name: "size" | "accepts", value: number) {
     saveSetting(name, value);
     (size = loadSetting("size")), (needed = loadSetting("accepts"));
-    restart();
   }
 
   function choose(name: string, on: boolean) {
     chosen = on ? [...chosen, name] : chosen.filter((other) => other !== name);
     saveChosen(chosen);
-    restart();
   }
 
   const current = $derived(taken[0]);
@@ -141,6 +140,7 @@
   // The cards of this turn by sign, each under the word it is shown as, which is what the boxes keep.
   const cards = $derived(Object.fromEntries(taken.map((each) => [each.sign, { ...each, word: label(each) }])));
   const finished = $derived(Object.values(accepts).filter((count) => count >= needed).length);
+  const practised = $derived(Object.keys(progress).length); // what a review pass has to draw from
   // The tutorial belongs to the very first time a word is met: a word never practised, on its first
   // turn of this pass. Every later turn is a test, so the clip only follows the verdict. Looking it up
   // first is allowed but does not count as recalled. A sentence is only ever made of words already
@@ -182,45 +182,74 @@
 </script>
 
 {#snippet picker()}
-  <details>
-    <summary>Övar på: {chosen.join(", ") || "inget valt"}</summary>
-    <label class="number">
-      Tecken per pass:
-      <input type="number" min="1" max="50" value={size} onchange={(e) => setSetting("size", Number(e.currentTarget.value))} />
+  <fieldset>
+    <legend>Sorts pass</legend>
+    <label>
+      <input type="radio" value="dagens" bind:group={mode} />
+      Dagens pass <span class="dim">nya tecken och de som ska repeteras</span>
     </label>
-    <label class="number">
-      Rätt per tecken:
-      <input type="number" min="1" max="10" value={needed} onchange={(e) => setSetting("accepts", Number(e.currentTarget.value))} />
+    <label>
+      <input type="radio" value="alla" bind:group={mode} />
+      Repetera allt du kan <span class="dim">bland tecken du redan övat, inga nya</span>
     </label>
-    <p class="dim">
-      {#if review}
-        Passet tar {size} tecken du redan har övat, oftast ur de låga lådorna. Ett tecken som ännu inte
-        skulle repeteras flyttas inte upp, men faller tillbaka till första lådan om du missar det.
-      {:else}
-        Tecken som ska repeteras kommer först, och nya tecken fyller på upp till {size}. Ett tecken är klart
-        när det har godkänts {needed} gånger, och flyttas då upp en låda.
-      {/if}
-      {practisedToday(progress)} tecken övade idag.
-    </p>
-    <ul>
-      {#each packs as pack (pack.name)}
-        <li>
-          <label>
-            <input
-              type="checkbox"
-              checked={chosen.includes(pack.name)}
-              onchange={(event) => choose(pack.name, event.currentTarget.checked)}
-            />
-            {pack.name}
-            <span class="dim">{pack.words.length} tecken{pack.kind === "category" ? ", ämnesområde i lexikonet" : ""}</span>
-          </label>
-        </li>
-      {/each}
-    </ul>
-  </details>
+  </fieldset>
+  <label class="number">
+    Tecken per pass:
+    <input type="number" min="1" max="50" value={size} onchange={(e) => setSetting("size", Number(e.currentTarget.value))} />
+  </label>
+  <label class="number">
+    Rätt per tecken:
+    <input type="number" min="1" max="10" value={needed} onchange={(e) => setSetting("accepts", Number(e.currentTarget.value))} />
+  </label>
+  <p class="dim">
+    {#if review}
+      Passet tar {size} tecken bland de {practised} du har övat, oftast ur de låga lådorna. Ett tecken som
+      ännu inte skulle repeteras flyttas inte upp, men faller tillbaka till första lådan om du missar det.
+    {:else}
+      Tecken som ska repeteras kommer först, och nya tecken fyller på upp till {size}. Ett tecken är klart
+      när det har godkänts {needed} gånger, och flyttas då upp en låda.
+    {/if}
+    {practisedToday(progress)} tecken övade idag.
+  </p>
+  {#if !review}
+    <details>
+      <summary>Övar på: {chosen.join(", ") || "inget valt"}</summary>
+      <ul>
+        {#each packs as pack (pack.name)}
+          <li>
+            <label>
+              <input
+                type="checkbox"
+                checked={chosen.includes(pack.name)}
+                onchange={(event) => choose(pack.name, event.currentTarget.checked)}
+              />
+              {pack.name}
+              <span class="dim">{pack.words.length} tecken{pack.kind === "category" ? ", ämnesområde i lexikonet" : ""}</span>
+            </label>
+          </li>
+        {/each}
+      </ul>
+    </details>
+  {/if}
 {/snippet}
 
-{#if lexicon && current}
+{#if !lexicon}
+  <section class="card">
+    <h1>Dagens pass</h1>
+    <p class="dim">{note || "Laddar lexikonet …"}</p>
+  </section>
+{:else if !started}
+  <!-- A pass is configured first and started on purpose, rather than beginning the moment the page
+       loads: the kind of pass, its length and what it draws from are all chosen here (user, 2026-09-21). -->
+  <section class="card">
+    <h1>{title}</h1>
+    {@render picker()}
+    <button onclick={restart} disabled={review && !practised}>Starta passet</button>
+    {#if review && !practised}
+      <p class="dim">Inga övade tecken än — börja med dagens pass.</p>
+    {/if}
+  </section>
+{:else if current}
   <section class="card">
     <h1>{title}</h1>
     <p class="dim">
@@ -251,7 +280,6 @@
       <p class="dim">Teckna ordet ur minnet. Klippet visas när du har spelat in.</p>
       <button class="secondary" onclick={() => (peeked = true)}>Jag kommer inte ihåg — visa tecknet</button>
     {/if}
-    {@render picker()}
   </section>
   <Recorder {sentence} {lexicon} onattempt={scored} />
   <Verdict {attempt} {note} {labels} />
@@ -268,14 +296,12 @@
       <button onclick={next}>{advance(queue, taken, accepts, needed).length ? "Nästa" : "Avsluta passet"}</button>
     </section>
   {/if}
-{:else if lexicon}
+{:else}
   <section class="card">
     <h1>{title}</h1>
     <p>
       {#if total}
         Klart! {total} tecken igenom, {practisedToday(progress)} tecken övade idag.
-      {:else if review}
-        Inga övade tecken än. Börja med <a href="/pass">dagens pass</a>.
       {:else}
         Inget att öva just nu. Välj fler ord, eller kom tillbaka när dagens tecken ska repeteras.
       {/if}
@@ -283,20 +309,25 @@
     {#if waiting}
       <button onclick={restart}>Ett pass till</button>
     {:else if total}
-      <p class="dim">
-        Inget mer att öva idag — kom tillbaka i morgon, eller <a href="/pass?alla=1">repetera allt du kan</a>.
-      </p>
+      <p class="dim">Inget mer att öva idag — kom tillbaka i morgon, eller repetera det du redan kan.</p>
     {/if}
-    {@render picker()}
-  </section>
-{:else}
-  <section class="card">
-    <h1>{title}</h1>
-    <p class="dim">{note || "Laddar lexikonet …"}</p>
+    <button class="secondary" onclick={() => (started = false)}>Ändra inställningar</button>
   </section>
 {/if}
 
 <style>
+  fieldset {
+    margin: 8px 0;
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+
+  fieldset label {
+    display: block;
+    padding: 2px 0;
+  }
+
   .number input {
     width: 4em;
   }
