@@ -426,8 +426,10 @@ sign rather than a refused recording (`unheard_is_miss`), which is what lets the
 line is recorded for as long as its text takes to read aloud rather than for as long as its signs,
 since most of a line is spoken and only a few of its words are signed.
 
-"Framsteg" (`/framsteg`) lists what the boxes hold: how many signs are due now, how many sit in each
-box, and every picked and practised sign with its box and when it is due, with a reset behind a fold. It is also how the spaced repetition is inspected while it is being built.
+"Framsteg" (`/framsteg`) is two charts and a reset: a bar per state the vocabulary can be in (picked
+but not taught, then one per Leitner box) and a line of how many signs have been met over time, both
+read off the browser's store with no history kept for them. They are inline SVG, since each is a
+single series. "Nollställ" clears the store, which is the whole of the learner's state.
 
 A card also shows how the lexicon describes the sign, in Swedish ("Flata handen, framåtriktad och
 uppåtvänd, förs åt vänster ..."), which is the only teaching text the lexicon publishes and is on all

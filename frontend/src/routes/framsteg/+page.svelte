@@ -1,23 +1,47 @@
 <script lang="ts">
-  import { boxes, DAYS, KEY, load, type Progress, type Row } from "$lib/progress";
+  import { boxes, DAYS, KEY, load, type Progress } from "$lib/progress";
+
+  // Framsteg (step 14 of ROADMAP-takk.md): two charts and a reset, and nothing else. The bars say how
+  // the vocabulary is spread over the repetition schedule, one bar per state; the line says how many
+  // signs the learner has met over time. Both are read off the store, so no history is written for
+  // them. Drawn as inline SVG: one bar series and one line are not worth a charting dependency.
+  const PLOT = { width: 320, height: 140, pad: 22 }; // the viewBox both charts are drawn in
 
   let progress: Progress = $state({});
-  const now = Date.now();
 
   $effect(() => {
     progress = load();
   });
 
   const rows = $derived(boxes(progress));
-  const picked = $derived(rows.filter((row) => row.box === 0).length);
-  const due = $derived(rows.filter((row) => row.box > 0 && row.due <= now).length);
-  const perBox = $derived(DAYS.map((_, i) => rows.filter((row) => row.box === i + 1).length));
+  // one bar per state a sign can be in: picked but not taught, then a box per interval
+  const labels = ["nya", ...DAYS.map((days) => (days === 1 ? "imorgon" : `${days} dagar`))];
+  const bars = $derived(labels.map((label, box) => ({ label, count: rows.filter((row) => row.box === box).length })));
+  const tallest = $derived(Math.max(1, ...bars.map((bar) => bar.count)));
 
-  function when(row: Row): string {
-    if (row.due <= now) return "nu";
-    const days = Math.ceil((row.due - now) / (24 * 60 * 60 * 1000));
-    return days === 1 ? "i morgon" : `om ${days} dagar`;
-  }
+  /** The signs met over time, counted cumulatively: one point per sign, at the day it was first
+   * practised. A sign picked and not yet practised has no such day, so it has not been met. */
+  const met = $derived.by(() => {
+    const days = rows
+      .map((row) => row.first)
+      .filter((first): first is number => !!first)
+      .sort((a, b) => a - b);
+    return days.length ? [{ day: days[0], count: 0 }, ...days.map((day, index) => ({ day, count: index + 1 }))] : [];
+  });
+
+  const line = $derived.by(() => {
+    if (met.length < 2) return "";
+    const first = met[0].day;
+    const span = Math.max(1, Date.now() - first);
+    const high = met.at(-1)!.count;
+    return met
+      .map(({ day, count }) => {
+        const x = PLOT.pad + ((day - first) / span) * (PLOT.width - PLOT.pad * 2);
+        const y = PLOT.height - PLOT.pad - (count / high) * (PLOT.height - PLOT.pad * 2);
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(" ");
+  });
 
   function reset() {
     localStorage.removeItem(KEY);
@@ -25,72 +49,90 @@
   }
 </script>
 
-<section class="card">
-  <h1>Mina tecken</h1>
-  {#if rows.length}
-    <p>
-      {rows.length - picked} tecken övade, {picked} valda som väntar, {due} att
-      <a href="/träna/repetera">repetera</a> nu.
-    </p>
-    <ul class="boxes">
-      {#each perBox as count, i (i)}
-        <li>Låda {i + 1}: {count} tecken, repeteras efter {DAYS[i]} dagar</li>
-      {/each}
-    </ul>
-  {:else}
-    <p>Inga tecken valda än. Välj några under <a href="/tecken">Tecken</a>.</p>
-  {/if}
-</section>
-
 {#if rows.length}
-  <section class="card">
-    <table>
-      <thead>
-        <tr><th>Tecken</th><th>Låda</th><th>Repeteras</th></tr>
-      </thead>
-      <tbody>
-        {#each rows as row (row.sign)}
-          <tr>
-            <td>{row.word}</td>
-            <td>{row.box}</td>
-            <td class:due={row.box > 0 && row.due <= now}>{row.box === 0 ? "inte övat" : when(row)}</td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
-  </section>
+  <svg viewBox="0 0 {PLOT.width} {PLOT.height}" role="img" aria-label="Tecken per repetitionsintervall">
+    {#each bars as bar, index (bar.label)}
+      {@const slot = (PLOT.width - PLOT.pad * 2) / bars.length}
+      {@const height = (bar.count / tallest) * (PLOT.height - PLOT.pad * 2)}
+      <rect
+        x={PLOT.pad + index * slot + 2}
+        y={PLOT.height - PLOT.pad - height}
+        width={slot - 4}
+        height={bar.count ? Math.max(height, 2) : 0}
+        rx="4"
+        fill="var(--accent)"
+      />
+      <text class="value" x={PLOT.pad + index * slot + slot / 2} y={PLOT.height - PLOT.pad - height - 5}>
+        {bar.count || ""}
+      </text>
+      <text class="tick" x={PLOT.pad + index * slot + slot / 2} y={PLOT.height - PLOT.pad + 12}>{bar.label}</text>
+    {/each}
+    <line
+      class="axis"
+      x1={PLOT.pad}
+      y1={PLOT.height - PLOT.pad}
+      x2={PLOT.width - PLOT.pad}
+      y2={PLOT.height - PLOT.pad}
+    />
+  </svg>
 
-  <section class="card">
-    <details>
-      <summary>Börja om</summary>
-      <p class="dim">Nollställer alla lådor. Går inte att ångra, och inget sparas på servern.</p>
-      <button class="secondary" onclick={reset}>Nollställ mina tecken</button>
-    </details>
-  </section>
+  {#if line}
+    <svg viewBox="0 0 {PLOT.width} {PLOT.height}" role="img" aria-label="Tecken över tid">
+      <polyline class="over-time" points={line} />
+      <line
+        class="axis"
+        x1={PLOT.pad}
+        y1={PLOT.height - PLOT.pad}
+        x2={PLOT.width - PLOT.pad}
+        y2={PLOT.height - PLOT.pad}
+      />
+      <text class="tick start" x={PLOT.pad} y={PLOT.pad - 8}>tecken</text>
+      <text class="value end" x={PLOT.width - PLOT.pad} y={PLOT.pad - 8}>{met.at(-1)?.count}</text>
+    </svg>
+  {/if}
+
+  <button class="secondary" onclick={reset}>Nollställ</button>
+{:else}
+  <p class="dim">Inga tecken valda än. Välj några under <a href="/tecken">Tecken</a>.</p>
 {/if}
 
 <style>
-  .boxes {
-    margin: 8px 0;
-    padding-left: 20px;
-  }
-
-  table {
+  svg {
+    display: block;
     width: 100%;
-    border-collapse: collapse;
+    max-width: 560px;
+    margin-bottom: 16px;
   }
 
-  th {
-    text-align: left;
+  .axis {
+    stroke: var(--line);
+    stroke-width: 1;
   }
 
-  th,
-  td {
-    padding: 4px 8px 4px 0;
-    border-bottom: 1px solid #0002;
+  .over-time {
+    fill: none;
+    stroke: var(--ok);
+    stroke-width: 2;
+    stroke-linejoin: round;
   }
 
-  .due {
-    font-weight: 600;
+  .tick {
+    fill: var(--dim);
+    font-size: 8px;
+    text-anchor: middle;
+  }
+
+  .value {
+    fill: var(--text);
+    font-size: 9px;
+    text-anchor: middle;
+  }
+
+  .start {
+    text-anchor: start;
+  }
+
+  .end {
+    text-anchor: end;
   }
 </style>
