@@ -388,7 +388,9 @@ on the recordings.
 
 The app is three sections behind a menu (`/`): **Sök**, where the learner searches the lexicon and
 ticks the signs they want to learn, **Träna**, where they practise, and **Tecken**, their own signs.
-Every page but the menu carries a link back to the section above it.
+Every page but the menu carries a link back to the section above it. The menu asks once which hand
+the learner signs with, since that is what a recording is mirrored by, and keeps the answer in the
+browser; it is changed again under "Tecken" and asked for nowhere else.
 
 "Nya ord" (`/träna/nya`) teaches five of the ticked signs that have not been practised yet, the
 longest waiting first; each card shows the word, its lexicon clip and the lexicon's description of the

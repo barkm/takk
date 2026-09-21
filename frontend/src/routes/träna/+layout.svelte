@@ -2,6 +2,7 @@
   import { fetchLexicon } from "$lib/api";
   import { Camera, provideCamera } from "$lib/camera.svelte";
   import { framing, FRAMING } from "$lib/framing";
+  import { hand } from "$lib/hand";
   import { Tracker } from "$lib/tracking";
 
   // Träna (step 12 of ROADMAP-takk.md): the camera belongs to the section, not to either mode. This
@@ -19,6 +20,7 @@
   let starting: Promise<unknown> | null = null;
 
   $effect(() => {
+    camera.handedness = hand() ?? "right"; // asked once on the menu, never on a camera screen
     fetchLexicon()
       .then((loaded) => (camera.lexicon = loaded))
       .catch(() => (camera.fit = "Servern svarar inte. Starta den med uv run takk."));
@@ -50,11 +52,6 @@
   <canvas bind:this={canvas}></canvas>
 </div>
 <p class="dim">{camera.fit || FRAMING.none}</p>
-<label class="row dim">
-  Jag tecknar med
-  <input type="radio" name="handedness" value="right" bind:group={camera.handedness} /> höger
-  <input type="radio" name="handedness" value="left" bind:group={camera.handedness} /> vänster hand
-</label>
 
 {@render children()}
 

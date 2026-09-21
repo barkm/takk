@@ -9,6 +9,7 @@
     type SignWord,
   } from "$lib/api";
   import { framing, FRAMING } from "$lib/framing";
+  import { hand } from "$lib/hand";
   import { draw, type Frame } from "$lib/landmarks";
   import { add, load, save, type Progress } from "$lib/progress";
   import { Tracker } from "$lib/tracking";
@@ -36,7 +37,7 @@
   let starting: Promise<unknown> | null = null;
   let status = $state("Laddar teckenmodellen...");
   const LOOK = 200; // ms between readings of how the signer sits; faster than that only flickers
-  let handedness: "left" | "right" = $state("right");
+  const handedness = $derived(hand() ?? "right"); // asked once on the menu, never on a camera screen
   let recording = $state(false);
   let searching = $state(false);
   let fit = $state(""); // what to fix about the framing, or FRAMING.ok
@@ -150,11 +151,6 @@
   <p class="row">
     <button disabled={!tracker || searching} onclick={record}>{recording ? "Stopp" : "Starta"}</button>
     <button class="secondary" onclick={() => (camera = false)}>Sök med ord</button>
-    <label class="row dim">
-      Jag tecknar med
-      <input type="radio" name="handedness" value="right" bind:group={handedness} /> höger
-      <input type="radio" name="handedness" value="left" bind:group={handedness} /> vänster hand
-    </label>
   </p>
   {#if searching}<p class="dim">Söker...</p>{/if}
 {:else}

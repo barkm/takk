@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { hand, setHand } from "$lib/hand";
   import { boxes, DAYS, KEY, load, type Progress } from "$lib/progress";
 
   // Tecken (step 14 of ROADMAP-takk.md): the learner's own signs, as two charts and a reset. The bars say how
@@ -8,10 +9,16 @@
   const PLOT = { width: 320, height: 140, pad: 22 }; // the viewBox both charts are drawn in
 
   let progress: Progress = $state({});
+  let signs = $state<"left" | "right">("right"); // the hand the learner signs with, asked on the menu
 
   $effect(() => {
-    progress = load();
+    (progress = load()), (signs = hand() ?? "right");
   });
+
+  function swap() {
+    signs = signs === "right" ? "left" : "right";
+    setHand(signs);
+  }
 
   const rows = $derived(boxes(progress));
   // one bar per state a sign can be in: picked but not taught, then a box per interval
@@ -99,6 +106,10 @@
     </svg>
   {/if}
 
+  <p class="dim">
+    Du tecknar med {signs === "right" ? "höger" : "vänster"} hand.
+    <button class="secondary" onclick={swap}>Byt</button>
+  </p>
   <button class="secondary" onclick={reset}>Nollställ</button>
 {:else}
   <p class="dim">Inga tecken valda än. Välj några under <a href="/sök">Sök</a>.</p>
