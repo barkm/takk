@@ -55,8 +55,6 @@
   let form = $state(""); // the lexicon's description of the current sign, fetched per card
   let recorder: ReturnType<typeof Recorder> | undefined = $state(); // to arm the same card again
 
-  const PAUSE = 2000; // ms to read the verdict before an accepted card gives way to the next one
-  let ticket = 0; // bumped by every card and every verdict, so a pending advance can tell it is stale
 
   $effect(() => {
     Promise.all([fetchLexicon(), fetchPacks()])
@@ -101,7 +99,6 @@
   // server could not write leaves the words to be signed alone and unspoken, which is the fallback
   // that needs no model at all.
   async function begin() {
-    ticket++; // a card of its own: an advance still pending from the last one is stale
     (attempt = null), (note = ""), (peeked = false), (answered = false), (said = "");
     const words = turn(queue, progress);
     taken = words.slice(0, 1);
@@ -169,12 +166,9 @@
       save(progress);
     }
     // Nothing is pressed between cards (user, 2026-09-21): an accepted card gives way to the next one
-    // after a pause long enough to read the verdict, and a missed one is armed again at once, with its
-    // verdict and its clip still on screen to sign from. The ticket says the learner has neither
-    // recorded again nor moved on while the pause ran; comparing the attempts themselves would not,
-    // since `$state` hands out a proxy of the one that was stored, never the object that came in.
-    const mine = ++ticket;
-    if (judged.every((each) => each.correct)) setTimeout(() => mine === ticket && next(), PAUSE);
+    // at once, and a missed one is armed again for another recording, with its verdict and its clip
+    // still on screen to sign from.
+    if (judged.every((each) => each.correct)) next();
     else recorder?.arm(true);
   }
 
