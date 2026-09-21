@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fetchLexicon } from "$lib/api";
   import { Camera, provideCamera } from "$lib/camera.svelte";
-  import { framing, FRAMING } from "$lib/framing";
+  import { framing } from "$lib/framing";
   import { hand } from "$lib/hand";
   import { Tracker } from "$lib/tracking";
 
@@ -40,7 +40,7 @@
     if (!camera.tracker) return;
     const looking = setInterval(() => {
       const latest = camera.tracker?.latest;
-      if (latest) camera.fit = framing(latest, camera.recording);
+      camera.fit = latest ? framing(latest, camera.recording) : "";
     }, LOOK);
     return () => clearInterval(looking);
   });
@@ -50,8 +50,8 @@
   <!-- svelte-ignore a11y_media_has_caption -->
   <video bind:this={video} autoplay muted playsinline></video>
   <canvas bind:this={canvas}></canvas>
+  {#if camera.fit}<p class="fit">{camera.fit}</p>{/if}
 </div>
-<p class="dim">{camera.fit || FRAMING.none}</p>
 
 {@render children()}
 
@@ -79,5 +79,17 @@
     inset: 0;
     width: 100%;
     height: 100%;
+  }
+
+  /* over the picture it is about, and unmirrored: the view itself is flipped like a mirror */
+  .fit {
+    position: absolute;
+    inset: auto 0 0;
+    margin: 0;
+    padding: 8px;
+    transform: scaleX(-1);
+    text-align: center;
+    background: #0009;
+    border-radius: 0 0 8px 8px;
   }
 </style>

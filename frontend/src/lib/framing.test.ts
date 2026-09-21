@@ -20,9 +20,9 @@ function frame({ width = 0.3, centre = 0.5, head = 0.25, hands = false } = {}): 
 }
 
 describe("framing", () => {
-  it("passes a signer sitting square in the frame", () => {
-    expect(framing(frame())).toBe(FRAMING.ok);
-    expect(framing(frame({ hands: true }), true)).toBe(FRAMING.ok);
+  it("says nothing about a signer sitting square in the frame", () => {
+    expect(framing(frame())).toBe("");
+    expect(framing(frame({ hands: true }), true)).toBe("");
   });
 
   it("asks for the shoulders before anything else", () => {
@@ -38,7 +38,7 @@ describe("framing", () => {
   });
 
   it("asks for the hands only while a sign is being made", () => {
-    expect(framing(frame({ hands: false }))).toBe(FRAMING.ok);
+    expect(framing(frame({ hands: false }))).toBe("");
     expect(framing(frame({ hands: false }), true)).toBe(FRAMING.hands);
   });
 });

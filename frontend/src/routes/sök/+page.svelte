@@ -8,7 +8,7 @@
     type Lexicon,
     type SignWord,
   } from "$lib/api";
-  import { framing, FRAMING } from "$lib/framing";
+  import { framing } from "$lib/framing";
   import { hand } from "$lib/hand";
   import { draw, type Frame } from "$lib/landmarks";
   import { add, load, save, type Progress } from "$lib/progress";
@@ -66,7 +66,7 @@
   $effect(() => {
     if (!camera || !tracker) return;
     const looking = setInterval(() => {
-      fit = tracker?.latest ? framing(tracker.latest, recording) : FRAMING.none;
+      fit = tracker?.latest ? framing(tracker.latest, recording) : "";
     }, LOOK);
     return () => clearInterval(looking);
   });
@@ -143,11 +143,12 @@
     <canvas bind:this={canvas}></canvas>
     <!-- the sign the rows were found by, in the camera's own place, until the next recording -->
     <canvas bind:this={replay} class="replay" class:away={!signed.length}></canvas>
+    {#if camera && !signed.length && fit}<p class="fit">{fit}</p>{/if}
   </div>
 {/if}
 
 {#if camera}
-  <p class="dim">{status || (signed.length ? "" : fit)}</p>
+  {#if status}<p class="dim">{status}</p>{/if}
   <p class="row">
     <button disabled={!tracker || searching} onclick={record}>{recording ? "Stopp" : "Starta"}</button>
     <button class="secondary" onclick={() => (camera = false)}>Sök med ord</button>
@@ -224,6 +225,18 @@
     inset: 0;
     width: 100%;
     height: 100%;
+  }
+
+  /* over the picture it is about, and unmirrored: the view itself is flipped like a mirror */
+  .fit {
+    position: absolute;
+    inset: auto 0 0;
+    margin: 0;
+    padding: 8px;
+    transform: scaleX(-1);
+    text-align: center;
+    background: #0009;
+    border-radius: 0 0 8px 8px;
   }
 
   .replay {

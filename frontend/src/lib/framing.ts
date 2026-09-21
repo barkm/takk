@@ -28,10 +28,11 @@ export const FRAMING = {
   headroom: "Rikta kameran lägre — det behövs plats ovanför huvudet.",
   centre: "Flytta dig mot mitten av bilden.",
   hands: "Håll händerna i bild.",
-  ok: "Bra bild.",
 };
 
-/** What to fix about the framing, in Swedish, one thing at a time and the most basic first.
+/** What to fix about the framing, in Swedish, one thing at a time and the most basic first, and the
+ * empty string when there is nothing to fix: a framing that is already right is not worth a line of
+ * its own (user, 2026-09-21), and what is wrong is shown over the picture it is about.
  * `signing` also asks for the hands, which are only expected to be up while a sign is being made. */
 export function framing(landmarks: Float32Array, signing = false): string {
   if (landmarks.length !== N_LANDMARKS * 3) return FRAMING.none;
@@ -46,5 +47,5 @@ export function framing(landmarks: Float32Array, signing = false): string {
   // the nose stands in for the head, since the face is tracked as a whole or not at all
   if (Number.isNaN(y(NOSE)) || y(NOSE) < HEADROOM) return FRAMING.headroom;
   if (signing && WRISTS.every((wrist) => Number.isNaN(x(wrist)))) return FRAMING.hands;
-  return FRAMING.ok;
+  return "";
 }
