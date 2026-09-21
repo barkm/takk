@@ -29,8 +29,8 @@
   <h1>Mina tecken</h1>
   {#if rows.length}
     <p>
-      {rows.length - picked} tecken övade, {picked} valda som väntar, {due} att repetera nu.
-      <a href="/träna/repetera">Sagan</a> skrivs av dem du övat, med tyngdpunkt på dem som sitter sämst.
+      {rows.length - picked} tecken övade, {picked} valda som väntar, {due} att
+      <a href="/träna/repetera">repetera</a> nu.
     </p>
     <ul class="boxes">
       {#each perBox as count, i (i)}

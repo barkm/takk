@@ -71,8 +71,7 @@
   <section class="card">
     <h1>Nya ord</h1>
     <p class="dim">
-      {SIZE} nya tecken av dem du valt. Du ser klippet och tecknar efter det. Ett tecken du får rätt
-      hamnar i första lådan och kommer tillbaka i <a href="/träna/repetera">sagan</a>.
+      {SIZE} nya tecken av dem du valt. Du ser klippet och tecknar efter det.
     </p>
     <button onclick={start} disabled={!waiting.length}>Börja</button>
     {#if !waiting.length}
@@ -94,7 +93,7 @@
 {:else}
   <section class="card">
     <h1>Klart!</h1>
-    <p>{taken} nya tecken i första lådan. Repetera dem i <a href="/träna/repetera">sagan</a>.</p>
+    <p>{taken} nya tecken klara. <a href="/träna/repetera">Repetera</a> dem när du vill.</p>
     <button onclick={start} disabled={!waiting.length}>Fler nya ord</button>
   </section>
 {/if}

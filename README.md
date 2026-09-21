@@ -415,11 +415,12 @@ together with its lexicon entry, so progress is shown under that word and a card
 up to be practised again.
 
 "Repetera" (`/träna/repetera`) is where everything learned is repeated: the server writes six lines
-of one Swedish story over the words the learner already knows (`takk/story.py`, `POST /api/story`),
+of connected Swedish over the words the learner already knows (`takk/story.py`, `POST /api/story`),
 and the page shows one line at a time with the line before and after it greyed out. The learner reads
-the solid line aloud and signs the words marked in it; the words turn green or red, the story moves
-on whatever happened, and when the last written line is reached the next six are asked for, so there
-is no end. Words are drawn towards the low boxes, so a story leans on what sits worst, and nothing
+the solid line aloud and signs the words marked in it; the words turn green or red, the text moves on
+whatever happened, and when the last written line is reached the next six are asked for, so there is
+no end. The page names the mode nothing and explains nothing about it: to the learner it is simply
+how words are repeated. Words are drawn towards the low boxes, so it leans on what sits worst, and nothing
 new is taught — new words are learned in "Nya ord". A word the learner did not say is a miss of its
 sign rather than a refused recording (`unheard_is_miss`), which is what lets the story keep going. A
 line is recorded for as long as its text takes to read aloud rather than for as long as its signs,

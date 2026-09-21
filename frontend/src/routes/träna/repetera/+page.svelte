@@ -5,10 +5,11 @@
   import { known, load, record, save, type Progress } from "$lib/progress";
   import { pieces as cut } from "$lib/text";
 
-  // Repetera (step 13 of ROADMAP-takk.md): one story over the words the learner already knows, read
-  // line by line. The line to sign now is solid, the lines around it grey, and the story goes on
-  // whatever the verdict was — nothing is pressed and there is no end screen. Only words already
-  // practised are used, drawn towards the low boxes, so a story leans on the weak words.
+  // Repetera (step 13 of ROADMAP-takk.md): a connected Swedish text over the words the learner
+  // already knows, read line by line. The line to sign now is solid, the lines around it grey, and it
+  // goes on whatever the verdict was — nothing is pressed and there is no end screen. To the learner
+  // this is simply how words are repeated, so the page names it nothing and explains nothing.
+  // Only words already practised are used, drawn towards the low boxes, so it leans on the weak ones.
   const LINES = 6; // lines written per request; the next ones are asked for as the learner reaches them
   const CONTEXT = 1; // lines shown above and below the one being signed
   // How long a line may be recorded for: it is read aloud, so its length is its text and not its
@@ -50,7 +51,7 @@
     writing = true;
     const written = await fetchStory(words.map(label), LINES).finally(() => (writing = false));
     stalled = !written.length;
-    if (stalled) return void (note = "Kunde inte skriva någon saga. Försök igen.");
+    if (stalled) return void (note = "Kunde inte skriva någon text. Försök igen.");
     (story = [...story, ...written]), (note = "");
   }
 
@@ -100,16 +101,9 @@
 {#if !lexicon}
   <p class="dim">{note || "Laddar lexikonet ..."}</p>
 {:else if !story.length}
-  <p class="dim">
-    En saga skrivs av orden du redan kan, med tyngdpunkt på dem som sitter sämst. Du läser den högt,
-    en rad i taget, och tecknar orden som är markerade. Sagan fortsätter vad som än händer.
-  </p>
-  <p class="dim">{pool.length} tecken att välja ur.</p>
-  <button onclick={write} disabled={writing || pool.length < 2}>
-    {writing ? "Skriver sagan ..." : "Skriv sagan"}
-  </button>
+  <button onclick={write} disabled={writing || pool.length < 2}>{writing ? "Skriver ..." : "Börja"}</button>
   {#if pool.length < 2}
-    <p class="dim">Lär dig några <a href="/träna/nya">nya ord</a> först — sagan skrivs av det du kan.</p>
+    <p class="dim">Lär dig några <a href="/träna/nya">nya ord</a> först.</p>
   {/if}
   {#if note}<p class="dim">{note}</p>{/if}
 {:else}
@@ -128,7 +122,7 @@
     {/each}
   </div>
   {#if note}<p class="dim">{note}</p>{/if}
-  {#if stalled}<button onclick={write} disabled={writing}>Skriv fortsättningen</button>{/if}
+  {#if stalled}<button onclick={write} disabled={writing}>Fortsätt</button>{/if}
   <Recorder bind:this={recorder} {sentence} {limit} onattempt={scored} unheardIsMiss />
 {/if}
 
