@@ -8,6 +8,7 @@
     type Lexicon,
     type SignWord,
   } from "$lib/api";
+  import { framing, FRAMING } from "$lib/framing";
   import { draw, type Frame } from "$lib/landmarks";
   import { add, load, save, type Progress } from "$lib/progress";
   import { Tracker } from "$lib/tracking";
@@ -34,9 +35,11 @@
   let tracker = $state<Tracker | null>(null);
   let starting: Promise<unknown> | null = null;
   let status = $state("Laddar teckenmodellen...");
+  const LOOK = 200; // ms between readings of how the signer sits; faster than that only flickers
   let handedness: "left" | "right" = $state("right");
   let recording = $state(false);
   let searching = $state(false);
+  let fit = $state(""); // what to fix about the framing, or FRAMING.ok
   // What the rows were searched with, kept as the field keeps the word that found them. Only the
   // landmarks are kept, never the camera's picture, so the replay is the skeleton that was sent.
   let signed: Frame[] = $state([]);
@@ -52,9 +55,19 @@
   // The camera opens the first time it is asked for and keeps running, so a second lookup is instant.
   $effect(() => {
     if (!opened || !lexicon || !video || !canvas) return;
-    starting ??= Tracker.start(video, canvas, lexicon.edges, (fps) => (status = `Följer tecknen i ${fps.toFixed(0)} fps`))
-      .then((started) => (tracker = started))
+    starting ??= Tracker.start(video, canvas, lexicon.edges)
+      .then((started) => ((tracker = started), (status = "")))
       .catch((error) => (status = `Ingen åtkomst till kameran: ${error.message}`));
+  });
+
+  // How the signer sits, read off the frame being tracked right now, so it is fixed before a
+  // recording is spent on it. While recording it also asks for the hands.
+  $effect(() => {
+    if (!camera || !tracker) return;
+    const looking = setInterval(() => {
+      fit = tracker?.latest ? framing(tracker.latest, recording) : FRAMING.none;
+    }, LOOK);
+    return () => clearInterval(looking);
   });
 
   const clips = $derived(new Map(lexicon?.signs.map((each) => [each.sign, each.references]) ?? []));
@@ -133,7 +146,7 @@
 {/if}
 
 {#if camera}
-  <p class="dim">{status}</p>
+  <p class="dim">{status || (signed.length ? "" : fit)}</p>
   <p class="row">
     <button disabled={!tracker || searching} onclick={record}>{recording ? "Stopp" : "Starta"}</button>
     <button class="secondary" onclick={() => (camera = false)}>Sök med ord</button>

@@ -11,13 +11,13 @@ const WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm";
 export type Recording = { frames: Frame[]; audio: Blob | null; audioStart: number };
 
 export class Tracker {
-  /** Which delegate the landmarker runs on, to show alongside the frame rate. */
-  readonly delegate: "GPU" | "CPU";
   /** Whether the microphone is open. A sentence of several signs is split by the words the signer
    * speaks, so without it only one sign at a time can be practised. */
   readonly hasAudio: boolean;
 
   private recorded: Frame[] | null = null;
+  /** The landmarks of the frame tracked last, which is what the framing feedback reads. */
+  latest: Float32Array | null = null;
   private recorder: MediaRecorder | null = null;
   private chunks: Blob[] = [];
   private stopped: Promise<Blob> | null = null;
@@ -31,17 +31,15 @@ export class Tracker {
     private canvas: HTMLCanvasElement,
     private landmarker: HolisticLandmarker,
     private edges: Edges,
-    private onRate: (fps: number) => void,
-    delegate: "GPU" | "CPU",
     hasAudio: boolean,
   ) {
-    (this.delegate = delegate), (this.hasAudio = hasAudio);
+    this.hasAudio = hasAudio;
   }
 
   /** Open the camera, load the landmarker and start tracking. The microphone is what splits a
    * sentence into its signs, but a single sign is the whole recording, so a refused microphone
    * leaves that much working rather than being an error. */
-  static async start(video: HTMLVideoElement, canvas: HTMLCanvasElement, edges: Edges, onRate: (fps: number) => void): Promise<Tracker> {
+  static async start(video: HTMLVideoElement, canvas: HTMLCanvasElement, edges: Edges): Promise<Tracker> {
     const constraints = { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } };
     const stream = await navigator.mediaDevices
       .getUserMedia({ video: constraints, audio: true })
@@ -58,7 +56,7 @@ export class Tracker {
       delegate = "CPU";
       landmarker = await create(delegate);
     }
-    const tracker = new Tracker(video, canvas, landmarker, edges, onRate, delegate, stream.getAudioTracks().length > 0);
+    const tracker = new Tracker(video, canvas, landmarker, edges, stream.getAudioTracks().length > 0);
     tracker.listen(stream);
     tracker.track();
     return tracker;
@@ -96,19 +94,13 @@ export class Tracker {
    * busy are skipped. While recording, each result is kept with its frame's capture time. */
   private track(): void {
     let last = -1;
-    let count = 0;
-    let since = performance.now();
     const next = (now: number, metadata: VideoFrameCallbackMetadata) => {
       const time = metadata.captureTime ?? now;
       last = Math.max(last + 1, Math.round(time)); // VIDEO mode needs increasing timestamps
       const landmarks = layout(this.landmarker.detectForVideo(this.video, last));
+      this.latest = landmarks;
       draw(this.canvas, { width: this.video.videoWidth, height: this.video.videoHeight }, landmarks, this.edges);
       if (this.recorded) this.recorded.push({ time: time / 1000, landmarks });
-      count += 1;
-      if (now - since > 1000) {
-        this.onRate((count * 1000) / (now - since));
-        (count = 0), (since = now);
-      }
       this.video.requestVideoFrameCallback(next);
     };
     this.video.requestVideoFrameCallback(next);

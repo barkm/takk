@@ -2,6 +2,7 @@
   import { untrack } from "svelte";
 
   import { scoreAttempt, type Attempt, type Lexicon, type Sign } from "$lib/api";
+  import { framing, FRAMING } from "$lib/framing";
   import { Tracker } from "$lib/tracking";
   import { hear, listening, type Phase } from "$lib/voice";
 
@@ -22,7 +23,7 @@
     limit?: number;
   } = $props();
 
-  const SLOW_FPS = 20; // below this the extractor skips so many camera frames that results suffer
+  const LOOK = 200; // ms between readings of how the signer sits; faster than that only flickers
   const NO_MICROPHONE = "Mikrofonen behövs: orden du säger högt är det som visar var tecknen är i inspelningen.";
 
   const TICK = 50; // ms between readings of the microphone; each covers the newest 21 ms of sound
@@ -33,6 +34,7 @@
   let tracker = $state<Tracker | null>(null); // the generic, as in the pages: an annotation narrows it to null
   let starting: Promise<Tracker> | null = null;
   let status = $state("Laddar teckenmodellen...");
+  let fit = $state(""); // what to fix about the framing, or FRAMING.ok
   let handedness: "left" | "right" = $state("right");
   let phase = $state<Phase | "idle">("idle");
   let scoring = $state(false);
@@ -43,15 +45,22 @@
 
   // The camera starts once, however fast signs are picked, and keeps running between attempts.
   $effect(() => {
-    starting ??= Tracker.start(video, canvas, lexicon.edges, (fps) => {
-      const slow = fps < SLOW_FPS ? " — långsammare än kameran, så resultatet blir mindre tillförlitligt" : "";
-      status = `Följer tecknen live på ${tracker?.delegate} i ${fps.toFixed(0)} fps${slow}`;
-    })
-      .then((started) => (tracker = started))
+    starting ??= Tracker.start(video, canvas, lexicon.edges)
+      .then((started) => ((tracker = started), (status = ""), started))
       .catch((error) => {
         status = `Ingen åtkomst till kameran: ${error.message}`;
         throw error;
       });
+  });
+
+  // How the signer sits, read off the frame being tracked right now, so the framing is fixed before
+  // a recording is spent on it. While recording it also asks for the hands.
+  $effect(() => {
+    if (!tracker) return;
+    const looking = setInterval(() => {
+      fit = tracker?.latest ? framing(tracker.latest, recording) : FRAMING.none;
+    }, LOOK);
+    return () => clearInterval(looking);
   });
 
   // Every attempt is located by the words the signer says, so without the microphone there is
@@ -147,7 +156,7 @@
     <video bind:this={video} class:recording autoplay muted playsinline></video>
     <canvas bind:this={canvas}></canvas>
   </div>
-  <p class="dim">{status}</p>
+  <p class="dim">{status || fit}</p>
   {#if silent}<p class="dim">{NO_MICROPHONE}</p>{/if}
   {#if told}<p class="dim">{told}</p>{/if}
   <p class="row">
