@@ -16,6 +16,7 @@ export class Tracker {
   readonly hasAudio: boolean;
 
   private recorded: Frame[] | null = null;
+  private done = false; // set by `stop`, which the frame loop reads to let itself end
   /** The landmarks of the frame tracked last, which is what the framing feedback reads. */
   latest: Float32Array | null = null;
   private recorder: MediaRecorder | null = null;
@@ -95,6 +96,7 @@ export class Tracker {
   private track(): void {
     let last = -1;
     const next = (now: number, metadata: VideoFrameCallbackMetadata) => {
+      if (this.done) return;
       const time = metadata.captureTime ?? now;
       last = Math.max(last + 1, Math.round(time)); // VIDEO mode needs increasing timestamps
       const landmarks = layout(this.landmarker.detectForVideo(this.video, last));
@@ -108,6 +110,17 @@ export class Tracker {
 
   get recording(): boolean {
     return this.recorded !== null;
+  }
+
+  /** Close the camera and the microphone and stop tracking, which a page does when it is done with
+   * them: nothing else stops the stream, so an unmounted page would leave the camera light on and the
+   * next one would open a second stream beside it. */
+  stop(): void {
+    this.done = true;
+    (this.video.srcObject as MediaStream | null)?.getTracks().forEach((track) => track.stop());
+    this.video.srcObject = null;
+    void this.context?.close().catch(() => {});
+    this.landmarker.close();
   }
 
   /** Start keeping the tracked frames, and the spoken sentence alongside them in whichever container

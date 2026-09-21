@@ -8,11 +8,10 @@
     type Lexicon,
     type SignWord,
   } from "$lib/api";
-  import { framing } from "$lib/framing";
-  import { hand } from "$lib/hand";
+  import CameraView from "$lib/Camera.svelte";
+  import { Camera } from "$lib/camera.svelte";
   import { draw, type Frame } from "$lib/landmarks";
   import { add, load, save, type Progress } from "$lib/progress";
-  import { Tracker } from "$lib/tracking";
 
   // Sök (steps 9 and 10 of ROADMAP-takk.md): the one way vocabulary grows. A word, a theme or a
   // sign shown to the camera lists signs to tick, and what is ticked is what Nya ord teaches.
@@ -26,21 +25,14 @@
   let timer: ReturnType<typeof setTimeout>;
 
   // Searching by signing: the camera takes the place of the field, and its recording fills the same
-  // list of rows. Nothing is spoken and nothing is scored — this is a lookup, not an attempt.
-  let camera = $state(false);
+  // list of rows. Nothing is spoken and nothing is scored — this is a lookup, not an attempt. The
+  // camera itself is the shared component, which the Träna layout mounts the same way.
+  const camera = new Camera();
+  let bySign = $state(false);
   // Once opened, the camera stays in the page and is only hidden: the tracker holds the video element
   // it was started with and draws into its canvas, so unmounting them leaves a black picture behind.
   let opened = $state(false);
-  let video = $state<HTMLVideoElement>(); // bound when the camera replaces the field, not before
-  let canvas = $state<HTMLCanvasElement>();
-  let tracker = $state<Tracker | null>(null);
-  let starting: Promise<unknown> | null = null;
-  let status = $state("Laddar teckenmodellen...");
-  const LOOK = 200; // ms between readings of how the signer sits; faster than that only flickers
-  const handedness = $derived(hand() ?? "right"); // asked once on the menu, never on a camera screen
-  let recording = $state(false);
   let searching = $state(false);
-  let fit = $state(""); // what to fix about the framing, or FRAMING.ok
   // What the rows were searched with, kept as the field keeps the word that found them. Only the
   // landmarks are kept, never the camera's picture, so the replay is the skeleton that was sent.
   let signed: Frame[] = $state([]);
@@ -53,33 +45,15 @@
       .catch(() => (note = "Servern svarar inte. Starta den med uv run takk."));
   });
 
-  // The camera opens the first time it is asked for and keeps running, so a second lookup is instant.
-  $effect(() => {
-    if (!opened || !lexicon || !video || !canvas) return;
-    starting ??= Tracker.start(video, canvas, lexicon.edges)
-      .then((started) => ((tracker = started), (status = "")))
-      .catch((error) => (status = `Ingen åtkomst till kameran: ${error.message}`));
-  });
-
-  // How the signer sits, read off the frame being tracked right now, so it is fixed before a
-  // recording is spent on it. While recording it also asks for the hands.
-  $effect(() => {
-    if (!camera || !tracker) return;
-    const looking = setInterval(() => {
-      fit = tracker?.latest ? framing(tracker.latest, recording) : "";
-    }, LOOK);
-    return () => clearInterval(looking);
-  });
-
   const clips = $derived(new Map(lexicon?.signs.map((each) => [each.sign, each.references]) ?? []));
   const label = (each: SignWord) => each.word ?? word(each.sign);
 
   // The recording plays on a loop beside its results, a frame at the rate the landmarks were sent at.
   $effect(() => {
     const canvas = replay;
-    if (!canvas || !signed.length || !lexicon || !video) return;
+    if (!canvas || !signed.length || !lexicon || !camera.video) return;
     // the canvas keeps the camera's own proportions, since the landmarks are normalised to its frame
-    const size = { width: video.videoWidth, height: video.videoHeight };
+    const size = { width: camera.video.videoWidth, height: camera.video.videoHeight };
     let at = 0;
     const shown = setInterval(() => {
       draw(canvas, size, signed[at].landmarks, lexicon!.edges);
@@ -95,20 +69,20 @@
   }
 
   function record() {
-    if (!tracker) return;
-    if (recording) return void finish();
-    tracker.resume();
-    tracker.startRecording();
-    (recording = true), (note = ""), (signed = []); // the live picture, until this recording replaces it
+    if (!camera.tracker) return;
+    if (camera.recording) return void finish();
+    camera.tracker.resume();
+    camera.tracker.startRecording();
+    (camera.recording = true), (note = ""), (signed = []); // the live picture, until this replaces it
   }
 
   async function finish() {
-    recording = false;
-    const taken = await tracker?.stopRecording();
+    camera.recording = false;
+    const taken = await camera.tracker?.stopRecording();
     if (!taken || taken.frames.length < 2) return void (note = "Inspelningen är tom.");
     searching = true;
     try {
-      const found = await searchBySign(taken.frames, handedness, video!, lexicon!.fps);
+      const found = await searchBySign(taken.frames, camera.handedness, camera.video!, lexicon!.fps);
       (results = found.words), (note = found.note), (query = "");
       signed = found.words.length ? taken.frames : []; // the camera stays, with the sign that found the rows in it
     } catch {
@@ -136,22 +110,21 @@
   }
 </script>
 
-{#if opened}
-  <div class="view" class:away={!camera}>
-    <!-- svelte-ignore a11y_media_has_caption -->
-    <video bind:this={video} class:recording autoplay muted playsinline></video>
-    <canvas bind:this={canvas}></canvas>
-    <!-- the sign the rows were found by, in the camera's own place, until the next recording -->
-    <canvas bind:this={replay} class="replay" class:away={!signed.length}></canvas>
-    {#if camera && !signed.length && fit}<p class="fit">{fit}</p>{/if}
+{#if opened && lexicon}
+  <div class:away={!bySign}>
+    <CameraView {camera} edges={lexicon.edges}>
+      <!-- the sign the rows were found by, in the camera's own place, until the next recording -->
+      <canvas bind:this={replay} class="replay" class:away={!signed.length}></canvas>
+    </CameraView>
   </div>
 {/if}
 
-{#if camera}
-  {#if status}<p class="dim">{status}</p>{/if}
+{#if bySign}
   <p class="row">
-    <button disabled={!tracker || searching} onclick={record}>{recording ? "Stopp" : "Starta"}</button>
-    <button class="secondary" onclick={() => (camera = false)}>Sök med ord</button>
+    <button disabled={!camera.tracker || searching} onclick={record}>
+      {camera.recording ? "Stopp" : "Starta"}
+    </button>
+    <button class="secondary" onclick={() => (bySign = false)}>Sök med ord</button>
   </p>
   {#if searching}<p class="dim">Söker...</p>{/if}
 {:else}
@@ -162,7 +135,7 @@
     oninput={(event) => search(event.currentTarget.value)}
   />
   <p class="dim">eller</p>
-  <button class="secondary" onclick={() => ((camera = true), (opened = true))}>Sök med tecken</button>
+  <button class="secondary" onclick={() => ((bySign = true), (opened = true))}>Sök med tecken</button>
 {/if}
 
 {#if note}
@@ -200,43 +173,6 @@
 
   .away {
     display: none; /* hidden rather than removed, so the tracker keeps the element it started on */
-  }
-
-  .view {
-    position: relative;
-    width: 100%;
-    max-width: 560px;
-    transform: scaleX(-1);
-  }
-
-  .view video {
-    display: block;
-    width: 100%;
-    border-radius: 8px;
-    background: #000;
-  }
-
-  .view video.recording {
-    outline: 3px solid var(--bad);
-  }
-
-  canvas {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-  }
-
-  /* over the picture it is about, and unmirrored: the view itself is flipped like a mirror */
-  .fit {
-    position: absolute;
-    inset: auto 0 0;
-    margin: 0;
-    padding: 8px;
-    transform: scaleX(-1);
-    text-align: center;
-    background: #0009;
-    border-radius: 0 0 8px 8px;
   }
 
   .replay {
