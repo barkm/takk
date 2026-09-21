@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { framing, settle, settling } from "$lib/framing";
+  import { framing } from "$lib/framing";
   import { hand } from "$lib/hand";
   import { Tracker } from "$lib/tracking";
   import type { Camera } from "$lib/camera.svelte";
@@ -34,15 +34,12 @@
   });
 
   // How the signer sits, read off the frame being tracked right now, so the framing is fixed before a
-  // recording is spent on it. While recording it also asks for the hands. A complaint has to hold for
-  // a second before it is shown, since hands come down the moment a sign ends.
+  // recording is spent on it. It says nothing about the hands, which come and go with every sign.
   $effect(() => {
     if (!camera.tracker) return;
-    let held = settling();
     const looking = setInterval(() => {
       const latest = camera.tracker?.latest;
-      held = settle(held, latest ? framing(latest, camera.recording) : "");
-      camera.fit = held.shown;
+      camera.fit = latest ? framing(latest) : "";
     }, LOOK);
     return () => clearInterval(looking);
   });
