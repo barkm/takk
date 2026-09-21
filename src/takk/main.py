@@ -31,24 +31,24 @@ from isolated_sign_validation.extraction import download_model
 from isolated_sign_validation.preparation import PrepConfig, PreparedData
 from isolated_sign_validation.training import embed, load_run
 from takk.practice import create_app, sign_means
-from takk.sentences import MODEL as SENTENCE_MODEL
 from takk.speech import MODEL as SPEECH_MODEL
 from takk.speech import load_aligner
+from takk.story import MODEL as STORY_MODEL
 from takk.vocabulary import packs as practice_packs
 from takk.vocabulary import sign_forms
 
 RUNS_DIR = Path("outputs/runs")
 
 
-def sentence_writer(model: str) -> anthropic.Anthropic | None:
-    """The client that writes a practice turn's sentence, or None when there are no credentials for
-    it. The check is at startup so that a missing key is a line here rather than a failed card, but
-    it is not fatal: without sentences the session practises its signs one at a time."""
+def story_writer(model: str) -> anthropic.Anthropic | None:
+    """The client that writes the story, or None when there are no credentials for it. The check is
+    at startup so that a missing key is a line here rather than a failed story, but it is not fatal:
+    without it only new words can be practised."""
     client = anthropic.Anthropic()
     try:
         client.models.retrieve(model)
     except anthropic.APIError as error:
-        print(f"no sentences: {model} is not reachable ({type(error).__name__}), so a practice turn is one sign at a time")
+        print(f"no stories: {model} is not reachable ({type(error).__name__}), so only new words can be practised")
         return None
     return client
 
@@ -59,7 +59,7 @@ def main() -> None:
     parser.add_argument("--run", default="iv14_h384_e20", help="training run whose model scores the attempts")
     parser.add_argument("--threshold", type=float, default=0.38, help="lowest score that counts as the sign")
     parser.add_argument("--device", default="cpu", help="the GPU is shared; one attempt at a time is cheap on the CPU")
-    parser.add_argument("--sentence-model", default=SENTENCE_MODEL, help="the model that writes the sentence a practice turn of several signs is signed in")
+    parser.add_argument("--story-model", default=STORY_MODEL, help="the model that writes the story a learner signs their way through")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8002)
     args = parser.parse_args()
@@ -83,7 +83,7 @@ def main() -> None:
     print(f"loading the Swedish speech model {SPEECH_MODEL} that times a spoken sentence's words (about 1.2 GB, downloaded once)")
     aligner = load_aligner(args.device)  # a sentence is split by its spoken words, so this is not optional
     packs = practice_packs(table)
-    app = create_app(references, means, video_paths(table), model, PrepConfig(), args.threshold, args.device, aligner, packs, sign_forms(), sentence_writer(args.sentence_model))
+    app = create_app(references, means, video_paths(table), model, PrepConfig(), args.threshold, args.device, aligner, packs, sign_forms(), story_writer(args.story_model))
     uvicorn.run(app, host=args.host, port=args.port)
 
 

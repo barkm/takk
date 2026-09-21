@@ -12,7 +12,6 @@ from torch import nn
 from isolated_sign_validation.landmarks import LANDMARK_SLICES, N_LANDMARKS
 from isolated_sign_validation.preparation import PrepConfig, mirror, prepare_clip
 from takk.practice import NOTES, create_app, prepare_attempt, sign_means
-from takk.sentences import Written
 from takk.vocabulary import spoken_word
 from takk.speech import SAMPLE_RATE
 
@@ -86,23 +85,6 @@ def test_attempt_scores_against_the_chosen_sign():
         send(landmarks, "C")
     with pytest.raises(HTTPException):
         send(landmarks[:, :-1], "A")  # not a whole number of frames
-
-
-def test_sentence_returns_the_words_in_the_order_they_are_spoken():
-    """The words are the caller's own and come back reordered to the sentence: the signing order is
-    the spoken order, which is what the attempt is then split by."""
-    writer = SimpleNamespace(messages=SimpleNamespace(parse=lambda **kwargs: SimpleNamespace(parsed_output=Written(sentence="Jag vill ha mer mjölk"))))  # fmt: skip
-    app = create_app({"A": ["a1"]}, np.array([[1.0, 0.0]]), {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [], writer=writer)  # fmt: skip
-    sentence = next(route for route in app.routes if getattr(route, "path", "") == "/api/sentence").endpoint
-
-    assert sentence(words=["mjölk", "mer"]) == {"sentence": "Jag vill ha mer mjölk", "words": ["mer", "mjölk"]}
-
-
-def test_sentence_is_empty_without_a_writer():
-    """Then the session practises the words one at a time, which needs no model at all."""
-    app = create_app({"A": ["a1"]}, np.array([[1.0, 0.0]]), {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [])  # fmt: skip
-    sentence = next(route for route in app.routes if getattr(route, "path", "") == "/api/sentence").endpoint
-    assert sentence(words=["mjölk"]) == {"sentence": "", "words": []}
 
 
 def test_attempt_listens_for_the_word_the_learner_practises_not_the_sign_name():

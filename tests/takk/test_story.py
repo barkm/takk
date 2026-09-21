@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from takk.story import Told, story_parts, write_story
+from takk.story import Told, key_words, story_parts, write_story
 
 
 class FakeClient:
@@ -18,6 +18,22 @@ class FakeClient:
         self.asked.append(messages)
         return SimpleNamespace(parsed_output=Told(parts=self.answers.pop(0)))
 
+
+def test_key_words_reads_off_the_part_which_offered_words_it_signs():
+    assert key_words("Jag vill ha mer mjölk", ["mjölk", "mer"]) == ["mer", "mjölk"]
+    assert key_words("Mjölk är gott", ["mjölk"]) == ["mjölk"]  # a sentence-initial capital still matches
+    assert key_words("Vi ska äta platta slag idag", ["äta", "platta slag"]) == ["äta", "platta slag"]  # a sign of two words
+    # the words are offered, not required, so a part may leave them out
+    assert key_words("Jag vill ha mjölk", ["mjölk", "mer", "bröd"]) == ["mjölk"]
+    assert key_words("Jag vill ha mer mjölk", ["mjölk", "mer", "bröd"]) == ["mer", "mjölk"]
+    assert key_words("Vi plockar blåbär", ["blåbär", "blå"]) == ["blåbär"]  # "blå" is not found inside "blåbär"
+
+
+def test_key_words_refuses_a_part_it_could_not_be_scored_from():
+    assert key_words("Jag drack mjölken", ["mjölk"]) is None  # inflected, so it would not be timed in the audio
+    assert key_words("Mer mjölk och mer bröd", ["mer", "bröd"]) is None  # twice, so which one is signed?
+    # at most three signs in one recording, however many words were offered
+    assert key_words("Mamma vill ha mer mjölk och bröd", ["mer", "mjölk", "bröd", "mamma"]) is None
 
 WORDS = ["mamma", "mjölk", "sova"]
 

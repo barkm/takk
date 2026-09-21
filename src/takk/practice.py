@@ -30,7 +30,6 @@ from isolated_sign_validation.dataset import collate
 from isolated_sign_validation.extraction import MODEL_PATH, VideoInfo
 from isolated_sign_validation.landmarks import N_LANDMARKS, SKELETON_EDGES
 from isolated_sign_validation.preparation import ONE_HANDED, PrepConfig, hand_presence, hide_low_hands, mirror, prepare_clip
-from takk.sentences import write_sentence
 from takk.speech import MIN_WORD_SCORE, Aligner, decode_audio, split_speech
 from takk.story import write_story
 from takk.vocabulary import spoken_word
@@ -102,8 +101,8 @@ def create_app(
     """The practice app: the page, the glossary's signs with their clips (`references`, sign ->
     clip ids, in the order of the rows of `means`, see sign_means), the clips' videos (by clip id, see
     video_paths), the extraction model for the browser, and the scoring of attempts. The `aligner`
-    times a spoken sentence's words, which is what splits it into its signs. With a `writer` a
-    practice turn of several signs is given a sentence to sign them in (see `sentences.py`)."""
+    times a spoken sentence's words, which is what splits it into its signs. The `writer` writes the
+    story a learner signs their way through (see `story.py`)."""
     app = FastAPI()
     names = list(references)
     index = {sign: i for i, sign in enumerate(names)}
@@ -123,30 +122,14 @@ def create_app(
         and the lexicon's categories alike, each a list of words with the sign that scores them."""
         return {"packs": packs or []}
 
-    @app.post("/api/sentence")
-    def sentence(words: list[str] = Body(embed=True)) -> dict:
-        """A Swedish sentence whose key words are `words`, to be spoken while they are signed, with
-        the words in the order they occur in it. The sentence is empty when there is no writer or it
-        could not write one, and the caller then practises the words one at a time.
-
-        The words are the caller's, not the names of the signs that score them: a learner practising
-        "blå" is scored by `sts:öga-02636`, because blå and öga are one sign form and the lower entry
-        names the class, and a sentence about an eye is neither what they are learning nor what they
-        would say. The word travels on to `/api/attempt` as the word to hear."""
-        written = write_sentence(writer, words) if writer else None
-        if written is None:
-            return {"sentence": "", "words": []}
-        text, order = written
-        return {"sentence": text, "words": order}
-
     @app.post("/api/story")
     def story(words: list[str] = Body(embed=True), parts: int = Body(embed=True)) -> dict:
         """A Swedish story over `words` in `parts` parts, each part with the words it uses in the
         order they are spoken (`story.py`). The parts are empty when there is no writer or it could
         not write one, and the caller then has nothing to tell and says so.
 
-        The words are the learner's own, as in `/api/sentence`: what the cards say, not the names of
-        the signs that score them."""
+        The words are the learner's own: what the cards say, not the names of the signs that score
+        them."""
         told = write_story(writer, words, parts) if writer else None
         return {"parts": [{"text": text, "words": used} for text, used in told or []]}
 

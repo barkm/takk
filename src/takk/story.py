@@ -1,24 +1,30 @@
 """Writing the Swedish story a learner signs their way through, a few sentences at a time.
 
-A story is the practice session turned inside out: instead of a sentence written around the word
-that is due, one text is written around many of the words the learner already knows, and it is
-practised in order from beginning to end (see step 12 of ROADMAP-takk.md). The words are the ones
+A story is how everything already learned is repeated (step 12 of ROADMAP-takk.md): one text is
+written around many of the words in the learner's Leitner boxes, and it is practised in order from
+beginning to end. The words are the ones
 in the learner's boxes, drawn towards the low ones, so the weak words are the ones the story leans
-on; nothing new is taught here, since new words belong to the daily pass.
+on; nothing new is taught here, since new words are learned on their own ("Nya ord", step 9).
 
 The story comes back in chunks ("avsnitt"), one recording each. A chunk carries at most `MOST_WORDS`
-signs for the same reason a sentence does (`sentences.py`): every sign is another boundary the split
-has to place, and the whole chunk has to be said in one breath-length recording. The rest of the
-contract is the sentences' one, and `key_words` checks it: a key word appears exactly once in its
-chunk and exactly as written, since the signs are found by timing those words in the audio.
+signs: every sign is another boundary the split has to place, and the whole chunk has to be said in
+one breath-length recording. `key_words` checks the contract: a key word appears exactly once in its
+chunk and exactly as written, since the signs are found by timing those words in the audio
+(`speech.py`), and a form that was not spoken as written scores below `MIN_WORD_SCORE` and is
+refused. Forbidding inflection keeps it checkable — every word appears as a whole token, once —
+rather than trusting the model to report which form it chose. Swedish gives that up cheaply: the
+dictionary form of a verb is the infinitive, so "vill äta" is already the base form, and a noun sits
+in its base form behind an article ("en hund").
 """
+
+import re
 
 import anthropic
 from pydantic import BaseModel
 
-from takk.sentences import MOST_WORDS, key_words
-
 MODEL = "claude-sonnet-5"
+
+MOST_WORDS = 3  # key words in one part; every extra sign is another boundary the split can misplace
 
 SYSTEM = """You write a short Swedish story for someone practising TAKK (tecken som alternativ och kompletterande kommunikation).
 
@@ -37,6 +43,26 @@ class Told(BaseModel):
     parts: list[str]
 
 
+def key_words(part: str, offered: list[str], most: int = MOST_WORDS) -> list[str] | None:
+    """The words of `offered` that `part` uses, in the order they occur in it. The set is read off the
+    text rather than reported, since a whole-word search finds it exactly: "mer" is not satisfied by
+    "mera", and "blå" is not found inside "blåbär".
+
+    None when the part cannot be practised: no word may be used twice, since a repeated word leaves
+    it unclear which occurrence is signed, and at most `most` of them can be signed in one
+    recording."""
+    at = {}
+    for word in offered:
+        found = [match.start() for match in re.finditer(rf"\b{re.escape(word)}\b", part, re.IGNORECASE)]
+        if len(found) > 1:
+            return None
+        if found:
+            at[word] = found[0]
+    if not at or len(at) > most:
+        return None
+    return sorted(at, key=at.__getitem__)
+
+
 Chunk = tuple[str, list[str]]  # a part of the story and the offered words it uses, in spoken order
 
 
@@ -48,7 +74,7 @@ def story_parts(parts: list[str], offered: list[str], asked: int) -> list[Chunk]
         return None
     chunks = []
     for part in parts:
-        used = key_words(part, offered, require_first=False)
+        used = key_words(part, offered)
         if not used:
             return None
         chunks.append((part, used))
@@ -67,7 +93,7 @@ def write_story(client: anthropic.Anthropic, words: list[str], parts: int, model
         story = story_parts(told, words, parts)
         if story is not None:
             return story
-        # As in `write_sentence`: the model is told what was wrong rather than asked again blindly,
+        # The model is told what was wrong rather than asked again blindly,
         # since the failure is almost always a word inflected, left out of a part or used twice.
         messages += [
             {"role": "assistant", "content": "\n".join(told)},
