@@ -12,7 +12,7 @@ from torch import nn
 from isolated_sign_validation.landmarks import LANDMARK_SLICES, N_LANDMARKS
 from isolated_sign_validation.preparation import PrepConfig, mirror, prepare_clip
 from takk.practice import NOTES, create_app, prepare_attempt, sign_means
-from takk.vocabulary import spoken_word
+from takk.vocabulary import Index, spoken_word
 from takk.speech import SAMPLE_RATE
 
 from test_speech import wav
@@ -166,3 +166,16 @@ def test_attempt_needs_the_microphone_however_few_signs_it_has():
 
     alone = asyncio.run(attempt(upload(), sign=["A"], spoken=[], handedness="right", width=640, height=480))
     assert alone["signs"] == [] and alone["note"] == NOTES["no_audio"]
+
+
+def test_search_answers_from_the_vocabulary_it_was_given():
+    # the endpoint searches the vocabulary passed to `create_app`, which a local name inside it once
+    # shadowed, so every search answered 500 until this test existed
+    words = [{"sign": "sts:hej-1", "id": "1"}]
+    vocabulary = Index(words, {"Hälsningsfras": words})
+    app = create_app({"sts:hej-1": ["a1"]}, np.array([[1.0, 0.0]]), {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [], vocabulary=vocabulary)  # fmt: skip
+    search = next(route for route in app.routes if getattr(route, "path", "") == "/api/search").endpoint
+
+    assert search("hej") == {"words": words}
+    assert search("hälsning") == {"words": words}  # the theme its name begins
+    assert search("x") == {"words": []}

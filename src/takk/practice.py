@@ -94,7 +94,7 @@ def create_app(
     threshold: float,
     device: str,
     aligner: Aligner,
-    index: Index | None = None,
+    vocabulary: Index | None = None,
     forms: dict[str, str] | None = None,
     writer: anthropic.Anthropic | None = None,
 ) -> FastAPI:
@@ -122,7 +122,7 @@ def create_app(
         (`vocabulary.search`): each with the sign that scores it, its lexicon entry and the word to
         show when the sign is not named for it. This is how vocabulary grows, so it is the one way in
         (step 9 of ROADMAP-takk.md)."""
-        return {"words": search(index, q) if index else []}
+        return {"words": search(vocabulary, q) if vocabulary else []}
 
     @app.post("/api/story")
     def story(words: list[str] = Body(embed=True), parts: int = Body(embed=True)) -> dict:

@@ -82,8 +82,8 @@ def main() -> None:
     references = dict(table.group_by("label").agg("sign", "clip_id").sort("label").select(pl.col("sign").list.first(), "clip_id").iter_rows())
     print(f"loading the Swedish speech model {SPEECH_MODEL} that times a spoken sentence's words (about 1.2 GB, downloaded once)")
     aligner = load_aligner(args.device)  # a sentence is split by its spoken words, so this is not optional
-    index = search_index(table)
-    app = create_app(references, means, video_paths(table), model, PrepConfig(), args.threshold, args.device, aligner, index, sign_forms(), story_writer(args.story_model))
+    vocabulary = search_index(table)
+    app = create_app(references, means, video_paths(table), model, PrepConfig(), args.threshold, args.device, aligner, vocabulary, sign_forms(), story_writer(args.story_model))
     uvicorn.run(app, host=args.host, port=args.port)
 
 
