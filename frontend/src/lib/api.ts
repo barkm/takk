@@ -56,20 +56,6 @@ export async function fetchPacks(): Promise<Pack[]> {
   return (await response.json()).packs;
 }
 
-/** A Swedish sentence whose key words are `words`, to be spoken while they are signed, with the words
- * in the order they occur in it. The sentence is empty when the server could not write one, and the
- * caller then practises the words one at a time. The words are the ones the learner is practising,
- * not the names of the signs that score them (see `Sign.spoken`). */
-export async function fetchSentence(words: string[]): Promise<{ sentence: string; words: string[] }> {
-  const response = await fetch(api("/api/sentence"), {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ words }),
-  });
-  if (!response.ok) return { sentence: "", words: [] };
-  return await response.json();
-}
-
 /** A part of a story: the Swedish text to say aloud, and the words of it that are signed, in the
  * order they are spoken. */
 export type StoryPart = { text: string; words: string[] };
@@ -128,6 +114,5 @@ export async function scoreAttempt(
   return response.json();
 }
 
-/** The Swedish word a lexicon sign is signed for, and its entry number ("sts:platta slag-25563"). */
+/** The Swedish word a lexicon sign is signed for ("sts:platta slag-25563" -> "platta slag"). */
 export const word = (sign: string) => sign.replace(/^sts:/, "").replace(/-\d+$/, "");
-export const entry = (sign: string) => sign.match(/\d+$/)?.[0] ?? "";

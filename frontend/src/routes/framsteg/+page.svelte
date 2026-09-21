@@ -34,8 +34,8 @@
   <h1>Mina tecken</h1>
   {#if rows.length}
     <p>
-      {rows.length} tecken övade, {due} att repetera nu. I <a href="/pass">ett pass</a> kan du repetera
-      allt du kan, oavsett vad lådorna säger.
+      {rows.length} tecken övade, {due} att repetera nu. <a href="/saga">Sagan</a> skrivs av dem, med
+      tyngdpunkt på dem som sitter sämst.
     </p>
     <ul class="boxes">
       {#each perBox as count, i (i)}
@@ -43,7 +43,7 @@
       {/each}
     </ul>
   {:else}
-    <p>Inga tecken övade än. Börja med <a href="/pass">dagens pass</a>.</p>
+    <p>Inga tecken övade än. Börja med <a href="/">nya ord</a>.</p>
   {/if}
   {#if note}<p class="dim">{note}</p>{/if}
 </section>

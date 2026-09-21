@@ -1,12 +1,12 @@
 // What the learner has practised, kept in the browser (step 8 of ROADMAP-takk.md): no accounts and
 // no state on the server for as long as that holds. One Leitner box per sign, saying how long until
-// it is due: a word moves up a box once a pass has accepted it `accepts` times without missing it,
-// and back to the first box the moment it is missed.
+// it is due: a word moves up a box when a due sign is signed right, and back to the first box the
+// moment it is missed. New words enter the first box on the "Nya ord" page, and the story is where
+// they are repeated (see step 9 and step 12 of ROADMAP-takk.md).
 import { word as signWord, type Pack, type PackWord } from "$lib/api";
 
 const KEY = "takk.progress";
 const CHOSEN = "takk.packs";
-const SETTINGS = { size: "takk.pass-size", accepts: "takk.accepts" };
 const DAY = 24 * 60 * 60 * 1000;
 /** Days until a sign in each box is due again, and how many boxes there are (user, 2026-09-21).
  * Changing this array is the whole schedule, and `Math.min` in `record` keeps a word in the last box:
@@ -25,10 +25,6 @@ export const DAYS = [1, 3, 7, 21];
  * fall back to a pack's word, and are given an entry the next time the word is practised. */
 export type Learned = { box: number; due: number; seen?: number; first?: number; word?: string; id?: string };
 
-/** The learner's own numbers, until they say otherwise: `size` words in a pass, and `accepts` accepted
- * attempts of each before it is finished and moves up a box. */
-export const DEFAULTS = { size: 5, accepts: 2 };
-export type Setting = keyof typeof DEFAULTS;
 export type Progress = Record<string, Learned>;
 
 export function load(): Progress {
@@ -43,10 +39,9 @@ export function save(progress: Progress) {
   localStorage.setItem(KEY, JSON.stringify(progress));
 }
 
-/** The progress after a turn of `card` finished the word or missed it. It is called
- * once a word's fate in the pass is settled, not on every turn: an accepted attempt that still leaves
- * the word short of its accepts changes nothing, so a word met today and left unfinished is met again
- * from the start, with its tutorial, rather than sitting half-learned in a box. */
+/** The progress after `card` was signed right or missed. A word met for the first time and signed
+ * right lands in the first box, which is what "Nya ord" records; every later answer comes from a
+ * story. */
 export function record(progress: Progress, card: PackWord, correct: boolean, now = Date.now()): Progress {
   const previous = progress[card.sign];
   // A sign answered before it was due keeps its box and its date (user, 2026-09-21). A box is a claim
@@ -62,23 +57,6 @@ export function record(progress: Progress, card: PackWord, correct: boolean, now
   if (card.word) learned.word = card.word; // the word on the card, not the name of the sign that scores it
   if (card.id) learned.id = card.id;
   return { ...progress, [card.sign]: learned };
-}
-
-/** How many signs were practised since midnight, which is what a day's work amounts to. */
-export function practisedToday(progress: Progress, now = Date.now()): number {
-  const midnight = new Date(now).setHours(0, 0, 0, 0);
-  return Object.values(progress).filter((learned) => (learned.seen ?? 0) >= midnight).length;
-}
-
-/** One of the learner's numbers, their default until it is chosen. Both count things a pass cannot
- * have none of, so anything below 1 is not an answer and falls back to the default. */
-export function loadSetting(name: Setting): number {
-  const value = Number(localStorage.getItem(SETTINGS[name]));
-  return Number.isFinite(value) && value >= 1 ? Math.floor(value) : DEFAULTS[name];
-}
-
-export function saveSetting(name: Setting, value: number) {
-  localStorage.setItem(SETTINGS[name], String(Math.max(Math.floor(value), 1)));
 }
 
 /** The packs the learner practises, the starter packs until they choose otherwise. */
@@ -100,8 +78,8 @@ export function saveChosen(chosen: string[]) {
 /** The words of the chosen packs, each sign once however many packs it is in, taken a word at a time
  * from each pack in turn.
  *
- * The packs are read in turn rather than one after the other because a session takes its new words
- * from the front: in order, Djur's 196 words would come before Mat och dryck's first one, which at
+ * The packs are read in turn rather than one after the other because "Nya ord" takes its words from
+ * the front: in order, Djur's 196 words would come before Mat och dryck's first one, which at
  * five new words a day is a month of animals. Each pack keeps its own order, the most counted first,
  * and a pack that runs out drops out of the round. */
 export function chosenWords(packs: Pack[], chosen: string[]): PackWord[] {
@@ -144,34 +122,18 @@ export function boxes(progress: Progress, packs: Pack[]): Row[] {
  * packs only to name a box written before the word was kept. */
 const card = (row: Row): PackWord => ({ sign: row.sign, id: row.id ?? "", word: row.word });
 
-/** The signs of one pass: `size` of them, the due ones first and soonest due first, filled up with
- * words never practised when fewer than `size` are due. A pass is therefore the same length whatever
- * the boxes hold, and new words arrive only as far as the repetitions leave room for them.
- *
- * The repetitions come from every box, while the new words come from the chosen packs (user,
- * 2026-09-21). The packs say where new words come from and nothing else: a word already learned is the
- * learner's whether or not the pack that taught it is still ticked, and a due word that no pack teaches
- * any more would otherwise never be repeated again. */
-export function session(packs: Pack[], chosen: string[], progress: Progress, size = DEFAULTS.size, now = Date.now()): PackWord[] {  // prettier-ignore
-  const due = boxes(progress, packs)
-    .filter((row) => row.due <= now) // `boxes` sorts them, soonest due first
-    .map(card);
-  const fresh = chosenWords(packs, chosen).filter((word) => !progress[word.sign]);
-  return [...due, ...fresh].slice(0, size);
-}
-
-/** The signs of a review pass: `size` of the words already practised, due or not, drawn without
+/** The signs a story is written over: `size` of the words already practised, due or not, drawn without
  * replacement and each weighted by `1 / DAYS[box - 1]`, so a word in the first box is twenty-one times
  * as likely as one in the last (user, 2026-09-21). That weight is the rate the ordinary schedule would
- * meet the word at, so a review pass is the same schedule run early and spends its turns on the
- * weakest words. Taking the longest unseen instead would do the opposite: the last box is due in three
+ * meet the word at, so a story is the same schedule run early and spends its words on the
+ * weakest ones. Taking the longest unseen instead would do the opposite: the last box is due in three
  * weeks, so its words are always the ones longest unseen.
  *
  * Nothing new is taught here, the pool being what the learner has practised, and `record` leaves a word
- * that was not due where it is, so a review pass can repair the boxes but never inflate them. Covering
+ * that was not due where it is, so a story can repair the boxes but never inflate them. Covering
  * every word is the ordinary schedule's job, whatever this samples. `random` is a parameter so that a
  * test can be deterministic. */
-export function known(packs: Pack[], progress: Progress, size = DEFAULTS.size, random = Math.random): PackWord[] {
+export function known(packs: Pack[], progress: Progress, size: number, random = Math.random): PackWord[] {
   const pool = boxes(progress, packs).map((row) => ({
     word: card(row),
     weight: 1 / DAYS[Math.min(row.box, DAYS.length) - 1],
@@ -183,30 +145,4 @@ export function known(packs: Pack[], progress: Progress, size = DEFAULTS.size, r
     picked.push(pool.splice(at < 0 ? pool.length - 1 : at, 1)[0].word); // `at < 0` only by rounding
   }
   return picked;
-}
-
-/** The words a turn may use: the head of the queue first, and, when the head is a word that may be
- * combined with others, every later word that may be too.
- *
- * Which of them the sentence actually uses is the model's choice (`api.fetchSentence`), since it is
- * what knows which words make one sentence; only the head is required, so the turn still practises
- * what the pass has scheduled next. A word may be combined once it has left the first box, which is
- * to say once a pass has accepted it on its own. The first box is where a new word and a word missed
- * today both sit, and neither should be buried in a sentence: a new word is being taught, and a
- * missed one has just shown it needs the attention. */
-export function turn(queue: PackWord[], progress: Progress): PackWord[] {
-  const combinable = (word: PackWord) => (progress[word.sign]?.box ?? 0) >= 2;
-  if (!queue.length || !combinable(queue[0])) return queue.slice(0, 1);
-  return queue.filter(combinable);
-}
-
-/** The turns left in a pass once `taken` has been answered, given how often each sign has been
- * accepted in the pass. A word short of `needed` goes back to the end of the queue, so the pass
- * cycles until every word has been accepted `needed` times, and a missed word comes back in the same
- * pass — alone, since the miss put it back in the first box. */
-export function advance(queue: PackWord[], taken: PackWord[], accepts: Record<string, number>, needed: number): PackWord[] {  // prettier-ignore
-  const answered = new Set(taken.map((word) => word.sign));
-  const rest = queue.filter((word) => !answered.has(word.sign));
-  const again = taken.filter((word) => (accepts[word.sign] ?? 0) < needed);
-  return [...rest, ...again];
 }
