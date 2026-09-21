@@ -75,7 +75,7 @@
     </p>
     <button onclick={start} disabled={!waiting.length}>Börja</button>
     {#if !waiting.length}
-      <p class="dim">Inga nya tecken valda. Välj några under <a href="/tecken">Tecken</a>.</p>
+      <p class="dim">Inga nya tecken valda. Välj några under <a href="/sök">Sök</a>.</p>
     {/if}
   </section>
 {:else if current}

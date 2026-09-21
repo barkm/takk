@@ -386,8 +386,8 @@ the collection app, forward the port when the machine is remote.
 `scripts/compare_browser_extraction.py` compares the browser's landmarks with the Python extraction
 on the recordings.
 
-The app is three sections behind a menu (`/`): **Tecken**, where the learner searches the lexicon and
-ticks the signs they want to learn, and **Träna** and **Framsteg** below.
+The app is three sections behind a menu (`/`): **Sök**, where the learner searches the lexicon and
+ticks the signs they want to learn, **Träna**, where they practise, and **Tecken**, their own signs.
 
 "Nya ord" (`/träna/nya`) teaches five of the ticked signs that have not been practised yet, the
 longest waiting first; each card shows the word, its lexicon clip and the lexicon's description of the
@@ -426,7 +426,7 @@ sign rather than a refused recording (`unheard_is_miss`), which is what lets the
 line is recorded for as long as its text takes to read aloud rather than for as long as its signs,
 since most of a line is spoken and only a few of its words are signed.
 
-"Framsteg" (`/framsteg`) is two charts and a reset: a bar per state the vocabulary can be in (picked
+"Tecken" (`/tecken`) is two charts and a reset: a bar per state the vocabulary can be in (picked
 but not taught, then one per Leitner box) and a line of how many signs have been met over time, both
 read off the browser's store with no history kept for them. They are inline SVG, since each is a
 single series. "Nollställ" clears the store, which is the whole of the learner's state.
@@ -439,7 +439,7 @@ glossary's descriptions are about 3 MB, and the entry is the word's own rather t
 A card says only whether the sign was right, and nothing is pressed between cards, so a session is
 signed and spoken from beginning to end without touching anything.
 
-Vocabulary grows in one place only: "Tecken" (`/tecken`) searches the lexicon for a word or a theme
+Vocabulary grows in one place only: "Sök" (`/sök`) searches the lexicon for a word or a theme
 (`GET /api/search`, `takk/vocabulary.py`) and lists the signs it finds, each with a checkbox and its
 clip, with "Lägg till alla" above them. The camera searches the same list: "Sök med tecken" records
 a sign and `POST /api/search` answers with the twenty lexicon signs closest to it, which is the
