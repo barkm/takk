@@ -25,6 +25,9 @@
   // Searching by signing: the camera takes the place of the field, and its recording fills the same
   // list of rows. Nothing is spoken and nothing is scored — this is a lookup, not an attempt.
   let camera = $state(false);
+  // Once opened, the camera stays in the page and is only hidden: the tracker holds the video element
+  // it was started with and draws into its canvas, so unmounting them leaves a black picture behind.
+  let opened = $state(false);
   let video = $state<HTMLVideoElement>(); // bound when the camera replaces the field, not before
   let canvas = $state<HTMLCanvasElement>();
   let tracker = $state<Tracker | null>(null);
@@ -43,7 +46,7 @@
 
   // The camera opens the first time it is asked for and keeps running, so a second lookup is instant.
   $effect(() => {
-    if (!camera || !lexicon || !video || !canvas) return;
+    if (!opened || !lexicon || !video || !canvas) return;
     starting ??= Tracker.start(video, canvas, lexicon.edges, (fps) => (status = `Följer tecknen i ${fps.toFixed(0)} fps`))
       .then((started) => (tracker = started))
       .catch((error) => (status = `Ingen åtkomst till kameran: ${error.message}`));
@@ -100,12 +103,15 @@
   }
 </script>
 
-{#if camera}
-  <div class="view">
+{#if opened}
+  <div class="view" class:away={!camera}>
     <!-- svelte-ignore a11y_media_has_caption -->
     <video bind:this={video} class:recording autoplay muted playsinline></video>
     <canvas bind:this={canvas}></canvas>
   </div>
+{/if}
+
+{#if camera}
   <p class="dim">{status}</p>
   <p class="row">
     <button disabled={!tracker || searching} onclick={record}>{recording ? "Stopp" : "Starta"}</button>
@@ -125,7 +131,7 @@
     oninput={(event) => search(event.currentTarget.value)}
   />
   <p class="dim">eller</p>
-  <button class="secondary" onclick={() => (camera = true)}>Sök med tecken</button>
+  <button class="secondary" onclick={() => ((camera = true), (opened = true))}>Sök med tecken</button>
 {/if}
 
 {#if note}
@@ -159,6 +165,10 @@
 <style>
   button {
     margin: 12px 0;
+  }
+
+  .view.away {
+    display: none; /* hidden rather than removed, so the tracker keeps the element it started on */
   }
 
   .view {
