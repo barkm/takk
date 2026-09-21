@@ -160,12 +160,19 @@ export function session(words: PackWord[], progress: Progress, size = DEFAULTS.s
  * Nothing new is taught here, the pool being what the learner has practised, and `record` leaves a word
  * that was not due where it is, so a review pass can repair the boxes but never inflate them. Covering
  * every word is the ordinary schedule's job, whatever this samples. `random` is a parameter so that a
- * test can be deterministic. */
-export function known(packs: Pack[], progress: Progress, size = DEFAULTS.size, random = Math.random): PackWord[] {
-  const pool = boxes(progress, packs).map((row) => ({
-    word: { sign: row.sign, id: row.id ?? "", word: row.word },
-    weight: 1 / DAYS[Math.min(row.box, DAYS.length) - 1],
-  }));
+ * test can be deterministic.
+ *
+ * The pool is the practised words of the chosen packs, as `session` draws from the chosen packs too, so
+ * the learner can review one subject at a time — every colour they know and nothing else. A practised
+ * word that no pack teaches any more is therefore not drawn, which is the price of the two modes
+ * following one rule. */
+export function known(packs: Pack[], chosen: string[], progress: Progress, size = DEFAULTS.size, random = Math.random): PackWord[] {  // prettier-ignore
+  const pool = boxes(progress, packs)
+    .filter((row) => row.packs.some((name) => chosen.includes(name)))
+    .map((row) => ({
+      word: { sign: row.sign, id: row.id ?? "", word: row.word },
+      weight: 1 / DAYS[Math.min(row.box, DAYS.length) - 1],
+    }));
   const picked: PackWord[] = [];
   while (picked.length < size && pool.length) {
     let point = random() * pool.reduce((sum, each) => sum + each.weight, 0);

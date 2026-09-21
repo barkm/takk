@@ -93,23 +93,33 @@ describe("known", () => {
     "sts:hej-1": { box: 4, due: 5 * DAY, seen: 0, word: "hej", id: "hej" },
   };
 
+  const all = ["Första tecknen"];
+
   it("draws the weak words far more often than the strong ones", () => {
     // the weights add up to 1 + 1/21, so all but the last 4.5% of the range falls on the first box
-    expect(known(packs, progress, 1, () => 0.5)).toEqual([word("mamma")]);
-    expect(known(packs, progress, 1, () => 0.99)).toEqual([word("hej")]);
+    expect(known(packs, all, progress, 1, () => 0.5)).toEqual([word("mamma")]);
+    expect(known(packs, all, progress, 1, () => 0.99)).toEqual([word("hej")]);
   });
 
   it("draws without replacement, and stops when the practised words run out", () => {
-    expect(known(packs, progress, 5, () => 0.5)).toEqual([word("mamma"), word("hej")]);
-    expect(known(packs, {}, 5)).toEqual([]);
+    expect(known(packs, all, progress, 5, () => 0.5)).toEqual([word("mamma"), word("hej")]);
+    expect(known(packs, all, {}, 5)).toEqual([]);
   });
 
-  it("practises a sign that is in no pack any more, by the card the box kept", () => {
-    // the word and the lexicon entry come from the store, so a pack the crawl dropped changes nothing
-    expect(known([], progress, 1, () => 0)).toEqual([word("mamma")]);
+  it("draws from the chosen packs only, so one subject can be reviewed on its own", () => {
+    const colours = { name: "Färger", kind: "category" as const, words: [word("hej")] };
+    // hej is practised and in both packs, mamma only in the pack that was not chosen
+    expect(known([...packs, colours], ["Färger"], progress, 5, () => 0)).toEqual([word("hej")]);
+    expect(known(packs, [], progress, 5, () => 0)).toEqual([]);
+  });
+
+  it("shows a practised sign by the card the box kept", () => {
+    // the word and the lexicon entry come from the store, not from the pack the word was found in
+    const renamed = [{ name: "Första tecknen", kind: "pack" as const, words: [{ sign: "sts:mamma-1", id: "9", word: "mamma" }] }];  // prettier-ignore
+    expect(known(renamed, all, progress, 1, () => 0)).toEqual([word("mamma")]);
     // a box written before the entry was stored still practises, with no entry to describe its form
     const old = { "sts:hej-1": { box: 1, due: 0, word: "hej" } };
-    expect(known([], old, 1, () => 0)).toEqual([{ sign: "sts:hej-1", id: "", word: "hej" }]);
+    expect(known(packs, all, old, 1, () => 0)).toEqual([{ sign: "sts:hej-1", id: "", word: "hej" }]);
   });
 });
 

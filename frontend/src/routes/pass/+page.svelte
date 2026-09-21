@@ -79,7 +79,7 @@
   // The pass's signs are picked once, not derived: a scored attempt changes the progress they come from.
   function restart() {
     queue = review
-      ? known(packs, progress, size)
+      ? known(packs, chosen, progress, size)
       : session(chosenWords(packs, chosen), progress, size, Date.now() + ahead * 24 * 60 * 60 * 1000);
     (total = queue.length), (accepts = {}), (taught = []), (missed = []), (started = true);
     begin();
@@ -134,13 +134,13 @@
   });
 
   // Whether another pass would have anything in it, which is what makes the summary offer one.
-  const waiting = $derived(review ? known(packs, progress, 1).length > 0 : session(chosenWords(packs, chosen), progress, 1, Date.now() + ahead * 24 * 60 * 60 * 1000).length > 0);  // prettier-ignore
+  const waiting = $derived(review ? known(packs, chosen, progress, 1).length > 0 : session(chosenWords(packs, chosen), progress, 1, Date.now() + ahead * 24 * 60 * 60 * 1000).length > 0);  // prettier-ignore
   const shown = $derived(current ? label(current) : "");
   const labels = $derived(Object.fromEntries(taken.map((each) => [each.sign, label(each)])));
   // The cards of this turn by sign, each under the word it is shown as, which is what the boxes keep.
   const cards = $derived(Object.fromEntries(taken.map((each) => [each.sign, { ...each, word: label(each) }])));
   const finished = $derived(Object.values(accepts).filter((count) => count >= needed).length);
-  const practised = $derived(Object.keys(progress).length); // what a review pass has to draw from
+  const practised = $derived(known(packs, chosen, progress, Infinity, () => 0).length); // the review pass's pool
   // The tutorial belongs to the very first time a word is met: a word never practised, on its first
   // turn of this pass. Every later turn is a test, so the clip only follows the verdict. Looking it up
   // first is allowed but does not count as recalled. A sentence is only ever made of words already
@@ -190,7 +190,7 @@
     </label>
     <label>
       <input type="radio" value="alla" bind:group={mode} />
-      Repetera allt du kan <span class="dim">bland tecken du redan övat, inga nya</span>
+      Repetera allt du kan <span class="dim">bland tecken du redan övat i de valda orden, inga nya</span>
     </label>
   </fieldset>
   <label class="number">
@@ -203,34 +203,33 @@
   </label>
   <p class="dim">
     {#if review}
-      Passet tar {size} tecken bland de {practised} du har övat, oftast ur de låga lådorna. Ett tecken som
-      ännu inte skulle repeteras flyttas inte upp, men faller tillbaka till första lådan om du missar det.
+      Passet tar {size} tecken bland de {practised} du har övat i de valda orden, oftast ur de låga
+      lådorna. Ett tecken som ännu inte skulle repeteras flyttas inte upp, men faller tillbaka till
+      första lådan om du missar det.
     {:else}
       Tecken som ska repeteras kommer först, och nya tecken fyller på upp till {size}. Ett tecken är klart
       när det har godkänts {needed} gånger, och flyttas då upp en låda.
     {/if}
     {practisedToday(progress)} tecken övade idag.
   </p>
-  {#if !review}
-    <details>
-      <summary>Övar på: {chosen.join(", ") || "inget valt"}</summary>
-      <ul>
-        {#each packs as pack (pack.name)}
-          <li>
-            <label>
-              <input
-                type="checkbox"
-                checked={chosen.includes(pack.name)}
-                onchange={(event) => choose(pack.name, event.currentTarget.checked)}
-              />
-              {pack.name}
-              <span class="dim">{pack.words.length} tecken{pack.kind === "category" ? ", ämnesområde i lexikonet" : ""}</span>
-            </label>
-          </li>
-        {/each}
-      </ul>
-    </details>
-  {/if}
+  <details>
+    <summary>Övar på: {chosen.join(", ") || "inget valt"}</summary>
+    <ul>
+      {#each packs as pack (pack.name)}
+        <li>
+          <label>
+            <input
+              type="checkbox"
+              checked={chosen.includes(pack.name)}
+              onchange={(event) => choose(pack.name, event.currentTarget.checked)}
+            />
+            {pack.name}
+            <span class="dim">{pack.words.length} tecken{pack.kind === "category" ? ", ämnesområde i lexikonet" : ""}</span>
+          </label>
+        </li>
+      {/each}
+    </ul>
+  </details>
 {/snippet}
 
 {#if !lexicon}
