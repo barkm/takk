@@ -1,21 +1,16 @@
 <script lang="ts">
-  import { fetchPacks, type Pack } from "$lib/api";
-  import { boxes, DAYS, load, type Progress, type Row } from "$lib/progress";
+  import { boxes, DAYS, KEY, load, type Progress, type Row } from "$lib/progress";
 
-  let packs: Pack[] = $state([]);
   let progress: Progress = $state({});
-  let note = $state("");
   const now = Date.now();
 
   $effect(() => {
     progress = load();
-    fetchPacks()
-      .then((loaded) => (packs = loaded))
-      .catch(() => (note = "Servern svarar inte, så tecknen visas med lexikonets egna namn."));
   });
 
-  const rows = $derived(boxes(progress, packs));
-  const due = $derived(rows.filter((row) => row.due <= now).length);
+  const rows = $derived(boxes(progress));
+  const picked = $derived(rows.filter((row) => row.box === 0).length);
+  const due = $derived(rows.filter((row) => row.box > 0 && row.due <= now).length);
   const perBox = $derived(DAYS.map((_, i) => rows.filter((row) => row.box === i + 1).length));
 
   function when(row: Row): string {
@@ -25,7 +20,7 @@
   }
 
   function reset() {
-    localStorage.removeItem("takk.progress");
+    localStorage.removeItem(KEY);
     progress = {};
   }
 </script>
@@ -34,8 +29,8 @@
   <h1>Mina tecken</h1>
   {#if rows.length}
     <p>
-      {rows.length} tecken övade, {due} att repetera nu. <a href="/träna/repetera">Sagan</a> skrivs av dem, med
-      tyngdpunkt på dem som sitter sämst.
+      {rows.length - picked} tecken övade, {picked} valda som väntar, {due} att repetera nu.
+      <a href="/träna/repetera">Sagan</a> skrivs av dem du övat, med tyngdpunkt på dem som sitter sämst.
     </p>
     <ul class="boxes">
       {#each perBox as count, i (i)}
@@ -43,24 +38,22 @@
       {/each}
     </ul>
   {:else}
-    <p>Inga tecken övade än. Börja med <a href="/träna/nya">nya ord</a>.</p>
+    <p>Inga tecken valda än. Välj några under <a href="/tecken">Tecken</a>.</p>
   {/if}
-  {#if note}<p class="dim">{note}</p>{/if}
 </section>
 
 {#if rows.length}
   <section class="card">
     <table>
       <thead>
-        <tr><th>Tecken</th><th>Låda</th><th>Repeteras</th><th>Finns i</th></tr>
+        <tr><th>Tecken</th><th>Låda</th><th>Repeteras</th></tr>
       </thead>
       <tbody>
         {#each rows as row (row.sign)}
           <tr>
             <td>{row.word}</td>
             <td>{row.box}</td>
-            <td class:due={row.due <= now}>{when(row)}</td>
-            <td class="dim">{row.packs.join(", ")}</td>
+            <td class:due={row.box > 0 && row.due <= now}>{row.box === 0 ? "inte övat" : when(row)}</td>
           </tr>
         {/each}
       </tbody>

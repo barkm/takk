@@ -1,12 +1,11 @@
-// What the learner has practised, kept in the browser (step 8 of ROADMAP-takk.md): no accounts and
-// no state on the server for as long as that holds. One Leitner box per sign, saying how long until
-// it is due: a word moves up a box when a due sign is signed right, and back to the first box the
-// moment it is missed. New words enter the first box on the "Nya ord" page, and the story is where
-// they are repeated (see step 9 and step 12 of ROADMAP-takk.md).
-import { word as signWord, type Pack, type PackWord } from "$lib/api";
+// What the learner has picked and practised, kept in the browser (step 8 of ROADMAP-takk.md): no
+// accounts and no state on the server for as long as that holds. A sign enters the store in box 0
+// when it is ticked in Tecken, moves into the first box when Nya ord teaches it, up a box when a due
+// sign is signed right, and back to the first box the moment it is missed. The story is where a
+// learned sign is repeated (see steps 9 and 13 of ROADMAP-takk.md).
+import { word as signWord, type SignWord } from "$lib/api";
 
-const KEY = "takk.progress";
-const CHOSEN = "takk.packs";
+export const KEY = "takk.progress";
 const DAY = 24 * 60 * 60 * 1000;
 /** Days until a sign in each box is due again, and how many boxes there are (user, 2026-09-21).
  * Changing this array is the whole schedule, and `Math.min` in `record` keeps a word in the last box:
@@ -15,15 +14,27 @@ export const DAYS = [1, 3, 7, 21];
 
 /** A sign's box (1 and up), when it is due again and when it was last practised, in milliseconds
  * since the epoch, and the word the learner was shown. The word is kept because a box belongs to a
- * sign class and a class has many words: `sts:spader-00016` is "svart" in Färger and "Oden" in
- * Mytologi, and what was practised is the one that was on the card. `id` is that card's lexicon entry,
- * kept for the same reason and so that nothing has to be looked up in the packs to practise the word
- * again: the packs come from the crawl and the boxes from `localStorage`, so an entry dropped from
- * every pack would otherwise lose the form description its card shows. `first` is when the sign was
+ * sign class and a class has many words: `sts:spader-00016` is "svart", "lakrits" and "spader" at
+ * once, and what was practised is the one that was on the card. `id` is that card's lexicon entry,
+ * kept for the same reason and so that nothing has to be looked up to practise the word again: the
+ * lexicon is the server's and the boxes are the browser's, and the entry is what the card's
+ * description of the sign form is fetched by. `first` is when the sign was
  * met for the first time, which is the only way to tell a new word from a missed old one: both sit in
- * the first box. Boxes written before these fields existed count as neither practised nor met today,
- * fall back to a pack's word, and are given an entry the next time the word is practised. */
-export type Learned = { box: number; due: number; seen?: number; first?: number; word?: string; id?: string };
+ * the first box. Boxes written before these fields existed count as neither practised nor met today
+ * and are given an entry the next time the word is practised.
+ *
+ * Box 0 is a sign the learner picked in Tecken and has not practised yet, which is where every sign
+ * now enters the store (step 9 of ROADMAP-takk.md); `added` is when it was picked and orders the
+ * cards of Nya ord. It has no `due`, since nothing about it is scheduled until it is answered. */
+export type Learned = {
+  box: number;
+  due: number;
+  seen?: number;
+  first?: number;
+  word?: string;
+  id?: string;
+  added?: number;
+};
 
 export type Progress = Record<string, Learned>;
 
@@ -42,7 +53,12 @@ export function save(progress: Progress) {
 /** The progress after `card` was signed right or missed. A word met for the first time and signed
  * right lands in the first box, which is what "Nya ord" records; every later answer comes from a
  * story. */
-export function record(progress: Progress, card: PackWord, correct: boolean, now = Date.now()): Progress {
+export function record(
+  progress: Progress,
+  card: SignWord,
+  correct: boolean,
+  now = Date.now(),
+): Progress {
   const previous = progress[card.sign];
   // A sign answered before it was due keeps its box and its date (user, 2026-09-21). A box is a claim
   // about an interval — the third means "still remembered after seven days" — and an answer on the
@@ -51,76 +67,78 @@ export function record(progress: Progress, card: PackWord, correct: boolean, now
   // miss is evidence whatever the day, since forgetting a sign that was not due means its interval
   // was already too long, so a miss always falls back to the first box.
   const early = correct && previous && previous.due > now;
-  const box = early ? previous.box : correct ? Math.min((previous?.box ?? 0) + 1, DAYS.length) : 1;
+  const box = early
+    ? previous.box
+    : correct
+      ? Math.min((previous?.box ?? 0) + 1, DAYS.length)
+      : 1;
   const due = early ? previous.due : now + DAYS[box - 1] * DAY;
-  const learned: Learned = { box, due, seen: now, first: previous?.first ?? now };
+  const learned: Learned = {
+    box,
+    due,
+    seen: now,
+    first: previous?.first ?? now,
+  };
   if (card.word) learned.word = card.word; // the word on the card, not the name of the sign that scores it
   if (card.id) learned.id = card.id;
   return { ...progress, [card.sign]: learned };
 }
 
-/** The packs the learner practises, the starter packs until they choose otherwise. */
-export function loadChosen(packs: Pack[]): string[] {
-  const starters = packs.filter((pack) => pack.kind === "pack").map((pack) => pack.name);
-  let chosen: string[] = starters;
-  try {
-    chosen = JSON.parse(localStorage.getItem(CHOSEN) ?? "null") ?? starters;
-  } catch {
-    chosen = starters; // an unreadable store is a fresh start, as in `load`
-  }
-  return chosen.filter((name) => packs.some((pack) => pack.name === name)); // a pack the lexicon dropped
+/** The progress after the learner picked `words` in Tecken. A sign already in the store keeps its
+ * box, so picking a word again never undoes what has been learned of it; a new one lands in box 0,
+ * which is "valt men inte övat" and what Nya ord teaches from. */
+export function add(
+  progress: Progress,
+  words: SignWord[],
+  now = Date.now(),
+): Progress {
+  const picked = { ...progress };
+  for (const each of words)
+    if (!picked[each.sign])
+      picked[each.sign] = {
+        box: 0,
+        due: 0,
+        added: now,
+        word: each.word,
+        id: each.id,
+      };
+  return picked;
 }
 
-export function saveChosen(chosen: string[]) {
-  localStorage.setItem(CHOSEN, JSON.stringify(chosen));
+/** The signs picked but never practised, the longest waiting first, which is the order Nya ord
+ * teaches them in. */
+export function fresh(progress: Progress): SignWord[] {
+  return boxes(progress)
+    .filter((row) => row.box === 0)
+    .sort((a, b) => (a.added ?? 0) - (b.added ?? 0))
+    .map(card);
 }
 
-/** The words of the chosen packs, each sign once however many packs it is in, taken a word at a time
- * from each pack in turn.
- *
- * The packs are read in turn rather than one after the other because "Nya ord" takes its words from
- * the front: in order, Djur's 196 words would come before Mat och dryck's first one, which at
- * five new words a day is a month of animals. Each pack keeps its own order, the most counted first,
- * and a pack that runs out drops out of the round. */
-export function chosenWords(packs: Pack[], chosen: string[]): PackWord[] {
-  const chosenPacks = packs.filter((pack) => chosen.includes(pack.name));
-  const words = new Map<string, PackWord>();
-  const longest = Math.max(0, ...chosenPacks.map((pack) => pack.words.length));
-  for (let at = 0; at < longest; at++)
-    for (const pack of chosenPacks) {
-      const word = pack.words[at];
-      if (word) words.set(word.sign, words.get(word.sign) ?? word);
-    }
-  return [...words.values()];
+/** A sign in the store, as the progress page shows it: soonest due first, so the ones picked and not
+ * yet practised come first of all. */
+export type Row = Learned & { sign: string; word: string };
+
+/** Every sign the learner has picked or practised, with the word to show it by. The word is the one
+ * that was chosen or practised rather than the name of the sign that scores it, since a sign class
+ * carries several words: `sts:spader-00016` is "svart", "lakrits" and "spader" at once. */
+export function boxes(progress: Progress): Row[] {
+  const rows = Object.entries(progress).map(([sign, learned]) => ({
+    ...learned,
+    sign,
+    word: learned.word ?? signWord(sign),
+  }));
+  return rows.sort(
+    (a, b) => a.due - b.due || a.word.localeCompare(b.word, "sv"),
+  );
 }
 
-/** A practised sign, as the progress page shows it: soonest due first. */
-export type Row = Learned & { sign: string; word: string; packs: string[] };
-
-/** Everything practised so far, with the word to show it by and the packs that teach it under that
- * word. A sign no longer in any pack is still listed, by the word its sign is named for: it was
- * practised all the same. The packs are the word's, not the sign class's, because a class carries
- * several words: `sts:spader-00016` is in Färger as "svart", in Mat och dryck as "lakrits" and in
- * Spel as "spader", and only the first of those is where "svart" is practised. */
-export function boxes(progress: Progress, packs: Pack[]): Row[] {
-  const named = new Map<string, string>(); // the packs hold 14,000 words, so they are walked once
-  const inPacks = new Map<string, string[]>();
-  for (const pack of packs)
-    for (const word of pack.words) {
-      if (word.word && !named.has(word.sign)) named.set(word.sign, word.word); // the first pack names it
-      const key = `${word.sign}\0${word.word ?? signWord(word.sign)}`;
-      inPacks.set(key, [...(inPacks.get(key) ?? []), pack.name]);
-    }
-  const rows = Object.entries(progress).map(([sign, learned]) => {
-    const word = learned.word ?? named.get(sign) ?? signWord(sign);
-    return { ...learned, sign, word, packs: inPacks.get(`${sign}\0${word}`) ?? [] };
-  });
-  return rows.sort((a, b) => a.due - b.due || a.word.localeCompare(b.word, "sv"));
-}
-
-/** The card a box holds: its word and its lexicon entry, which are stored with it, so a pass needs the
- * packs only to name a box written before the word was kept. */
-const card = (row: Row): PackWord => ({ sign: row.sign, id: row.id ?? "", word: row.word });
+/** The card a box holds: its word and its lexicon entry, both stored with it, so nothing is looked
+ * up to practise a word again. */
+const card = (row: Row): SignWord => ({
+  sign: row.sign,
+  id: row.id ?? "",
+  word: row.word,
+});
 
 /** The signs a story is written over: `size` of the words already practised, due or not, drawn without
  * replacement and each weighted by `1 / DAYS[box - 1]`, so a word in the first box is twenty-one times
@@ -133,12 +151,18 @@ const card = (row: Row): PackWord => ({ sign: row.sign, id: row.id ?? "", word: 
  * that was not due where it is, so a story can repair the boxes but never inflate them. Covering
  * every word is the ordinary schedule's job, whatever this samples. `random` is a parameter so that a
  * test can be deterministic. */
-export function known(packs: Pack[], progress: Progress, size: number, random = Math.random): PackWord[] {
-  const pool = boxes(progress, packs).map((row) => ({
-    word: card(row),
-    weight: 1 / DAYS[Math.min(row.box, DAYS.length) - 1],
-  }));
-  const picked: PackWord[] = [];
+export function known(
+  progress: Progress,
+  size: number,
+  random = Math.random,
+): SignWord[] {
+  const pool = boxes(progress)
+    .filter((row) => row.box > 0) // a sign picked but never practised is taught first, not repeated
+    .map((row) => ({
+      word: card(row),
+      weight: 1 / DAYS[Math.min(row.box, DAYS.length) - 1],
+    }));
+  const picked: SignWord[] = [];
   while (picked.length < size && pool.length) {
     let point = random() * pool.reduce((sum, each) => sum + each.weight, 0);
     const at = pool.findIndex((each) => (point -= each.weight) < 0);

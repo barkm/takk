@@ -32,7 +32,7 @@ from isolated_sign_validation.landmarks import N_LANDMARKS, SKELETON_EDGES
 from isolated_sign_validation.preparation import ONE_HANDED, PrepConfig, hand_presence, hide_low_hands, mirror, prepare_clip
 from takk.speech import MIN_WORD_SCORE, Aligner, decode_audio, split_speech
 from takk.story import write_story
-from takk.vocabulary import spoken_word
+from takk.vocabulary import Index, search, spoken_word
 
 # Everything the learner reads is Swedish (see ROADMAP-takk.md): the app is for practising TAKK.
 NOTES = {
@@ -94,7 +94,7 @@ def create_app(
     threshold: float,
     device: str,
     aligner: Aligner,
-    packs: list[dict] | None = None,
+    index: Index | None = None,
     forms: dict[str, str] | None = None,
     writer: anthropic.Anthropic | None = None,
 ) -> FastAPI:
@@ -116,11 +116,13 @@ def create_app(
             "edges": {group: edges.tolist() for group, edges in SKELETON_EDGES.items()},  # to draw the tracked landmarks
         }
 
-    @app.get("/api/packs")
-    def practice_packs() -> dict:
-        """The packs a learner can pick their daily practice from (`vocabulary.packs`): starter packs
-        and the lexicon's categories alike, each a list of words with the sign that scores them."""
-        return {"packs": packs or []}
+    @app.get("/api/search")
+    def search_words(q: str) -> dict:
+        """The signs a learner searching for `q` is offered, a word or a theme alike
+        (`vocabulary.search`): each with the sign that scores it, its lexicon entry and the word to
+        show when the sign is not named for it. This is how vocabulary grows, so it is the one way in
+        (step 9 of ROADMAP-takk.md)."""
+        return {"words": search(index, q) if index else []}
 
     @app.post("/api/story")
     def story(words: list[str] = Body(embed=True), parts: int = Body(embed=True)) -> dict:

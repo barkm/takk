@@ -20,7 +20,8 @@ export function layout(result: HolisticLandmarkerResult): Float32Array {
   for (const [field, first, count] of PARTS) {
     const points = result[field][0];
     if (!points) continue;
-    for (let k = 0; k < count; k++) landmarks.set([points[k].x, points[k].y, points[k].z], (first + k) * 3);
+    for (let k = 0; k < count; k++)
+      landmarks.set([points[k].x, points[k].y, points[k].z], (first + k) * 3);
   }
   return landmarks;
 }
@@ -39,8 +40,13 @@ export function resample(frames: Frame[], fps: number): Float32Array {
 }
 
 /** Draw one frame's landmarks over the camera image. */
-export function draw(canvas: HTMLCanvasElement, video: HTMLVideoElement, landmarks: Float32Array, edges: Edges): void {
-  (canvas.width = video.videoWidth), (canvas.height = video.videoHeight);
+export function draw(
+  canvas: HTMLCanvasElement,
+  video: HTMLVideoElement,
+  landmarks: Float32Array,
+  edges: Edges,
+): void {
+  ((canvas.width = video.videoWidth), (canvas.height = video.videoHeight));
   const context = canvas.getContext("2d");
   if (!context) return;
   context.lineWidth = 3;
@@ -48,9 +54,16 @@ export function draw(canvas: HTMLCanvasElement, video: HTMLVideoElement, landmar
     context.strokeStyle = COLORS[group] ?? "#a0a6b2";
     context.beginPath();
     for (const [a, b] of pairs) {
-      if (Number.isNaN(landmarks[3 * a]) || Number.isNaN(landmarks[3 * b])) continue;
-      context.moveTo(landmarks[3 * a] * canvas.width, landmarks[3 * a + 1] * canvas.height);
-      context.lineTo(landmarks[3 * b] * canvas.width, landmarks[3 * b + 1] * canvas.height);
+      if (Number.isNaN(landmarks[3 * a]) || Number.isNaN(landmarks[3 * b]))
+        continue;
+      context.moveTo(
+        landmarks[3 * a] * canvas.width,
+        landmarks[3 * a + 1] * canvas.height,
+      );
+      context.lineTo(
+        landmarks[3 * b] * canvas.width,
+        landmarks[3 * b + 1] * canvas.height,
+      );
     }
     context.stroke();
   }

@@ -1,10 +1,9 @@
 import json
 
 import polars as pl
-import pytest
 
 from isolated_sign_validation.datasets.sts_lexikon import ENTRIES_FILE
-from takk.vocabulary import HISTORICAL, category_words, packs, sign_forms, starter_packs, word_index
+from takk.vocabulary import HISTORICAL, category_words, search, search_index, sign_forms, word_index
 
 
 def entries(tmp_path, *rows: dict):
@@ -49,42 +48,6 @@ def test_a_heading_beats_another_entry_s_other_wording():
     assert word_index(rows)["hjälp"] == "19924"  # the entry the word is the heading of, not the older one
 
 
-def test_a_pack_never_teaches_a_historical_sign_form(tmp_path):
-    raw_dir = entries(
-        tmp_path,
-        {"id": "01267", "word": "äta", "categories": category(HISTORICAL)},  # Österberg's 1916 dictionary
-        {"id": "02299", "word": "äta"},
-    )
-    path = tmp_path / "packs.json"
-    path.write_text(json.dumps({"Första tecknen": ["äta"]}, ensure_ascii=False))
-
-    assert starter_packs(CLIPS, raw_dir, path)["Första tecknen"] == [
-        {"word": "äta", "id": "02299", "sign": "sts:jul-02299"}
-    ]
-
-
-def test_a_pack_keeps_the_word_to_show_apart_from_the_sign_that_scores_it(tmp_path):
-    raw_dir = entries(tmp_path, {"id": "01267", "word": "äta"}, {"id": "02299", "word": "jul"})
-    path = tmp_path / "packs.json"
-    path.write_text(json.dumps({"Första tecknen": ["äta", "jul"]}, ensure_ascii=False))
-
-    assert starter_packs(CLIPS, raw_dir, path) == {
-        "Första tecknen": [
-            {"word": "äta", "id": "01267", "sign": "sts:livsmedel-01265"},  # the sign form is shared
-            {"word": "jul", "id": "02299", "sign": "sts:jul-02299"},
-        ]
-    }
-
-
-def test_a_pack_word_the_lexicon_cannot_sign_is_an_error(tmp_path):
-    raw_dir = entries(tmp_path, {"id": "02299", "word": "jul"}, {"id": "09999", "word": "tapir"})
-    path = tmp_path / "packs.json"
-    path.write_text(json.dumps({"Första tecknen": ["jul", "tapir", "godnatt"]}, ensure_ascii=False))
-
-    with pytest.raises(KeyError, match="tapir, godnatt"):  # 09999 has no clip in this glossary
-        starter_packs(CLIPS, raw_dir, path)
-
-
 def test_a_category_keeps_a_shared_sign_once_and_skips_entries_without_a_clip(tmp_path):
     raw_dir = entries(
         tmp_path,
@@ -123,47 +86,6 @@ def test_an_entry_in_several_categories_is_in_each_of_them(tmp_path):
     }
 
 
-def test_a_starter_pack_and_a_category_are_the_same_kind_of_thing(tmp_path):
-    raw_dir = entries(
-        tmp_path,
-        {"id": "01267", "word": "äta"},
-        {"id": "01811", "word": "abborre", "categories": category("Djur > fisk", HISTORICAL)},
-    )
-    path = tmp_path / "packs.json"
-    path.write_text(json.dumps({"Första tecknen": ["äta"]}, ensure_ascii=False))
-
-    assert packs(CLIPS, raw_dir, path) == [
-        # the word to show travels only when the sign is not named for it, as here ("äta" is signed
-        # as sts:livsmedel-01265); a category's words are its signs, and Österberg's is not offered
-        {"name": "Första tecknen", "kind": "pack", "words": [{"sign": "sts:livsmedel-01265", "id": "01267", "word": "äta"}]},
-        {"name": "Djur", "kind": "category", "words": [{"sign": "sts:abborre-01811", "id": "01811"}]},  # named for its word
-    ]
-
-
-def test_a_category_starts_with_the_words_the_lexicon_counts_most(tmp_path):
-    raw_dir = entries(
-        tmp_path,
-        {"id": "01811", "word": "abborre", "categories": category("Djur")},  # never counted, so last
-        {"id": "02299", "word": "jul", "categories": category("Djur"), "lexicon_hits": 3},
-        {"id": "01267", "word": "livsmedel", "categories": category("Djur"), "lexicon_hits": 3, "corpus_hits": 9},
-    )
-    path = tmp_path / "packs.json"
-    path.write_text(json.dumps({}, ensure_ascii=False))
-
-    assert packs(CLIPS, raw_dir, path) == [
-        {
-            "name": "Djur",
-            "kind": "category",
-            # the corpus breaks the tie between the two counted three times in the lexicon
-            "words": [
-                {"sign": "sts:livsmedel-01265", "id": "01267"},
-                {"sign": "sts:jul-02299", "id": "02299"},
-                {"sign": "sts:abborre-01811", "id": "01811"},
-            ],
-        }
-    ]
-
-
 def test_the_form_of_each_entry_is_the_lexicon_s_own_words(tmp_path):
     raw_dir = entries(
         tmp_path,
@@ -172,3 +94,58 @@ def test_the_form_of_each_entry_is_the_lexicon_s_own_words(tmp_path):
     )
 
     assert sign_forms(raw_dir) == {"01811": "O-handen, vänsterriktad och inåtvänd"}
+
+
+def test_a_search_finds_the_words_it_begins_before_the_words_it_is_inside(tmp_path):
+    raw_dir = entries(
+        tmp_path,
+        {"id": "01811", "word": "mataffär"},
+        {"id": "02299", "word": "mat", "lexicon_hits": 4},
+        {"id": "01267", "word": "husmat"},  # the word is inside this one, so it comes last
+    )
+
+    assert search(search_index(CLIPS, raw_dir), "mat") == [
+        {"sign": "sts:jul-02299", "id": "02299", "word": "mat"},  # the most counted of the two it begins
+        {"sign": "sts:abborre-01811", "id": "01811", "word": "mataffär"},
+        {"sign": "sts:livsmedel-01265", "id": "01267", "word": "husmat"},
+    ]
+
+
+def test_a_theme_s_words_come_before_the_word_itself(tmp_path):
+    raw_dir = entries(
+        tmp_path,
+        {"id": "01811", "word": "abborre", "categories": category("Mat och dryck > fisk")},
+        {"id": "02299", "word": "mat"},  # the word is offered too, after the theme it named
+    )
+
+    assert search(search_index(CLIPS, raw_dir), "mat") == [
+        {"sign": "sts:abborre-01811", "id": "01811"},  # the sign is named for its word, so none travels
+        {"sign": "sts:jul-02299", "id": "02299", "word": "mat"},
+    ]
+
+
+def test_a_search_never_offers_a_historical_sign_form(tmp_path):
+    raw_dir = entries(
+        tmp_path,
+        {"id": "01267", "word": "äta", "categories": category(HISTORICAL)},  # Österberg's 1916 dictionary
+        {"id": "02299", "word": "äta"},
+    )
+
+    assert search(search_index(CLIPS, raw_dir), "äta") == [{"sign": "sts:jul-02299", "id": "02299", "word": "äta"}]
+    assert search(search_index(CLIPS, raw_dir), "österberg") == []  # nor as a theme to add whole
+
+
+def test_a_theme_starts_with_the_words_the_lexicon_counts_most(tmp_path):
+    raw_dir = entries(
+        tmp_path,
+        {"id": "01811", "word": "abborre", "categories": category("Djur")},  # never counted, so last
+        {"id": "02299", "word": "jul", "categories": category("Djur"), "lexicon_hits": 3},
+        {"id": "01267", "word": "livsmedel", "categories": category("Djur"), "lexicon_hits": 3, "corpus_hits": 9},
+    )
+
+    # the corpus breaks the tie between the two counted three times in the lexicon
+    assert search(search_index(CLIPS, raw_dir), "djur") == [
+        {"sign": "sts:livsmedel-01265", "id": "01267"},
+        {"sign": "sts:jul-02299", "id": "02299"},
+        {"sign": "sts:abborre-01811", "id": "01811"},
+    ]

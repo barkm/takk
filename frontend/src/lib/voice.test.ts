@@ -21,8 +21,12 @@ describe("hear", () => {
   });
 
   it("puts the threshold above a noisy room, and never under `least`", () => {
-    expect(heard(listening(), ...Array(SETTINGS.calibrate).fill(0.02)).threshold).toBeCloseTo(0.06);
-    expect(heard(listening(), ...Array(SETTINGS.calibrate).fill(0)).threshold).toBe(SETTINGS.least);
+    expect(
+      heard(listening(), ...Array(SETTINGS.calibrate).fill(0.02)).threshold,
+    ).toBeCloseTo(0.06);
+    expect(
+      heard(listening(), ...Array(SETTINGS.calibrate).fill(0)).threshold,
+    ).toBe(SETTINGS.least);
   });
 
   it("starts the attempt once someone has been speaking for a moment", () => {
@@ -38,19 +42,29 @@ describe("hear", () => {
 
   it("ends the attempt after the silence that follows the last word", () => {
     const speaking = heard(armed(), ...speech(SETTINGS.loud));
-    expect(heard(speaking, ...quiet(SETTINGS.quiet - 1)).phase).toBe("speaking");
+    expect(heard(speaking, ...quiet(SETTINGS.quiet - 1)).phase).toBe(
+      "speaking",
+    );
     expect(heard(speaking, ...quiet(SETTINGS.quiet)).phase).toBe("done");
   });
 
   it("is not ended by a breath between words", () => {
     const speaking = heard(armed(), ...speech(SETTINGS.loud));
-    const paused = heard(speaking, ...quiet(SETTINGS.quiet - 1), 0.08, ...quiet(SETTINGS.quiet - 1));
+    const paused = heard(
+      speaking,
+      ...quiet(SETTINGS.quiet - 1),
+      0.08,
+      ...quiet(SETTINGS.quiet - 1),
+    );
     expect(paused.phase).toBe("speaking"); // the count starts over, so two short pauses are not one long one
   });
 
   it("keeps speaking through a syllable quieter than the threshold that started it", () => {
     // `under` is why: a trailing consonant sits below the threshold but well above the room
     const speaking = heard(armed(), ...speech(SETTINGS.loud));
-    expect(heard(speaking, ...Array(SETTINGS.quiet).fill(speaking.threshold * 0.8)).phase).toBe("speaking");
+    expect(
+      heard(speaking, ...Array(SETTINGS.quiet).fill(speaking.threshold * 0.8))
+        .phase,
+    ).toBe("speaking");
   });
 });

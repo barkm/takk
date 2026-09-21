@@ -19,7 +19,9 @@ body {
   padding: 24px 16px;
   background: var(--bg);
   color: var(--text);
-  font: 16px/1.5 system-ui, sans-serif;
+  font:
+    16px/1.5 system-ui,
+    sans-serif;
 }
 
 main {

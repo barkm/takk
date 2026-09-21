@@ -23,16 +23,23 @@ describe("layout", () => {
 
 describe("resample", () => {
   const frames = (times: number[]): Frame[] =>
-    times.map((time, i) => ({ time, landmarks: new Float32Array(N_LANDMARKS * 3).fill(i) }));
+    times.map((time, i) => ({
+      time,
+      landmarks: new Float32Array(N_LANDMARKS * 3).fill(i),
+    }));
 
   it("takes the latest tracked frame at every step of the preparation's frame rate", () => {
     const landmarks = resample(frames([0, 0.5, 1.0]), 2); // 2 fps over 1 s: steps at 0, 0.5, 1.0
     expect(landmarks.length).toBe(3 * N_LANDMARKS * 3);
-    expect([0, 1, 2].map((i) => landmarks[i * N_LANDMARKS * 3])).toEqual([0, 1, 2]);
+    expect([0, 1, 2].map((i) => landmarks[i * N_LANDMARKS * 3])).toEqual([
+      0, 1, 2,
+    ]);
   });
 
   it("repeats the latest frame when tracking is slower than the frame rate", () => {
     const landmarks = resample(frames([0, 1.0]), 2); // one tracked frame per second, resampled to 2 fps
-    expect([0, 1, 2].map((i) => landmarks[i * N_LANDMARKS * 3])).toEqual([0, 0, 1]);
+    expect([0, 1, 2].map((i) => landmarks[i * N_LANDMARKS * 3])).toEqual([
+      0, 0, 1,
+    ]);
   });
 });

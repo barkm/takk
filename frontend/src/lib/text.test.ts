@@ -11,8 +11,13 @@ describe("pieces", () => {
   it("marks a word whatever letters it is written with", () => {
     // the bug this exists for: JavaScript's \b is ASCII-only, so \bblå\b matched nothing
     expect(marked("Jag har en blå bil.", ["blå"])).toEqual(["blå"]);
-    expect(marked("Mamma vill sova.", ["mamma", "sova"])).toEqual(["Mamma", "sova"]);
-    expect(marked("Vi ska äta platta slag idag.", ["äta", "platta slag"])).toEqual(["äta", "platta slag"]);
+    expect(marked("Mamma vill sova.", ["mamma", "sova"])).toEqual([
+      "Mamma",
+      "sova",
+    ]);
+    expect(
+      marked("Vi ska äta platta slag idag.", ["äta", "platta slag"]),
+    ).toEqual(["äta", "platta slag"]);
   });
 
   it("marks whole words only", () => {

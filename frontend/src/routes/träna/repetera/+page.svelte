@@ -2,13 +2,11 @@
   import Recorder from "$lib/Recorder.svelte";
   import {
     fetchLexicon,
-    fetchPacks,
     fetchStory,
     word,
     type Attempt,
     type Lexicon,
-    type Pack,
-    type PackWord,
+    type SignWord,
     type Sign,
     type StoryPart,
   } from "$lib/api";
@@ -28,10 +26,9 @@
   const SHOWN = 1800; // ms the coloured words stay up before the next part
 
   let lexicon = $state<Lexicon | null>(null);
-  let packs: Pack[] = $state([]);
   let progress: Progress = $state({});
   let story: StoryPart[] = $state([]);
-  let cards: Record<string, PackWord> = $state({}); // the card behind each word of the story, by word
+  let cards: Record<string, SignWord> = $state({}); // the card behind each word of the story, by word
   let at = $state(0); // the part being signed
   let writing = $state(false);
   let attempt: Attempt | null = $state(null);
@@ -42,25 +39,25 @@
   let recorder: ReturnType<typeof Recorder> | undefined = $state();
 
   $effect(() => {
-    Promise.all([fetchLexicon(), fetchPacks()])
-      .then(([loadedLexicon, loadedPacks]) => {
-        (lexicon = loadedLexicon), (packs = loadedPacks);
+    fetchLexicon()
+      .then((loaded) => {
+        lexicon = loaded;
         progress = load();
       })
       .catch(() => (note = "Servern svarar inte. Starta den med uv run takk."));
   });
 
-  const label = (each: PackWord) => each.word ?? word(each.sign);
+  const label = (each: SignWord) => each.word ?? word(each.sign);
   // A word is written as the story's sentence has it, so "Mamma" opening a part is the same word as
   // "mamma" in the list: verdicts are kept under the lowercase word.
   const same = (text: string) => text.toLowerCase();
-  const pool = $derived(known(packs, progress, Infinity, () => 0)); // everything practised, for the count
+  const pool = $derived(known(progress, Infinity, () => 0)); // everything practised, for the count
 
   /** Write a story over the words this learner knows, weakest first. Twice as many words are offered
    * as there are parts, so the model has something to choose from in every part. */
   async function begin() {
     (story = []), (told = []), (at = 0), (verdicts = {}), (attempt = null), (note = "");
-    const words = known(packs, progress, PARTS * 2);
+    const words = known(progress, PARTS * 2);
     cards = Object.fromEntries(words.map((each) => [label(each), each]));
     writing = true;
     story = await fetchStory(words.map(label), PARTS).finally(() => (writing = false));

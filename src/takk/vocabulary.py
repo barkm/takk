@@ -1,24 +1,20 @@
-"""What a learner practises: the starter packs and the lexicon's own subject categories.
+"""What a learner can search for and choose to learn (step 9 of ROADMAP-takk.md).
 
-Both are built from the crawl of Svenskt teckenspråkslexikon (`data/raw/sts-lexikon/entries.jsonl`,
-see the README), so nothing is generated here and no LLM is involved (step 6 of ROADMAP-takk.md).
+Everything here is built from the crawl of Svenskt teckenspråkslexikon
+(`data/raw/sts-lexikon/entries.jsonl`, see the README), so nothing is generated and no LLM is
+involved. A learner searches for a word or for a theme and ticks the signs they want; there are no
+ready-made lists to turn on, which is what the starter packs and the category picker used to be.
 
-A **starter pack** is a short list of everyday Swedish words in `packs.json`, the first signs a TAKK
-learner needs. The words are resolved to lexicon entries here rather than written as ids, so the
-packs stay readable and a lexicon that has moved an entry shows up as a failure instead of a wrong
-sign. The word a learner is asked to sign is not always the label of the sign that scores it: signs
-of one form are one class labelled by its lowest entry, so "äta" is scored as `sts:livsmedel-01265`
-while the learner still reads "äta".
+A **word** is the heading of a lexicon entry, or the other wording its page shows under the title.
+The word a learner is asked to sign is not always the label of the sign that scores it: signs of one
+form are one class labelled by its lowest entry, so "äta" is scored as `sts:livsmedel-01265` while
+the learner still reads "äta".
 
-A **category** is the lexicon's own subject category ("Djur", "Djur > fisk"), which every entry page
-names. They are subject areas of a dictionary, not a learning order — Sport and Geografi are the
-largest — so they are for browsing, not for a beginner's first lesson.
-
-The learner picks what today's practice draws from, and to them a starter pack and a category are
-the same thing: a named list of words to turn on or off (`packs`).
+A **theme** is the lexicon's own subject category ("Djur", "Djur > fisk"), which every entry page
+names. They are subject areas of a dictionary rather than a learning order — Sport and Geografi are
+the largest — which is exactly what makes them a search index and made them a poor beginner's list.
 """
 
-import json
 import re
 from pathlib import Path
 from typing import NamedTuple
@@ -27,7 +23,6 @@ import polars as pl
 
 from isolated_sign_validation.datasets.sts_lexikon import ENTRIES_FILE, RAW_DIR
 
-PACKS = Path(__file__).parent / "packs.json"
 # Entries of Österberg's 1916 dictionary, whose sign forms are historical and not what to teach.
 HISTORICAL = "Österberg 1916"
 
@@ -56,47 +51,60 @@ def word_index(entries: pl.DataFrame) -> dict[str, str]:
     return index
 
 
-def starter_packs(clips: pl.DataFrame, raw_dir: Path = RAW_DIR, path: Path = PACKS) -> dict[str, list[dict]]:
-    """The packs of `path`, each word as the word to show, its lexicon id and the sign that scores it.
+class Index(NamedTuple):
+    """What a search reads: every practicable word, the most counted first, and the themes."""
 
-    Raises a KeyError naming the words the lexicon no longer has a practicable sign for, which is how
-    a pack is checked against a newer crawl.
+    words: list[dict]
+    themes: dict[str, list[dict]]
+
+
+def search_index(clips: pl.DataFrame, raw_dir: Path = RAW_DIR) -> Index:
+    """Everything a learner can search for: each Swedish word the glossary can score a sign for, and
+    each of the lexicon's categories as a theme. Österberg's historical forms are in neither.
+
+    A word is ordered by how often the lexicon counts the entry it means, as a category's words are
+    (see `category_words`), so a search for a common word does not answer with a rare homograph
+    first. Both are built once at startup and only searched afterwards.
     """
     entries = pl.read_ndjson(raw_dir / ENTRIES_FILE).filter(pl.col("video").is_not_null())
     historical = {row["id"] for row in entries.iter_rows(named=True) if any(c["path"] == HISTORICAL for c in row["categories"])}  # fmt: skip
-    index = word_index(entries.filter(~pl.col("id").is_in(historical)))
+    hits = dict(zip(entries["id"], (entries["lexicon_hits"].fill_null(0))))
     sign_of = dict(zip(clips["clip_id"], clips["sign"]))
-    packs, missing = {}, []
-    for name, words in json.loads(path.read_text()).items():
-        found = []
-        for word in words:
-            entry_id = index.get(word.lower())
-            if entry_id is None or entry_id not in sign_of:
-                missing.append(word)
-            else:
-                found.append({"word": word, "id": entry_id, "sign": sign_of[entry_id]})
-        packs[name] = found
-    if missing:
-        raise KeyError(f"no sign in this glossary for {', '.join(missing)}")
-    return packs
+    found = [
+        (-hits.get(entry_id, 0), word, _word(sign_of[entry_id], entry_id, word))
+        for word, entry_id in word_index(entries.filter(~pl.col("id").is_in(historical))).items()
+        if entry_id in sign_of
+    ]
+    themes = {name: words for name, words in sorted(category_words(clips, raw_dir).items()) if name != HISTORICAL}
+    return Index([word for _, _, word in sorted(found, key=lambda each: each[:2])], themes)
 
 
-def packs(clips: pl.DataFrame, raw_dir: Path = RAW_DIR, path: Path = PACKS) -> list[dict]:
-    """Everything a learner can choose to practise, as one kind of thing: a named list of words, each
-    with the sign that scores it (user, 2026-09-20: a pack is either a starter pack or a category,
-    and it does not matter which). The starter packs come first, in the order they are written, then the
-    lexicon's categories by name, each ordered by `category_words`; Österberg's dictionary is left out.
+def search(index: Index, query: str, limit: int = 30) -> list[dict]:
+    """The signs a learner searching for `query` is offered: the words of every theme whose name it
+    begins, then the words it begins, then the words it appears in, each sign once.
+
+    A theme comes first because its name is the longer match — searching "mat" means the subject
+    rather than the word far more often than the other way round — but the word is never hidden: the
+    two are one list, and "mat" itself follows the theme's words.
     """
-    starters = [
-        {"name": name, "kind": "pack", "words": [_word(entry["sign"], entry["id"], entry["word"]) for entry in words]}
-        for name, words in starter_packs(clips, raw_dir, path).items()
-    ]
-    categories = [
-        {"name": name, "kind": "category", "words": words}
-        for name, words in sorted(category_words(clips, raw_dir).items())
-        if name != HISTORICAL
-    ]
-    return starters + categories
+    wanted = query.strip().lower()
+    if not wanted:
+        return []
+    picked: dict[str, dict] = {}  # by sign, so the better match of a shared form is the one offered
+    themed = [words for name, words in index.themes.items() if name.lower().startswith(wanted)]
+    for words in themed + [[word for word in index.words if _matches(word, wanted, starts=True)]]:
+        for word in words:
+            picked.setdefault(word["sign"], word)
+    if len(picked) < limit:
+        for word in index.words:
+            if _matches(word, wanted, starts=False):
+                picked.setdefault(word["sign"], word)
+    return list(picked.values())[:limit]
+
+
+def _matches(word: dict, wanted: str, starts: bool) -> bool:
+    text = word.get("word") or spoken_word(word["sign"])
+    return text.lower().startswith(wanted) if starts else wanted in text.lower()
 
 
 def category_words(clips: pl.DataFrame, raw_dir: Path = RAW_DIR, deep: bool = False) -> dict[str, list[dict]]:

@@ -8,7 +8,11 @@ import { draw, layout, type Edges, type Frame } from "$lib/landmarks";
 
 const WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm";
 
-export type Recording = { frames: Frame[]; audio: Blob | null; audioStart: number };
+export type Recording = {
+  frames: Frame[];
+  audio: Blob | null;
+  audioStart: number;
+};
 
 export class Tracker {
   /** Which delegate the landmarker runs on, to show alongside the frame rate. */
@@ -35,21 +39,33 @@ export class Tracker {
     delegate: "GPU" | "CPU",
     hasAudio: boolean,
   ) {
-    (this.delegate = delegate), (this.hasAudio = hasAudio);
+    ((this.delegate = delegate), (this.hasAudio = hasAudio));
   }
 
   /** Open the camera, load the landmarker and start tracking. The microphone is what splits a
    * sentence into its signs, but a single sign is the whole recording, so a refused microphone
    * leaves that much working rather than being an error. */
-  static async start(video: HTMLVideoElement, canvas: HTMLCanvasElement, edges: Edges, onRate: (fps: number) => void): Promise<Tracker> {
-    const constraints = { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } };
+  static async start(
+    video: HTMLVideoElement,
+    canvas: HTMLCanvasElement,
+    edges: Edges,
+    onRate: (fps: number) => void,
+  ): Promise<Tracker> {
+    const constraints = {
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+      frameRate: { ideal: 30 },
+    };
     const stream = await navigator.mediaDevices
       .getUserMedia({ video: constraints, audio: true })
       .catch(() => navigator.mediaDevices.getUserMedia({ video: constraints }));
     video.srcObject = stream;
     const files = await FilesetResolver.forVisionTasks(WASM);
     const create = (delegate: "GPU" | "CPU") =>
-      HolisticLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: api("/api/model"), delegate }, runningMode: "VIDEO" });
+      HolisticLandmarker.createFromOptions(files, {
+        baseOptions: { modelAssetPath: api("/api/model"), delegate },
+        runningMode: "VIDEO",
+      });
     let delegate: "GPU" | "CPU" = "GPU";
     let landmarker: HolisticLandmarker;
     try {
@@ -58,7 +74,15 @@ export class Tracker {
       delegate = "CPU";
       landmarker = await create(delegate);
     }
-    const tracker = new Tracker(video, canvas, landmarker, edges, onRate, delegate, stream.getAudioTracks().length > 0);
+    const tracker = new Tracker(
+      video,
+      canvas,
+      landmarker,
+      edges,
+      onRate,
+      delegate,
+      stream.getAudioTracks().length > 0,
+    );
     tracker.listen(stream);
     tracker.track();
     return tracker;
@@ -89,7 +113,8 @@ export class Tracker {
 
   /** Browsers may open an audio context suspended until the page has been clicked. */
   resume(): void {
-    if (this.context?.state === "suspended") void this.context.resume().catch(() => {}); // until the page is clicked
+    if (this.context?.state === "suspended")
+      void this.context.resume().catch(() => {}); // until the page is clicked
   }
 
   /** Run the landmarker on every camera frame it can keep up with; frames that arrive while it is
@@ -101,13 +126,15 @@ export class Tracker {
     const next = (now: number, metadata: VideoFrameCallbackMetadata) => {
       const time = metadata.captureTime ?? now;
       last = Math.max(last + 1, Math.round(time)); // VIDEO mode needs increasing timestamps
-      const landmarks = layout(this.landmarker.detectForVideo(this.video, last));
+      const landmarks = layout(
+        this.landmarker.detectForVideo(this.video, last),
+      );
       draw(this.canvas, this.video, landmarks, this.edges);
       if (this.recorded) this.recorded.push({ time: time / 1000, landmarks });
       count += 1;
       if (now - since > 1000) {
         this.onRate((count * 1000) / (now - since));
-        (count = 0), (since = now);
+        ((count = 0), (since = now));
       }
       this.video.requestVideoFrameCallback(next);
     };
@@ -129,7 +156,11 @@ export class Tracker {
     this.recorder = new MediaRecorder(new MediaStream(tracks));
     this.recorder.ondataavailable = (event) => this.chunks.push(event.data);
     this.recorder.onstart = () => (this.audioStart = performance.now() / 1000);
-    this.stopped = new Promise((resolve) => this.recorder && (this.recorder.onstop = () => resolve(new Blob(this.chunks))));
+    this.stopped = new Promise(
+      (resolve) =>
+        this.recorder &&
+        (this.recorder.onstop = () => resolve(new Blob(this.chunks))),
+    );
     this.recorder.start();
   }
 
@@ -143,7 +174,7 @@ export class Tracker {
     if (this.recorder) {
       this.recorder.stop();
       audio = await this.stopped;
-      (this.recorder = null), (this.stopped = null);
+      ((this.recorder = null), (this.stopped = null));
     }
     return { frames, audio, audioStart: this.audioStart };
   }

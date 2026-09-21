@@ -386,8 +386,11 @@ the collection app, forward the port when the machine is remote.
 `scripts/compare_browser_extraction.py` compares the browser's landmarks with the Python extraction
 on the recordings.
 
-The app is two modes. "Nya ord" (`/`) teaches five words never practised, taken from the packs the
-learner has ticked; each card shows the word, its lexicon clip and the lexicon's description of the
+The app is three sections behind a menu (`/`): **Tecken**, where the learner searches the lexicon and
+ticks the signs they want to learn, and **Träna** and **Framsteg** below.
+
+"Nya ord" (`/träna/nya`) teaches five of the ticked signs that have not been practised yet, the
+longest waiting first; each card shows the word, its lexicon clip and the lexicon's description of the
 sign's form, and the learner says the word aloud and signs it. A word signed right goes into the
 first Leitner box and the next card follows at once; a missed one is armed for another recording with
 the clip still up. A card is one word: no sentence is written for a word being taught.
@@ -400,18 +403,18 @@ an answer given on the second day of a seven-day box has not tested that, so an 
 nothing but the time the sign was last seen. A miss counts whatever the day, since forgetting a sign
 that was not due means its interval was already too long.
 
-The packs say where new words come from and nothing else: a story repeats from every box, so
-unticking a pack stops it teaching new words without stranding the words it already taught. Each box
-keeps the time its sign was first met, which is the only way to tell a new word from an old one that
-was missed: both sit in the first box. Nothing is stored on the server, so clearing the browser's
-storage starts the learner over.
+A sign ticked in Tecken enters the store in box 0, which is "picked but not taught": it has no due
+date, "Nya ord" teaches from it, and the story never draws from it. Each box keeps the time its sign
+was first met, which is the only way to tell a new word from an old one that was missed: both sit in
+the first box. Nothing is stored on the server, so clearing the browser's storage starts the learner
+over.
 
-A box belongs to a sign class, and a class has many words: `sts:spader-00016` is "svart" in Färger
-and "Oden" in Mytologi. The word on the card is therefore stored with the box, so progress is shown
-under the word that was practised rather than whichever pack happened to name the sign last, and the
-packs listed beside it are the ones that teach that word, not every pack the sign class appears in.
+A box belongs to a sign class, and a class has many words: `sts:spader-00016` is "svart", "lakrits"
+and "spader" at once. The word the learner picked or practised is therefore stored with the box,
+together with its lexicon entry, so progress is shown under that word and a card needs nothing looked
+up to be practised again.
 
-"Sagan" (`/saga`) is where everything learned is repeated, and a prototype: the server writes one
+"Repetera" (`/träna/repetera`) is where everything learned is repeated, and a prototype: the server writes one
 Swedish story in six parts over the words the learner already knows (`takk/story.py`,
 `POST /api/story`), and the learner reads a part aloud and signs the words marked in it. The words
 turn green or red and the story goes on whatever happened, with a summary at the end. Words are drawn
@@ -421,9 +424,8 @@ recording (`unheard_is_miss`), which is what lets the story keep going. A part i
 long as its text takes to read aloud rather than for as long as its signs, since most of a part is
 spoken and only a few of its words are signed.
 
-"Mina tecken" (`/framsteg`) lists what the boxes hold: how many signs are due now, how many sit in
-each box, and every practised sign with its box, when it is due and which packs it is in, with a
-reset behind a fold. It is also how the spaced repetition is inspected while it is being built.
+"Framsteg" (`/framsteg`) lists what the boxes hold: how many signs are due now, how many sit in each
+box, and every picked and practised sign with its box and when it is due, with a reset behind a fold. It is also how the spaced repetition is inspected while it is being built.
 
 A card also shows how the lexicon describes the sign, in Swedish ("Flata handen, framåtriktad och
 uppåtvänd, förs åt vänster ..."), which is the only teaching text the lexicon publishes and is on all
@@ -433,12 +435,12 @@ glossary's descriptions are about 3 MB, and the entry is the word's own rather t
 A card says only whether the sign was right, and nothing is pressed between cards, so a session is
 signed and spoken from beginning to end without touching anything.
 
-The learner chooses what the new words come from, by turning packs on and off. New words are taken
-from the chosen packs in turn, a word at a time, so a large pack cannot hide a small one: in plain
-order Djur's 196 words would all come before Mat och dryck's first. A pack is a starter
-pack or one of the lexicon's categories, which to the learner are the same kind of thing: a named
-list of words. `GET /api/packs` serves all of them (`takk/vocabulary.py`), the starter packs first,
-and the choice is kept in `localStorage` as well.
+Vocabulary grows in one place only: "Tecken" (`/tecken`) searches the lexicon for a word or a theme
+(`GET /api/search`, `takk/vocabulary.py`) and lists the signs it finds, each with a checkbox and its
+clip, with "Lägg till alla" above them. A theme is one of the lexicon's own categories, so "mat"
+offers Mat och dryck's words before the word "mat" itself. A ticked sign is stored in box 0 and is
+taught by "Nya ord"; unticking it takes it out again, unless it has been practised, in which case its
+box stays and the checkbox is locked.
 
 ### The frontend
 
@@ -457,28 +459,28 @@ npm run check                    # svelte-check
 npm test                         # the landmark layout, the resampling and the Leitner boxes
 ```
 
-### The word sets
+### The lexicon's words and themes
 
 The lessons are built from the lexicon's own subject categories (Djur, Kläder, Mat och dryck, ...,
 listed at https://teckensprakslexikon.su.se/kategori). Every entry page names the ones it belongs to,
 as a path ("Sport > klubbar och föreningar > NHL"), and the crawl stores them in the `categories`
 field of each entry, together with the entry's other wording (`also`: the sign for "arbetsvetenskap"
 is also "ergonomi"), its English translation and its hit counts in the lexicon, the corpus and the
-surveys. `takk/vocabulary.py` turns a category into words to practise. Nothing is
+surveys. `takk/vocabulary.py` turns them into the themes a search matches. Nothing is
 generated: re-running the crawler picks up whatever the lexicon has changed.
 
-A category's word is the heading of an entry in that category, not the name of the sign that scores
+A theme's word is the heading of an entry in that category, not the name of the sign that scores
 it: signs of one form are one class labelled by its lowest entry, and that entry often belongs to
 another subject, so "Djur" would otherwise start at "hane" and "batteri". The words come in the order
 the lexicon counts them (`lexicon_hits`, then `corpus_hits`), so a category starts where a learner
 starts: Sport with träna, fotboll, ishockey rather than 2,238 signs in entry order. Only 27% of
 entries are counted at all, so the tail of a large category keeps the lexicon's own order.
 
-A category is a subject area of a dictionary and not a learning order (Sport is the largest), so the
-first lessons come from a starter pack instead: a short list of everyday Swedish words in
-`takk/packs.json`, resolved to lexicon entries at startup and served by `GET /api/packs`. The word a
-learner reads is kept apart from the sign that scores it, because entries that share a sign form are
-one class labelled by the lowest of them ("äta" is scored as `sts:livsmedel-01265`).
+A category is a subject area of a dictionary and not a learning order (Sport is the largest), which
+is why the learner searches rather than picks a ready-made list: the categories are a search index
+for themes, and every other word is found by its own name. The word a learner reads is kept apart
+from the sign that scores it, because entries that share a sign form are one class labelled by the
+lowest of them ("äta" is scored as `sts:livsmedel-01265`).
 
 The category listing pages are not used: they miss categories an entry page names (15 of 84 in a
 sample of 120 entries) and hide the deeper levels of the path.
