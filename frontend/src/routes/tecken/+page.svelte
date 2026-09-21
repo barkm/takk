@@ -85,7 +85,7 @@
     if (recording) return void finish();
     tracker.resume();
     tracker.startRecording();
-    (recording = true), (note = "");
+    (recording = true), (note = ""), (signed = []); // the live picture, until this recording replaces it
   }
 
   async function finish() {
@@ -96,8 +96,7 @@
     try {
       const found = await searchBySign(taken.frames, handedness, video!, lexicon!.fps);
       (results = found.words), (note = found.note), (query = "");
-      signed = found.words.length ? taken.frames : [];
-      if (found.words.length) camera = false; // the rows take over the screen, as they do after a search
+      signed = found.words.length ? taken.frames : []; // the camera stays, with the sign that found the rows in it
     } catch {
       note = "Sökningen misslyckades. Teckna igen.";
     } finally {
@@ -128,6 +127,8 @@
     <!-- svelte-ignore a11y_media_has_caption -->
     <video bind:this={video} class:recording autoplay muted playsinline></video>
     <canvas bind:this={canvas}></canvas>
+    <!-- the sign the rows were found by, in the camera's own place, until the next recording -->
+    <canvas bind:this={replay} class="replay" class:away={!signed.length}></canvas>
   </div>
 {/if}
 
@@ -156,10 +157,6 @@
 
 {#if note}
   <p class="dim">{note}</p>
-{/if}
-
-{#if signed.length}
-  <canvas bind:this={replay} class="replay"></canvas>
 {/if}
 
 {#if results.length}
@@ -191,7 +188,7 @@
     margin: 12px 0;
   }
 
-  .view.away {
+  .away {
     display: none; /* hidden rather than removed, so the tracker keeps the element it started on */
   }
 
@@ -221,12 +218,12 @@
   }
 
   .replay {
-    display: block;
-    width: 200px;
-    height: auto; /* the canvas carries the camera's proportions */
-    background: #000;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background: #000; /* over the live picture, so what is shown is what was searched with */
     border-radius: 8px;
-    transform: scaleX(-1); /* as the camera is shown, so the replay is the signer's own view */
   }
 
   ul {
