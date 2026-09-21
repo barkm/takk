@@ -145,6 +145,34 @@ export function session(words: PackWord[], progress: Progress, size = DEFAULTS.s
   return [...due, ...fresh].slice(0, size);
 }
 
+/** The signs of a review pass: `size` of the words already practised, due or not, drawn without
+ * replacement and each weighted by `1 / DAYS[box - 1]`, so a word in the first box is twenty-one times
+ * as likely as one in the last (user, 2026-09-21). That weight is the rate the ordinary schedule would
+ * meet the word at, so a review pass is the same schedule run early and spends its turns on the
+ * weakest words. Taking the longest unseen instead would do the opposite: the last box is due in three
+ * weeks, so its words are always the ones longest unseen.
+ *
+ * Nothing new is taught here, the pool being what the learner has practised, and `record` leaves a word
+ * that was not due where it is, so a review pass can repair the boxes but never inflate them. Covering
+ * every word is the ordinary schedule's job, whatever this samples. `random` is a parameter so that a
+ * test can be deterministic. */
+export function known(packs: Pack[], progress: Progress, size = DEFAULTS.size, random = Math.random): PackWord[] {
+  const inPacks = new Map<string, PackWord>(); // a card's word carries the lexicon entry its clip is
+  for (const pack of packs)
+    for (const each of pack.words) inPacks.set(`${each.sign}\0${each.word ?? signWord(each.sign)}`, each);
+  const pool = boxes(progress, packs).map((row) => ({
+    word: inPacks.get(`${row.sign}\0${row.word}`) ?? { sign: row.sign, id: "", word: row.word },
+    weight: 1 / DAYS[Math.min(row.box, DAYS.length) - 1],
+  }));
+  const picked: PackWord[] = [];
+  while (picked.length < size && pool.length) {
+    let point = random() * pool.reduce((sum, each) => sum + each.weight, 0);
+    const at = pool.findIndex((each) => (point -= each.weight) < 0);
+    picked.push(pool.splice(at < 0 ? pool.length - 1 : at, 1)[0].word); // `at < 0` only by rounding
+  }
+  return picked;
+}
+
 /** The words a turn may use: the head of the queue first, and, when the head is a word that may be
  * combined with others, every later word that may be too.
  *

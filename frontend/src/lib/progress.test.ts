@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { type PackWord } from "$lib/api";
-import { advance, boxes, chosenWords, loadSetting, practisedToday, record, saveSetting, session, turn } from "$lib/progress";
+import { advance, boxes, chosenWords, known, loadSetting, practisedToday, record, saveSetting, session, turn } from "$lib/progress";  // prettier-ignore
 
 const word = (name: string) => ({
   word: name,
@@ -75,6 +75,30 @@ describe("record", () => {
 
     // and the same sign, answered on the day it fell due, moves up as before
     expect(record(progress, "sts:mjölk-1", true, "mjölk", 3 * DAY)["sts:mjölk-1"].box).toBe(3);
+  });
+});
+
+describe("known", () => {
+  const packs = [{ name: "Första tecknen", kind: "pack" as const, words: [word("mamma"), word("hej")] }];
+  // mamma is due and in the first box (weight 1), hej is in the last one and due in three weeks (1/21)
+  const progress = {
+    "sts:mamma-1": { box: 1, due: 0, seen: 0, word: "mamma" },
+    "sts:hej-1": { box: 4, due: 5 * DAY, seen: 0, word: "hej" },
+  };
+
+  it("draws the weak words far more often than the strong ones", () => {
+    // the weights add up to 1 + 1/21, so all but the last 4.5% of the range falls on the first box
+    expect(known(packs, progress, 1, () => 0.5)).toEqual([word("mamma")]);
+    expect(known(packs, progress, 1, () => 0.99)).toEqual([word("hej")]);
+  });
+
+  it("draws without replacement, and stops when the practised words run out", () => {
+    expect(known(packs, progress, 5, () => 0.5)).toEqual([word("mamma"), word("hej")]);
+    expect(known(packs, {}, 5)).toEqual([]);
+  });
+
+  it("keeps a practised sign that is in no pack any more, by the word it was practised as", () => {
+    expect(known([], progress, 1, () => 0)).toEqual([{ sign: "sts:mamma-1", id: "", word: "mamma" }]);
   });
 });
 

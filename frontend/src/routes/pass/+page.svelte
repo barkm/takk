@@ -18,6 +18,7 @@
     advance,
     chosenWords,
     DEFAULTS,
+    known,
     load,
     loadChosen,
     loadSetting,
@@ -68,9 +69,17 @@
   // waiting for it. Only what counts as due moves; an attempt is still recorded at the real time.
   const ahead = $derived(Number(new URLSearchParams(page.url.search).get("days")) || 0);
 
+  // `?alla=1` is the review pass: `size` words drawn from everything practised, weighted towards the
+  // low boxes, instead of the due words and the new ones. It teaches nothing new, and `record` leaves
+  // a word that was not due where it is, so it can only repair the boxes.
+  const review = $derived(new URLSearchParams(page.url.search).has("alla"));
+  const title = $derived(review ? "Repetera allt du kan" : "Dagens pass");
+
   // The pass's signs are picked once, not derived: a scored attempt changes the progress they come from.
   function restart() {
-    queue = session(chosenWords(packs, chosen), progress, size, Date.now() + ahead * 24 * 60 * 60 * 1000);
+    queue = review
+      ? known(packs, progress, size)
+      : session(chosenWords(packs, chosen), progress, size, Date.now() + ahead * 24 * 60 * 60 * 1000);
     (total = queue.length), (accepts = {}), (taught = []), (missed = []);
     begin();
   }
@@ -126,7 +135,7 @@
   });
 
   // Whether another pass would have anything in it, which is what makes the summary offer one.
-  const waiting = $derived(session(chosenWords(packs, chosen), progress, 1, Date.now() + ahead * 24 * 60 * 60 * 1000).length > 0);  // prettier-ignore
+  const waiting = $derived(review ? known(packs, progress, 1).length > 0 : session(chosenWords(packs, chosen), progress, 1, Date.now() + ahead * 24 * 60 * 60 * 1000).length > 0);  // prettier-ignore
   const shown = $derived(current ? label(current) : "");
   const labels = $derived(Object.fromEntries(taken.map((each) => [each.sign, label(each)])));
   const finished = $derived(Object.values(accepts).filter((count) => count >= needed).length);
@@ -182,9 +191,14 @@
       <input type="number" min="1" max="10" value={needed} onchange={(e) => setSetting("accepts", Number(e.currentTarget.value))} />
     </label>
     <p class="dim">
-      Tecken som ska repeteras kommer först, och nya tecken fyller på upp till {size}. Ett tecken är klart
-      när det har godkänts {needed} gånger, och flyttas då upp en låda. {practisedToday(progress)} tecken
-      övade idag.
+      {#if review}
+        Passet tar {size} tecken du redan har övat, oftast ur de låga lådorna. Ett tecken som ännu inte
+        skulle repeteras flyttas inte upp, men faller tillbaka till första lådan om du missar det.
+      {:else}
+        Tecken som ska repeteras kommer först, och nya tecken fyller på upp till {size}. Ett tecken är klart
+        när det har godkänts {needed} gånger, och flyttas då upp en låda.
+      {/if}
+      {practisedToday(progress)} tecken övade idag.
     </p>
     <ul>
       {#each packs as pack (pack.name)}
@@ -206,7 +220,7 @@
 
 {#if lexicon && current}
   <section class="card">
-    <h1>Dagens pass</h1>
+    <h1>{title}</h1>
     <p class="dim">
       {finished} av {total} tecken klara.
       {#if writing}Skriver en mening ...{:else if said}Säg meningen högt medan du tecknar {taken.length > 1 ? "orden" : "ordet"} i fetstil.{:else if teaching}Nytt tecken: titta på klippet, säg ordet högt och teckna det.{:else}Repetition. Säg ordet högt medan du tecknar det.{/if}
@@ -254,22 +268,28 @@
   {/if}
 {:else if lexicon}
   <section class="card">
-    <h1>Dagens pass</h1>
+    <h1>{title}</h1>
     <p>
-      {total
-        ? `Klart! ${total} tecken igenom, ${practisedToday(progress)} tecken övade idag.`
-        : "Inget att öva just nu. Välj fler ord, eller kom tillbaka när dagens tecken ska repeteras."}
+      {#if total}
+        Klart! {total} tecken igenom, {practisedToday(progress)} tecken övade idag.
+      {:else if review}
+        Inga övade tecken än. Börja med <a href="/pass">dagens pass</a>.
+      {:else}
+        Inget att öva just nu. Välj fler ord, eller kom tillbaka när dagens tecken ska repeteras.
+      {/if}
     </p>
     {#if waiting}
       <button onclick={restart}>Ett pass till</button>
     {:else if total}
-      <p class="dim">Inget mer att öva idag — kom tillbaka i morgon.</p>
+      <p class="dim">
+        Inget mer att öva idag — kom tillbaka i morgon, eller <a href="/pass?alla=1">repetera allt du kan</a>.
+      </p>
     {/if}
     {@render picker()}
   </section>
 {:else}
   <section class="card">
-    <h1>Dagens pass</h1>
+    <h1>{title}</h1>
     <p class="dim">{note || "Laddar lexikonet …"}</p>
   </section>
 {/if}

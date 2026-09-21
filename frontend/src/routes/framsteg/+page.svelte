@@ -33,7 +33,10 @@
 <section class="card">
   <h1>Mina tecken</h1>
   {#if rows.length}
-    <p>{rows.length} tecken övade, {due} att repetera nu.</p>
+    <p>
+      {rows.length} tecken övade, {due} att repetera nu.
+      <a href="/pass?alla=1">Repetera allt du kan</a>, oavsett vad lådorna säger.
+    </p>
     <ul class="boxes">
       {#each perBox as count, i (i)}
         <li>Låda {i + 1}: {count} tecken, repeteras efter {DAYS[i]} dagar</li>
