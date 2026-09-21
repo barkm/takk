@@ -70,6 +70,22 @@ export async function fetchSentence(words: string[]): Promise<{ sentence: string
   return await response.json();
 }
 
+/** A part of a story: the Swedish text to say aloud, and the words of it that are signed, in the
+ * order they are spoken. */
+export type StoryPart = { text: string; words: string[] };
+
+/** A Swedish story over `words` in `parts` parts, one recording each (see `story.py`). Empty when the
+ * server could not write one. The words are the learner's own, as in `fetchSentence`. */
+export async function fetchStory(words: string[], parts: number): Promise<StoryPart[]> {
+  const response = await fetch(api("/api/story"), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ words, parts }),
+  });
+  if (!response.ok) return [];
+  return (await response.json()).parts;
+}
+
 /** How the lexicon describes the form of an entry's sign, in Swedish. Empty when it describes none. */
 export async function fetchForm(entryId: string): Promise<string> {
   const response = await fetch(api(`/api/form/${encodeURIComponent(entryId)}`));
@@ -79,7 +95,10 @@ export async function fetchForm(entryId: string): Promise<string> {
 export const referenceUrl = (clip: string) => api(`/api/reference/${encodeURIComponent(clip)}`);
 
 /** Score a recording as an attempt of `signs`, in order. Every attempt is spoken and its signs are
- * located by the words said over it, so it needs the microphone. Throws when the server refuses it. */
+ * located by the words said over it, so it needs the microphone. Throws when the server refuses it.
+ *
+ * `unheardIsMiss` scores a word that was not said as a miss of its sign instead of refusing the whole
+ * recording, which is what a story does: it never stops, and a word left unsaid is a word unsigned. */
 export async function scoreAttempt(
   frames: Frame[],
   audio: Blob | null,
@@ -88,6 +107,7 @@ export async function scoreAttempt(
   handedness: "left" | "right",
   video: HTMLVideoElement,
   fps: number,
+  unheardIsMiss = false,
 ): Promise<Attempt> {
   const body = new FormData();
   const landmarks = resample(frames, fps);
@@ -102,6 +122,7 @@ export async function scoreAttempt(
   body.append("handedness", handedness);
   body.append("width", String(video.videoWidth));
   body.append("height", String(video.videoHeight));
+  if (unheardIsMiss) body.append("unheard_is_miss", "true");
   const response = await fetch(api("/api/attempt"), { method: "POST", body });
   if (!response.ok) throw new Error(`the server answered ${response.status}`);
   return response.json();

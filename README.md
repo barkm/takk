@@ -411,6 +411,14 @@ and "Oden" in Mytologi. The word on the card is therefore stored with the box, s
 under the word that was practised rather than whichever pack happened to name the sign last, and the
 packs listed beside it are the ones that teach that word, not every pack the sign class appears in.
 
+"Sagan" (`/saga`) is a prototype of story mode: the server writes one Swedish story over the words
+the learner already knows (`takk/story.py`, `POST /api/story`), in 3, 6 or 10 parts, and the learner
+reads a part aloud and signs the words marked in it. The words turn green or red and the story goes
+on whatever happened, with a summary at the end. Words are drawn towards the low boxes, so a story
+leans on what sits worst, and nothing new is taught — new words belong to the daily pass. A word the
+learner did not say is a miss of its sign rather than a refused recording (`unheard_is_miss`), which
+is what lets the story keep going.
+
 "Mina tecken" (`/framsteg`) lists what the boxes hold: how many signs are due now, how many sit in
 each box, and every practised sign with its box, when it is due and which packs it is in, with a
 reset behind a fold. It is also how the spaced repetition is inspected while it is being built.
@@ -420,9 +428,11 @@ uppåtvänd, förs åt vänster ..."), which is the only teaching text the lexic
 but 30 of the entries with a video. It comes from `GET /api/form/{entry}` per card, since the whole
 glossary's descriptions are about 3 MB, and the entry is the word's own rather than the sign class's.
 
-The verdict names the word the learner was asked to sign, not the sign that scored it: signs of one
-form are one class named after its lowest entry, so "grön" is scored as `sts:land-00416`, and the
-pass says so in a line of its own rather than answering "det var land".
+A card says only whether the sign was right. The score, the closest sign in the lexicon and the
+threshold are free practice's business, where a sign is looked into; in a pass the answer is right or
+wrong and the next card follows by itself. Nothing is pressed between cards: an accepted sign gives
+way to the next one at once, and a missed one is armed for another recording with its verdict and its
+clip still up, so a pass is signed and spoken from beginning to end without touching anything.
 
 The learner chooses what the session draws from, by turning packs on and off. New words are taken
 from the chosen packs in turn, a word at a time, so a large pack cannot hide a small one: in plain

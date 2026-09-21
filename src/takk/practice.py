@@ -32,6 +32,7 @@ from isolated_sign_validation.landmarks import N_LANDMARKS, SKELETON_EDGES
 from isolated_sign_validation.preparation import ONE_HANDED, PrepConfig, hand_presence, hide_low_hands, mirror, prepare_clip
 from takk.sentences import write_sentence
 from takk.speech import MIN_WORD_SCORE, Aligner, decode_audio, split_speech
+from takk.story import write_story
 from takk.vocabulary import spoken_word
 
 # Everything the learner reads is Swedish (see ROADMAP-takk.md): the app is for practising TAKK.
@@ -138,6 +139,17 @@ def create_app(
         text, order = written
         return {"sentence": text, "words": order}
 
+    @app.post("/api/story")
+    def story(words: list[str] = Body(embed=True), parts: int = Body(embed=True)) -> dict:
+        """A Swedish story over `words` in `parts` parts, each part with the words it uses in the
+        order they are spoken (`story.py`). The parts are empty when there is no writer or it could
+        not write one, and the caller then has nothing to tell and says so.
+
+        The words are the learner's own, as in `/api/sentence`: what the cards say, not the names of
+        the signs that score them."""
+        told = write_story(writer, words, parts) if writer else None
+        return {"parts": [{"text": text, "words": used} for text, used in told or []]}
+
     @app.get("/api/form/{entry_id}")
     def form(entry_id: str) -> dict:
         """How the lexicon describes the form of an entry's sign, in Swedish ("Flata handen,
@@ -169,7 +181,7 @@ def create_app(
         }  # fmt: skip
 
     @app.post("/api/attempt")
-    async def attempt(landmarks: UploadFile, sign: list[str] = Form(), handedness: str = Form(), width: int = Form(), height: int = Form(), spoken: list[str] = Form([]), audio: UploadFile | None = None, audio_offset: float = Form(0.0)) -> dict:  # fmt: skip
+    async def attempt(landmarks: UploadFile, sign: list[str] = Form(), handedness: str = Form(), width: int = Form(), height: int = Form(), spoken: list[str] = Form([]), audio: UploadFile | None = None, audio_offset: float = Form(0.0), unheard_is_miss: bool = Form(False)) -> dict:  # fmt: skip
         """Score an attempt of one sign or a sentence of several (`sign` repeated, in order): its
         landmarks as float32 (n_frames, N_LANDMARKS, 3), NaN where not detected, at the preparation's
         frame rate, from frames of `width` x `height` pixels.
@@ -181,7 +193,12 @@ def create_app(
 
         `spoken` is the word said for each sign, when that is not the sign's own name: a learner
         practising "blå" signs `sts:öga-02636`, since blå and öga are one sign form, and says "blå".
-        Without it each sign is listened for under its own name."""
+        Without it each sign is listened for under its own name.
+
+        A word that was not heard refuses the whole attempt, since its span is then arbitrary and the
+        signs around it are cut by it. `unheard_is_miss` scores it as a miss of that sign instead and
+        keeps the rest of the verdicts, which is what a story needs: it never stops, and a word left
+        unsaid is a word left unsigned (step 12 of ROADMAP-takk.md)."""
         if any(s not in index for s in sign):
             raise HTTPException(404, "unknown sign")
         values = np.frombuffer(await landmarks.read(), dtype=np.float32)
@@ -201,11 +218,15 @@ def create_app(
         unheard = [word for word, (_, _, score) in zip(words, spans) if score < MIN_WORD_SCORE]
         if unheard:
             print(f"an attempt was refused, the words scoring {[round(s, 2) for *_, s in spans]}")  # while MIN_WORD_SCORE is provisional
+        if unheard and not unheard_is_miss:
             return {"threshold": threshold, "note": NOTES["not_heard"].format(words=" och ".join(unheard)), "signs": []}  # fmt: skip
         parts = split_speech(spans, audio_offset, len(values), config.fps)
         if len(parts) != len(sign) or any(part.stop - part.start < 2 for part in parts):
             return {"threshold": threshold, "note": NOTES["not_said"], "signs": []}
         signs = [judge(values[part], s, handedness, width, height) for part, s in zip(parts, sign)]
+        for judged, word, (_, _, score) in zip(signs, words, spans):
+            if score < MIN_WORD_SCORE:  # only with unheard_is_miss: the word was not said, so its sign was not made
+                judged.update(correct=False, note=NOTES["not_heard"].format(words=word))
         return {"threshold": threshold, "note": "", "signs": signs}
 
     return app

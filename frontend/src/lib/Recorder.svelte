@@ -9,7 +9,14 @@
     sentence,
     lexicon,
     onattempt,
-  }: { sentence: Sign[]; lexicon: Lexicon; onattempt: (attempt: Attempt | null, note: string) => void } = $props();
+    unheardIsMiss = false,
+  }: {
+    sentence: Sign[];
+    lexicon: Lexicon;
+    onattempt: (attempt: Attempt | null, note: string) => void;
+    /** Story mode: a word that was not said is a miss of its sign rather than a refused recording. */
+    unheardIsMiss?: boolean;
+  } = $props();
 
   const SLOW_FPS = 20; // below this the extractor skips so many camera frames that results suffer
   const NO_MICROPHONE = "Mikrofonen behövs: orden du säger högt är det som visar var tecknen är i inspelningen.";
@@ -104,6 +111,7 @@
         handedness,
         video,
         lexicon.fps,
+        unheardIsMiss,
       );
       onattempt(attempt, "");
     } catch {

@@ -151,8 +151,23 @@ def test_attempt_refuses_a_sentence_whose_words_were_not_spoken():
     landmarks = np.concatenate([attempt_landmarks(("right_hand",))] * 2)
     upload = UploadFile(io.BytesIO(landmarks.astype(np.float32).tobytes()))
     audio = UploadFile(io.BytesIO(wav(np.zeros(4 * SAMPLE_RATE, dtype=np.float32))))
-    result = asyncio.run(attempt(upload, sign=["A", "B"], spoken=[], handedness="right", width=640, height=480, audio=audio, audio_offset=0.0))  # fmt: skip
+    result = asyncio.run(attempt(upload, sign=["A", "B"], spoken=[], handedness="right", width=640, height=480, audio=audio, audio_offset=0.0, unheard_is_miss=False))  # fmt: skip
     assert result["signs"] == [] and result["note"] == NOTES["not_heard"].format(words="A och B")
+
+
+def test_attempt_scores_an_unheard_word_as_a_miss_when_the_caller_asks_for_it():
+    """A story never stops: a word the learner did not say is a miss of that sign, with a verdict of
+    its own, and the signs around it are still scored (step 12 of ROADMAP-takk.md)."""
+    heard = [(0.5, 0.7, -0.2), (2.5, 2.7, -5.2)]  # the second word was not spoken
+    app = create_app({"A": ["a1"], "B": ["b1"]}, np.array([[0.6, 0.8], [1.0, 0.0]]), {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: heard)  # fmt: skip
+    attempt = next(route for route in app.routes if getattr(route, "path", "") == "/api/attempt").endpoint
+
+    landmarks = np.concatenate([attempt_landmarks(("right_hand",))] * 2)
+    upload = UploadFile(io.BytesIO(landmarks.astype(np.float32).tobytes()))
+    audio = UploadFile(io.BytesIO(wav(np.zeros(4 * SAMPLE_RATE, dtype=np.float32))))
+    result = asyncio.run(attempt(upload, sign=["A", "B"], spoken=[], handedness="right", width=640, height=480, audio=audio, audio_offset=0.0, unheard_is_miss=True))  # fmt: skip
+    assert result["note"] == "" and len(result["signs"]) == 2
+    assert result["signs"][1]["correct"] is False and result["signs"][1]["note"] == NOTES["not_heard"].format(words="B")
 
 
 def test_attempt_needs_the_microphone_however_few_signs_it_has():

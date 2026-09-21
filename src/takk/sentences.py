@@ -44,18 +44,20 @@ class Written(BaseModel):
     sentence: str
 
 
-def key_words(sentence: str, offered: list[str], most: int = MOST_WORDS) -> list[str] | None:
+def key_words(sentence: str, offered: list[str], most: int = MOST_WORDS, require_first: bool = True) -> list[str] | None:  # fmt: skip
     """The words of `offered` that `sentence` uses, in the order they occur in it. The set is read off
     the sentence rather than reported, since a whole-word search finds it exactly: "mer" is not
     satisfied by "mera", and "blå" is not found inside "blåbär".
 
     None when the sentence cannot be used: the first word is the one the turn is for and has to be
     there, no word may be used twice, since a repeated word leaves it unclear which occurrence is
-    signed, and at most `most` of them can be signed in one recording."""
+    signed, and at most `most` of them can be signed in one recording. A part of a story sets
+    `require_first`: its words are offered with none of them scheduled, so any of them will do
+    (`story.py`)."""
     at = {}
     for word in offered:
         found = [match.start() for match in re.finditer(rf"\b{re.escape(word)}\b", sentence, re.IGNORECASE)]
-        if len(found) > 1 or (not found and word == offered[0]):
+        if len(found) > 1 or (not found and require_first and word == offered[0]):
             return None
         if found:
             at[word] = found[0]
