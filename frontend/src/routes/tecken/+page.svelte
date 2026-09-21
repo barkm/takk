@@ -75,7 +75,7 @@
         </label>
         {#if clips.get(each.sign)?.length}
           <!-- svelte-ignore a11y_media_has_caption -->
-          <video src={referenceUrl(clips.get(each.sign)![0])} preload="none" loop muted playsinline controls></video>
+          <video src={referenceUrl(clips.get(each.sign)![0])} autoplay loop muted playsinline></video>
         {/if}
       </li>
     {/each}

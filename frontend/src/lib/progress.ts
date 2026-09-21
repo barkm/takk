@@ -12,21 +12,20 @@ const DAY = 24 * 60 * 60 * 1000;
  * a box beyond the array, left in a store by a longer schedule, is clamped by the next answer. */
 export const DAYS = [1, 3, 7, 21];
 
-/** A sign's box (1 and up), when it is due again and when it was last practised, in milliseconds
- * since the epoch, and the word the learner was shown. The word is kept because a box belongs to a
- * sign class and a class has many words: `sts:spader-00016` is "svart", "lakrits" and "spader" at
- * once, and what was practised is the one that was on the card. `id` is that card's lexicon entry,
- * kept for the same reason and so that nothing has to be looked up to practise the word again: the
- * lexicon is the server's and the boxes are the browser's, and the entry is what the card's
- * description of the sign form is fetched by. `first` is when the sign was
- * met for the first time, which is the only way to tell a new word from a missed old one: both sit in
- * the first box. Boxes written before these fields existed count as neither practised nor met today
- * and are given an entry the next time the word is practised.
+/** A sign in the store: its box, when it is due again, when it was picked, and the word and lexicon
+ * entry of the card it was picked as, in milliseconds since the epoch.
  *
- * Box 0 is a sign the learner picked in Tecken and has not practised yet, which is where every sign
- * now enters the store (step 9 of ROADMAP-takk.md); `added` is when it was picked and orders the
- * cards of Nya ord. It has no `due`, since nothing about it is scheduled until it is answered. */
-export type Learned = { box: number; due: number; seen?: number; first?: number; word?: string; id?: string; added?: number };
+ * The word is kept because a box belongs to a sign class and a class has many words:
+ * `sts:spader-00016` is "svart", "lakrits" and "spader" at once, and what was practised is the one
+ * that was on the card. The entry is kept for the same reason and so that nothing has to be looked up
+ * to practise the word again: the lexicon is the server's and the boxes are the browser's, and the
+ * entry is what a card's description of the sign form is fetched by.
+ *
+ * Box 0 is a sign picked in Tecken and not practised yet, which is where every sign enters the store
+ * (step 9 of ROADMAP-takk.md); it has no `due`, since nothing about it is scheduled until it is
+ * answered, and no `seen` or `first`, which an answer writes. `first` is when the sign was met, the
+ * only way to tell a new word from a missed old one once both sit in the first box. */
+export type Learned = { box: number; due: number; added: number; word: string; id: string; seen?: number; first?: number };
 
 export type Progress = Record<string, Learned>;
 
@@ -56,9 +55,8 @@ export function record(progress: Progress, card: SignWord, correct: boolean, now
   const early = correct && previous && previous.due > now;
   const box = early ? previous.box : correct ? Math.min((previous?.box ?? 0) + 1, DAYS.length) : 1;
   const due = early ? previous.due : now + DAYS[box - 1] * DAY;
-  const learned: Learned = { box, due, seen: now, first: previous?.first ?? now };
-  if (card.word) learned.word = card.word; // the word on the card, not the name of the sign that scores it
-  if (card.id) learned.id = card.id;
+  // the word and the entry are the card's, which is the word practised and not the name of the sign
+  const learned: Learned = { ...previous, box, due, seen: now, first: previous?.first ?? now };
   return { ...progress, [card.sign]: learned };
 }
 
@@ -68,7 +66,9 @@ export function record(progress: Progress, card: SignWord, correct: boolean, now
 export function add(progress: Progress, words: SignWord[], now = Date.now()): Progress {
   const picked = { ...progress };
   for (const each of words)
-    if (!picked[each.sign]) picked[each.sign] = { box: 0, due: 0, added: now, word: each.word, id: each.id };
+    // the word the sign is offered under is resolved here, so nothing downstream has to name a sign
+    if (!picked[each.sign])
+      picked[each.sign] = { box: 0, due: 0, added: now, word: each.word ?? signWord(each.sign), id: each.id };
   return picked;
 }
 
@@ -77,23 +77,16 @@ export function add(progress: Progress, words: SignWord[], now = Date.now()): Pr
 export function fresh(progress: Progress): SignWord[] {
   return boxes(progress)
     .filter((row) => row.box === 0)
-    .sort((a, b) => (a.added ?? 0) - (b.added ?? 0))
+    .sort((a, b) => a.added - b.added)
     .map(card);
 }
 
 /** A sign in the store, as the progress page shows it: soonest due first, so the ones picked and not
  * yet practised come first of all. */
-export type Row = Learned & { sign: string; word: string };
+export type Row = Learned & { sign: string };
 
-/** Every sign the learner has picked or practised, with the word to show it by. The word is the one
- * that was chosen or practised rather than the name of the sign that scores it, since a sign class
- * carries several words: `sts:spader-00016` is "svart", "lakrits" and "spader" at once. */
 export function boxes(progress: Progress): Row[] {
-  const rows = Object.entries(progress).map(([sign, learned]) => ({
-    ...learned,
-    sign,
-    word: learned.word ?? signWord(sign),
-  }));
+  const rows = Object.entries(progress).map(([sign, learned]) => ({ ...learned, sign }));
   return rows.sort((a, b) => a.due - b.due || a.word.localeCompare(b.word, "sv"));
 }
 
