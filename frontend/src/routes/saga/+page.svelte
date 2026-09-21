@@ -18,7 +18,7 @@
   // part aloud and signs the words marked in it, the words turn green or red, and the story goes on
   // whatever the verdict was. Only words already practised are used — new ones belong to the daily
   // pass — and they are drawn towards the low boxes, so a story leans on the weak words.
-  const LENGTHS = [3, 6, 10]; // parts in a story: kort, lagom, lång
+  const PARTS = 6; // parts in a story, one recording each
   // How long a part may be recorded for: it is read aloud, so its length is its text and not its
   // signs — a wordy part with one sign would be cut off by the one sign's worth of seconds a card
   // gets. Swedish read aloud runs at about two words a second; the slack is for reading it at all.
@@ -29,7 +29,6 @@
   let lexicon = $state<Lexicon | null>(null);
   let packs: Pack[] = $state([]);
   let progress: Progress = $state({});
-  let length = $state(LENGTHS[0]);
   let story: StoryPart[] = $state([]);
   let cards: Record<string, PackWord> = $state({}); // the card behind each word of the story, by word
   let at = $state(0); // the part being signed
@@ -60,10 +59,10 @@
    * as there are parts, so the model has something to choose from in every part. */
   async function begin() {
     (story = []), (told = []), (at = 0), (verdicts = {}), (attempt = null), (note = "");
-    const words = known(packs, progress, length * 2);
+    const words = known(packs, progress, PARTS * 2);
     cards = Object.fromEntries(words.map((each) => [label(each), each]));
     writing = true;
-    story = await fetchStory(words.map(label), length).finally(() => (writing = false));
+    story = await fetchStory(words.map(label), PARTS).finally(() => (writing = false));
     if (!story.length) note = "Kunde inte skriva någon saga. Försök igen.";
   }
 
@@ -121,21 +120,12 @@
       En saga skrivs av orden du redan kan, med tyngdpunkt på dem som sitter sämst. Du läser den högt,
       en del i taget, och tecknar orden som är markerade. Sagan fortsätter vad som än händer.
     </p>
-    <fieldset>
-      <legend>Längd</legend>
-      {#each LENGTHS as parts (parts)}
-        <label>
-          <input type="radio" value={parts} bind:group={length} />
-          {parts} delar
-        </label>
-      {/each}
-    </fieldset>
     <p class="dim">{pool.length} tecken att välja ur.</p>
     <button onclick={begin} disabled={writing || pool.length < 2}>
       {writing ? "Skriver sagan …" : "Skriv sagan"}
     </button>
     {#if pool.length < 2}
-      <p class="dim">Öva några tecken i <a href="/pass">ett pass</a> först — sagan skrivs av det du kan.</p>
+      <p class="dim">Lär dig några <a href="/">nya ord</a> först — sagan skrivs av det du kan.</p>
     {/if}
     {#if note}<p class="dim">{note}</p>{/if}
   </section>
@@ -169,18 +159,6 @@
 {/if}
 
 <style>
-  fieldset {
-    margin: 8px 0;
-    padding: 8px 12px;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-  }
-
-  fieldset label {
-    display: block;
-    padding: 2px 0;
-  }
-
   .story {
     font-size: 22px;
     line-height: 1.5;
