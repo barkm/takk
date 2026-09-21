@@ -49,3 +49,23 @@ export function framing(landmarks: Float32Array, signing = false): string {
   if (signing && WRISTS.every((wrist) => Number.isNaN(x(wrist)))) return FRAMING.hands;
   return "";
 }
+
+/** Readings a complaint has to survive before it is shown, at the rate the camera reads the framing:
+ * five of them is about a second. Hands come down the moment a sign ends, and a camera that said so
+ * at once was complaining about the pause between signs (user, 2026-09-21). */
+export const PATIENCE = 5;
+
+/** How long the current complaint has held, and which one is worth showing. */
+export type Settling = { note: string; readings: number; shown: string };
+
+export const settling = (): Settling => ({ note: "", readings: 0, shown: "" });
+
+/** The state after one more reading. A complaint is shown once it has been the answer `patience`
+ * readings running, and a framing that is right clears it at once: waiting to praise nothing would
+ * only leave a stale complaint over a picture that has already been fixed. */
+export function settle(before: Settling, note: string, patience = PATIENCE): Settling {
+  if (!note) return settling();
+  const readings = note === before.note ? before.readings + 1 : 1;
+  // until the new complaint has held, whatever was already on screen stays, so they do not flicker
+  return { note, readings, shown: readings >= patience ? note : before.shown };
+}

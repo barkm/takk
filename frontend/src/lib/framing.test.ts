@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { framing, FRAMING, NARROW, WIDE } from "$lib/framing";
+import { framing, FRAMING, NARROW, settle, settling, WIDE, type Settling } from "$lib/framing";
 import { N_LANDMARKS } from "$lib/landmarks";
 
 const POSE = 489;
@@ -40,5 +40,26 @@ describe("framing", () => {
   it("asks for the hands only while a sign is being made", () => {
     expect(framing(frame({ hands: false }))).toBe("");
     expect(framing(frame({ hands: false }), true)).toBe(FRAMING.hands);
+  });
+});
+
+describe("settle", () => {
+  const hold = (note: string, times: number, from = settling()) =>
+    Array.from({ length: times }).reduce<Settling>((state) => settle(state, note, 3), from);
+
+  it("shows a complaint only once it has held", () => {
+    expect(hold(FRAMING.hands, 2).shown).toBe("");
+    expect(hold(FRAMING.hands, 3).shown).toBe(FRAMING.hands);
+  });
+
+  it("clears a shown complaint as soon as the framing is right", () => {
+    expect(settle(hold(FRAMING.hands, 3), "", 3)).toEqual(settling());
+  });
+
+  it("keeps showing the old complaint while a new one settles", () => {
+    const shown = hold(FRAMING.hands, 3);
+
+    expect(settle(shown, FRAMING.near, 3).shown).toBe(FRAMING.hands);
+    expect(hold(FRAMING.near, 3, shown).shown).toBe(FRAMING.near);
   });
 });
