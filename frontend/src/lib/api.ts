@@ -40,12 +40,7 @@ export type Attempt = {
 export async function fetchLexicon(): Promise<Lexicon> {
   const response = await fetch(api("/api/signs"));
   const data = await response.json();
-  return {
-    signs: data.signs,
-    fps: data.fps,
-    maxSeconds: data.max_seconds,
-    edges: data.edges,
-  };
+  return { signs: data.signs, fps: data.fps, maxSeconds: data.max_seconds, edges: data.edges };
 }
 
 /** A word to learn: the sign that scores it, and the word to show when the sign is not named for
@@ -56,9 +51,7 @@ export type SignWord = { sign: string; id: string; word?: string };
 /** The signs a learner searching for `query` is offered, a word or a theme alike. This is the one way
  * vocabulary grows (step 9 of ROADMAP-takk.md): what is ticked here is what Nya ord teaches. */
 export async function fetchSearch(query: string): Promise<SignWord[]> {
-  const response = await fetch(
-    api(`/api/search?q=${encodeURIComponent(query)}`),
-  );
+  const response = await fetch(api(`/api/search?q=${encodeURIComponent(query)}`));
   if (!response.ok) return [];
   return (await response.json()).words;
 }
@@ -69,10 +62,7 @@ export type StoryPart = { text: string; words: string[] };
 
 /** A Swedish story over `words` in `parts` parts, one recording each (see `story.py`). Empty when the
  * server could not write one. The words are the learner's own, as in `fetchSentence`. */
-export async function fetchStory(
-  words: string[],
-  parts: number,
-): Promise<StoryPart[]> {
+export async function fetchStory(words: string[], parts: number): Promise<StoryPart[]> {
   const response = await fetch(api("/api/story"), {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -88,8 +78,7 @@ export async function fetchForm(entryId: string): Promise<string> {
   return (await response.json()).form;
 }
 
-export const referenceUrl = (clip: string) =>
-  api(`/api/reference/${encodeURIComponent(clip)}`);
+export const referenceUrl = (clip: string) => api(`/api/reference/${encodeURIComponent(clip)}`);
 
 /** Score a recording as an attempt of `signs`, in order. Every attempt is spoken and its signs are
  * located by the words said over it, so it needs the microphone. Throws when the server refuses it.
@@ -108,20 +97,14 @@ export async function scoreAttempt(
 ): Promise<Attempt> {
   const body = new FormData();
   const landmarks = resample(frames, fps);
-  body.append(
-    "landmarks",
-    new Blob([landmarks.buffer as ArrayBuffer]),
-    "landmarks.f32",
-  );
+  body.append("landmarks", new Blob([landmarks.buffer as ArrayBuffer]), "landmarks.f32");
   if (audio) {
     body.append("audio", audio, "audio");
     body.append("audio_offset", String(frames[0].time - audioStart));
   }
   for (const each of signs) body.append("sign", each.sign);
   // a word per sign, or none at all: the server then listens for each sign under its own name
-  if (signs.some((each) => each.spoken))
-    for (const each of signs)
-      body.append("spoken", each.spoken ?? word(each.sign));
+  if (signs.some((each) => each.spoken)) for (const each of signs) body.append("spoken", each.spoken ?? word(each.sign));
   body.append("handedness", handedness);
   body.append("width", String(video.videoWidth));
   body.append("height", String(video.videoHeight));
@@ -132,5 +115,4 @@ export async function scoreAttempt(
 }
 
 /** The Swedish word a lexicon sign is signed for ("sts:platta slag-25563" -> "platta slag"). */
-export const word = (sign: string) =>
-  sign.replace(/^sts:/, "").replace(/-\d+$/, "");
+export const word = (sign: string) => sign.replace(/^sts:/, "").replace(/-\d+$/, "");

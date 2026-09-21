@@ -10,16 +10,9 @@ const BOUNDARY = "[\\p{L}\\p{N}_]";
 /** `text` cut into its pieces, each said whether it is one of `words` (a `key` piece) or the spoken
  * text between them. The words are matched whole and without regard to case, as the server matched
  * them: "Mamma" opening a part is the word "mamma", and "blå" is not found inside "blåbär". */
-export function pieces(
-  text: string,
-  words: string[],
-): { text: string; key: boolean }[] {
+export function pieces(text: string, words: string[]): { text: string; key: boolean }[] {
   if (!words.length) return [{ text, key: false }];
-  const pattern = words
-    .map((each) => each.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-    .join("|");
-  const split = text.split(
-    new RegExp(`(?<!${BOUNDARY})(${pattern})(?!${BOUNDARY})`, "iu"),
-  );
+  const pattern = words.map((each) => each.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const split = text.split(new RegExp(`(?<!${BOUNDARY})(${pattern})(?!${BOUNDARY})`, "iu"));
   return split.map((each, index) => ({ text: each, key: index % 2 === 1 }));
 }

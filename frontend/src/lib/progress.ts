@@ -26,15 +26,7 @@ export const DAYS = [1, 3, 7, 21];
  * Box 0 is a sign the learner picked in Tecken and has not practised yet, which is where every sign
  * now enters the store (step 9 of ROADMAP-takk.md); `added` is when it was picked and orders the
  * cards of Nya ord. It has no `due`, since nothing about it is scheduled until it is answered. */
-export type Learned = {
-  box: number;
-  due: number;
-  seen?: number;
-  first?: number;
-  word?: string;
-  id?: string;
-  added?: number;
-};
+export type Learned = { box: number; due: number; seen?: number; first?: number; word?: string; id?: string; added?: number };
 
 export type Progress = Record<string, Learned>;
 
@@ -53,12 +45,7 @@ export function save(progress: Progress) {
 /** The progress after `card` was signed right or missed. A word met for the first time and signed
  * right lands in the first box, which is what "Nya ord" records; every later answer comes from a
  * story. */
-export function record(
-  progress: Progress,
-  card: SignWord,
-  correct: boolean,
-  now = Date.now(),
-): Progress {
+export function record(progress: Progress, card: SignWord, correct: boolean, now = Date.now()): Progress {
   const previous = progress[card.sign];
   // A sign answered before it was due keeps its box and its date (user, 2026-09-21). A box is a claim
   // about an interval — the third means "still remembered after seven days" — and an answer on the
@@ -67,18 +54,9 @@ export function record(
   // miss is evidence whatever the day, since forgetting a sign that was not due means its interval
   // was already too long, so a miss always falls back to the first box.
   const early = correct && previous && previous.due > now;
-  const box = early
-    ? previous.box
-    : correct
-      ? Math.min((previous?.box ?? 0) + 1, DAYS.length)
-      : 1;
+  const box = early ? previous.box : correct ? Math.min((previous?.box ?? 0) + 1, DAYS.length) : 1;
   const due = early ? previous.due : now + DAYS[box - 1] * DAY;
-  const learned: Learned = {
-    box,
-    due,
-    seen: now,
-    first: previous?.first ?? now,
-  };
+  const learned: Learned = { box, due, seen: now, first: previous?.first ?? now };
   if (card.word) learned.word = card.word; // the word on the card, not the name of the sign that scores it
   if (card.id) learned.id = card.id;
   return { ...progress, [card.sign]: learned };
@@ -87,21 +65,10 @@ export function record(
 /** The progress after the learner picked `words` in Tecken. A sign already in the store keeps its
  * box, so picking a word again never undoes what has been learned of it; a new one lands in box 0,
  * which is "valt men inte övat" and what Nya ord teaches from. */
-export function add(
-  progress: Progress,
-  words: SignWord[],
-  now = Date.now(),
-): Progress {
+export function add(progress: Progress, words: SignWord[], now = Date.now()): Progress {
   const picked = { ...progress };
   for (const each of words)
-    if (!picked[each.sign])
-      picked[each.sign] = {
-        box: 0,
-        due: 0,
-        added: now,
-        word: each.word,
-        id: each.id,
-      };
+    if (!picked[each.sign]) picked[each.sign] = { box: 0, due: 0, added: now, word: each.word, id: each.id };
   return picked;
 }
 
@@ -127,9 +94,7 @@ export function boxes(progress: Progress): Row[] {
     sign,
     word: learned.word ?? signWord(sign),
   }));
-  return rows.sort(
-    (a, b) => a.due - b.due || a.word.localeCompare(b.word, "sv"),
-  );
+  return rows.sort((a, b) => a.due - b.due || a.word.localeCompare(b.word, "sv"));
 }
 
 /** The card a box holds: its word and its lexicon entry, both stored with it, so nothing is looked
@@ -151,11 +116,7 @@ const card = (row: Row): SignWord => ({
  * that was not due where it is, so a story can repair the boxes but never inflate them. Covering
  * every word is the ordinary schedule's job, whatever this samples. `random` is a parameter so that a
  * test can be deterministic. */
-export function known(
-  progress: Progress,
-  size: number,
-  random = Math.random,
-): SignWord[] {
+export function known(progress: Progress, size: number, random = Math.random): SignWord[] {
   const pool = boxes(progress)
     .filter((row) => row.box > 0) // a sign picked but never practised is taught first, not repeated
     .map((row) => ({

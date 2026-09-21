@@ -56,9 +56,7 @@ describe("record", () => {
   });
 
   it("neither promotes nor reschedules a sign answered before it was due", () => {
-    const progress = {
-      "sts:mjölk-1": { box: 2, due: 3 * DAY, seen: 0, first: 0, word: "mjölk" },
-    };
+    const progress = { "sts:mjölk-1": { box: 2, due: 3 * DAY, seen: 0, first: 0, word: "mjölk" } };
 
     // accepted on the first day: the box claims three, which this answer has not tested, so only the
     // time the sign was last seen moves
@@ -105,10 +103,7 @@ describe("known", () => {
   });
 
   it("never repeats a sign that was only picked, since it has not been taught yet", () => {
-    const picked = {
-      ...progress,
-      "sts:bröd-2": { box: 0, due: 0, added: 0, word: "bröd", id: "2" },
-    };
+    const picked = { ...progress, "sts:bröd-2": { box: 0, due: 0, added: 0, word: "bröd", id: "2" } };
 
     expect(known(picked, 5, () => 0.5)).toEqual([word("mamma"), word("hej")]);
   });
@@ -117,9 +112,7 @@ describe("known", () => {
     // a box written before the entry was stored still practises, with no entry to describe its form
     const old = { "sts:hej-1": { box: 1, due: 0, word: "hej" } };
 
-    expect(known(old, 1, () => 0)).toEqual([
-      { sign: "sts:hej-1", id: "", word: "hej" },
-    ]);
+    expect(known(old, 1, () => 0)).toEqual([{ sign: "sts:hej-1", id: "", word: "hej" }]);
   });
 });
 
@@ -134,16 +127,7 @@ describe("add", () => {
 
   it("leaves a sign that is already in the store alone", () => {
     // picking a word again must never undo what has been learned of it
-    const learned = {
-      "sts:mjölk-1": {
-        box: 3,
-        due: 11 * DAY,
-        seen: 0,
-        first: 0,
-        word: "mjölk",
-        id: "1",
-      },
-    };
+    const learned = { "sts:mjölk-1": { box: 3, due: 11 * DAY, seen: 0, first: 0, word: "mjölk", id: "1" } };
 
     expect(add(learned, [milkWord], 7)).toEqual(learned);
   });
@@ -154,14 +138,7 @@ describe("fresh", () => {
     const progress = {
       "sts:hej-1": { box: 0, due: 0, added: 2 * DAY, word: "hej", id: "hej" },
       "sts:mamma-1": { box: 0, due: 0, added: DAY, word: "mamma", id: "mamma" },
-      "sts:mjölk-1": {
-        box: 1,
-        due: DAY,
-        seen: 0,
-        first: 0,
-        word: "mjölk",
-        id: "1",
-      }, // already taught
+      "sts:mjölk-1": { box: 1, due: DAY, seen: 0, first: 0, word: "mjölk", id: "1" }, // already taught
     };
 
     expect(fresh(progress)).toEqual([word("mamma"), word("hej")]);
