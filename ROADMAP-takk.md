@@ -50,6 +50,8 @@ Steps 1 to 7 are built and in use. Steps 8 to 14 are the blueprint above and are
 
 ## Decisions
 
+- **The blueprint is the layout, and the pages stay very minimal** (user, 2026-09-21). Each screen holds what its box in the map holds, in that order, and nothing beside it. No icons, no cards or shadows, no colour beyond what marks a state, no UI framework or component library, no charting dependency, and no headings or helper text the map has no room for. Where the map labels something in Swedish ("Sök efter ord eller teman", "Lägg till alla", "Nollställ"), that wording is the label.
+
 - **The learner chooses the vocabulary by searching the lexicon** (user, 2026-09-21). Ready-made lists — the starter packs and the lexicon's categories as a picker — are dropped in favour of search, by word or by theme or by signing. The categories remain underneath as what a theme search matches, which is what they were always good for: they are subject areas rather than a learning order (see findings), so they made a poor picker and make a reasonable search index.
 
 - **The app is in Swedish, and keeps the learner's state in the browser until something needs more** (user, 2026-09-20). No accounts and no database for as long as this holds. The LLM steps are also the point of the exercise and not only a means, as the user wants the app to be an occasion to use LLM APIs.
