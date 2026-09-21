@@ -140,13 +140,23 @@ export function boxes(progress: Progress, packs: Pack[]): Row[] {
   return rows.sort((a, b) => a.due - b.due || a.word.localeCompare(b.word, "sv"));
 }
 
+/** The card a box holds: its word and its lexicon entry, which are stored with it, so a pass needs the
+ * packs only to name a box written before the word was kept. */
+const card = (row: Row): PackWord => ({ sign: row.sign, id: row.id ?? "", word: row.word });
+
 /** The signs of one pass: `size` of them, the due ones first and soonest due first, filled up with
  * words never practised when fewer than `size` are due. A pass is therefore the same length whatever
- * the boxes hold, and new words arrive only as far as the repetitions leave room for them. */
-export function session(words: PackWord[], progress: Progress, size = DEFAULTS.size, now = Date.now()): PackWord[] {
-  const due = words.filter((word) => progress[word.sign] && progress[word.sign].due <= now);
-  due.sort((a, b) => progress[a.sign].due - progress[b.sign].due);
-  const fresh = words.filter((word) => !progress[word.sign]);
+ * the boxes hold, and new words arrive only as far as the repetitions leave room for them.
+ *
+ * The repetitions come from every box, while the new words come from the chosen packs (user,
+ * 2026-09-21). The packs say where new words come from and nothing else: a word already learned is the
+ * learner's whether or not the pack that taught it is still ticked, and a due word that no pack teaches
+ * any more would otherwise never be repeated again. */
+export function session(packs: Pack[], chosen: string[], progress: Progress, size = DEFAULTS.size, now = Date.now()): PackWord[] {  // prettier-ignore
+  const due = boxes(progress, packs)
+    .filter((row) => row.due <= now) // `boxes` sorts them, soonest due first
+    .map(card);
+  const fresh = chosenWords(packs, chosen).filter((word) => !progress[word.sign]);
   return [...due, ...fresh].slice(0, size);
 }
 
@@ -163,7 +173,7 @@ export function session(words: PackWord[], progress: Progress, size = DEFAULTS.s
  * test can be deterministic. */
 export function known(packs: Pack[], progress: Progress, size = DEFAULTS.size, random = Math.random): PackWord[] {
   const pool = boxes(progress, packs).map((row) => ({
-    word: { sign: row.sign, id: row.id ?? "", word: row.word },
+    word: card(row),
     weight: 1 / DAYS[Math.min(row.box, DAYS.length) - 1],
   }));
   const picked: PackWord[] = [];

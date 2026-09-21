@@ -114,29 +114,39 @@ describe("known", () => {
 });
 
 describe("session", () => {
-  const words = [word("mamma"), word("pappa"), word("hej")];
+  const packs = [{ name: "Första tecknen", kind: "pack" as const, words: [word("mamma"), word("pappa"), word("hej")] }];  // prettier-ignore
+  const chosen = ["Första tecknen"];
+  const learned = (sign: string, due: number, box = 1) => ({ [sign]: { box, due, word: sign.slice(4, -2), id: sign.slice(4, -2) } });  // prettier-ignore
 
   it("takes the due signs first and fills up with signs never practised", () => {
     const progress = {
-      "sts:mamma-1": { box: 2, due: 5 * DAY }, // not due yet
-      "sts:pappa-1": { box: 1, due: 0 }, // due
+      ...learned("sts:mamma-1", 5 * DAY, 2), // not due yet
+      ...learned("sts:pappa-1", 0), // due
     };
 
-    expect(session(words, progress, 2, DAY)).toEqual([word("pappa"), word("hej")]);
+    expect(session(packs, chosen, progress, 2, DAY)).toEqual([word("pappa"), word("hej")]);
   });
 
   it("is the new signs alone when nothing was practised, at most `size` of them", () => {
-    expect(session(words, {}, 2)).toEqual([word("mamma"), word("pappa")]);
+    expect(session(packs, chosen, {}, 2)).toEqual([word("mamma"), word("pappa")]);
   });
 
   it("leaves no room for a new sign when the pass is full of repetitions", () => {
     const progress = {
-      "sts:mamma-1": { box: 1, due: DAY }, // due later today than pappa
-      "sts:pappa-1": { box: 1, due: 0 },
+      ...learned("sts:mamma-1", DAY), // due later today than pappa
+      ...learned("sts:pappa-1", 0),
     };
 
     // soonest due first, and "hej", never practised, does not fit in a pass of two
-    expect(session(words, progress, 2, 2 * DAY)).toEqual([word("pappa"), word("mamma")]);
+    expect(session(packs, chosen, progress, 2, 2 * DAY)).toEqual([word("pappa"), word("mamma")]);
+  });
+
+  it("repeats a due sign that no chosen pack teaches, and teaches new signs from the chosen ones", () => {
+    // the packs say where new words come from, nothing more: a word already learned is still repeated
+    const progress = learned("sts:röd-1", 0);
+
+    expect(session(packs, [], progress, 5, DAY)).toEqual([word("röd")]);
+    expect(session(packs, chosen, progress, 5, DAY)).toEqual([word("röd"), word("mamma"), word("pappa"), word("hej")]);  // prettier-ignore
   });
 });
 

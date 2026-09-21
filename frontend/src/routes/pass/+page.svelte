@@ -16,7 +16,6 @@
   } from "$lib/api";
   import {
     advance,
-    chosenWords,
     DEFAULTS,
     known,
     load,
@@ -80,7 +79,7 @@
   function restart() {
     queue = review
       ? known(packs, progress, size)
-      : session(chosenWords(packs, chosen), progress, size, Date.now() + ahead * 24 * 60 * 60 * 1000);
+      : session(packs, chosen, progress, size, Date.now() + ahead * 24 * 60 * 60 * 1000);
     (total = queue.length), (accepts = {}), (taught = []), (missed = []), (started = true);
     begin();
   }
@@ -134,7 +133,7 @@
   });
 
   // Whether another pass would have anything in it, which is what makes the summary offer one.
-  const waiting = $derived(review ? known(packs, progress, 1).length > 0 : session(chosenWords(packs, chosen), progress, 1, Date.now() + ahead * 24 * 60 * 60 * 1000).length > 0);  // prettier-ignore
+  const waiting = $derived(review ? known(packs, progress, 1).length > 0 : session(packs, chosen, progress, 1, Date.now() + ahead * 24 * 60 * 60 * 1000).length > 0);  // prettier-ignore
   const shown = $derived(current ? label(current) : "");
   const labels = $derived(Object.fromEntries(taken.map((each) => [each.sign, label(each)])));
   // The cards of this turn by sign, each under the word it is shown as, which is what the boxes keep.
@@ -186,7 +185,7 @@
     <legend>Sorts pass</legend>
     <label>
       <input type="radio" value="dagens" bind:group={mode} />
-      Dagens pass <span class="dim">nya tecken och de som ska repeteras</span>
+      Dagens pass <span class="dim">tecken som ska repeteras, och nya ur de valda orden</span>
     </label>
     <label>
       <input type="radio" value="alla" bind:group={mode} />
@@ -206,7 +205,8 @@
       Passet tar {size} tecken bland de {practised} du har övat, oftast ur de låga lådorna. Ett tecken som
       ännu inte skulle repeteras flyttas inte upp, men faller tillbaka till första lådan om du missar det.
     {:else}
-      Tecken som ska repeteras kommer först, och nya tecken fyller på upp till {size}. Ett tecken är klart
+      Tecken som ska repeteras kommer först, oavsett vilka ord de kommer ur, och nya tecken ur de valda
+      orden fyller på upp till {size}. Ett tecken är klart
       när det har godkänts {needed} gånger, och flyttas då upp en låda.
     {/if}
     {practisedToday(progress)} tecken övade idag.
