@@ -13,6 +13,7 @@
     type StoryPart,
   } from "$lib/api";
   import { known, load, record, save, type Progress } from "$lib/progress";
+  import { pieces as cut } from "$lib/text";
 
   // A story is told in parts, one recording each (step 12 of ROADMAP-takk.md): the learner reads a
   // part aloud and signs the words marked in it, the words turn green or red, and the story goes on
@@ -76,12 +77,7 @@
   );
 
   /** The part's text cut into what is signed and what is only spoken, so each word can be coloured. */
-  const pieces = $derived.by(() => {
-    if (!part) return [];
-    const pattern = part.words.map((each) => each.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
-    const split = part.text.split(new RegExp(`\\b(${pattern})\\b`, "i"));
-    return split.map((text, index) => ({ text, key: index % 2 === 1 }));
-  });
+  const pieces = $derived(part ? cut(part.text, part.words) : []);
 
   function scored(scoredAttempt: Attempt | null, told_: string) {
     (attempt = scoredAttempt), (note = told_);
