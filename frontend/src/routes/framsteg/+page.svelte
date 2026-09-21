@@ -29,6 +29,12 @@
     return days.length ? [{ day: days[0], count: 0 }, ...days.map((day, index) => ({ day, count: index + 1 }))] : [];
   });
 
+  /** The day the line starts on, written as the learner reads a date ("3 sep."). The axis runs from
+   * there to now, and without the two ends written out a week and a year look the same. */
+  const began = $derived(
+    met.length ? new Date(met[0].day).toLocaleDateString("sv-SE", { day: "numeric", month: "short" }) : "",
+  );
+
   const line = $derived.by(() => {
     if (met.length < 2) return "";
     const first = met[0].day;
@@ -88,6 +94,8 @@
       />
       <text class="tick start" x={PLOT.pad} y={PLOT.pad - 8}>tecken</text>
       <text class="value end" x={PLOT.width - PLOT.pad} y={PLOT.pad - 8}>{met.at(-1)?.count}</text>
+      <text class="tick start" x={PLOT.pad} y={PLOT.height - PLOT.pad + 12}>{began}</text>
+      <text class="tick end" x={PLOT.width - PLOT.pad} y={PLOT.height - PLOT.pad + 12}>idag</text>
     </svg>
   {/if}
 
