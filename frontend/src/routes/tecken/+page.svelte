@@ -1,9 +1,18 @@
 <script lang="ts">
-  import { fetchLexicon, fetchSearch, referenceUrl, word, type Lexicon, type SignWord } from "$lib/api";
+  import {
+    fetchLexicon,
+    fetchSearch,
+    referenceUrl,
+    searchBySign,
+    word,
+    type Lexicon,
+    type SignWord,
+  } from "$lib/api";
   import { add, load, save, type Progress } from "$lib/progress";
+  import { Tracker } from "$lib/tracking";
 
-  // Tecken (step 9 of ROADMAP-takk.md): the one way vocabulary grows. A search for a word or a theme
-  // lists signs to tick, and what is ticked is what Nya ord teaches. Searching by signing is step 10.
+  // Tecken (steps 9 and 10 of ROADMAP-takk.md): the one way vocabulary grows. A word, a theme or a
+  // sign shown to the camera lists signs to tick, and what is ticked is what Nya ord teaches.
   const WAIT = 200; // milliseconds after the last keystroke, so a word is searched once and not per letter
 
   let lexicon = $state<Lexicon | null>(null);
@@ -13,11 +22,31 @@
   let note = $state("");
   let timer: ReturnType<typeof setTimeout>;
 
+  // Searching by signing: the camera takes the place of the field, and its recording fills the same
+  // list of rows. Nothing is spoken and nothing is scored — this is a lookup, not an attempt.
+  let camera = $state(false);
+  let video = $state<HTMLVideoElement>(); // bound when the camera replaces the field, not before
+  let canvas = $state<HTMLCanvasElement>();
+  let tracker = $state<Tracker | null>(null);
+  let starting: Promise<unknown> | null = null;
+  let status = $state("Laddar teckenmodellen...");
+  let handedness: "left" | "right" = $state("right");
+  let recording = $state(false);
+  let searching = $state(false);
+
   $effect(() => {
     progress = load();
     fetchLexicon()
       .then((loaded) => (lexicon = loaded))
       .catch(() => (note = "Servern svarar inte. Starta den med uv run takk."));
+  });
+
+  // The camera opens the first time it is asked for and keeps running, so a second lookup is instant.
+  $effect(() => {
+    if (!camera || !lexicon || !video || !canvas) return;
+    starting ??= Tracker.start(video, canvas, lexicon.edges, (fps) => (status = `Följer tecknen i ${fps.toFixed(0)} fps`))
+      .then((started) => (tracker = started))
+      .catch((error) => (status = `Ingen åtkomst till kameran: ${error.message}`));
   });
 
   const clips = $derived(new Map(lexicon?.signs.map((each) => [each.sign, each.references]) ?? []));
@@ -27,6 +56,30 @@
     clearTimeout(timer);
     query = text;
     timer = setTimeout(async () => (results = text.trim() ? await fetchSearch(text) : []), WAIT);
+  }
+
+  function record() {
+    if (!tracker) return;
+    if (recording) return void finish();
+    tracker.resume();
+    tracker.startRecording();
+    (recording = true), (note = "");
+  }
+
+  async function finish() {
+    recording = false;
+    const taken = await tracker?.stopRecording();
+    if (!taken || taken.frames.length < 2) return void (note = "Inspelningen är tom.");
+    searching = true;
+    try {
+      const found = await searchBySign(taken.frames, handedness, video!, lexicon!.fps);
+      (results = found.words), (note = found.note), (query = "");
+      if (found.words.length) camera = false; // the rows take over the screen, as they do after a search
+    } catch {
+      note = "Sökningen misslyckades. Teckna igen.";
+    } finally {
+      searching = false;
+    }
   }
 
   function pick(each: SignWord, on: boolean) {
@@ -47,12 +100,33 @@
   }
 </script>
 
-<input
-  type="search"
-  placeholder="Sök efter ord eller teman"
-  value={query}
-  oninput={(event) => search(event.currentTarget.value)}
-/>
+{#if camera}
+  <div class="view">
+    <!-- svelte-ignore a11y_media_has_caption -->
+    <video bind:this={video} class:recording autoplay muted playsinline></video>
+    <canvas bind:this={canvas}></canvas>
+  </div>
+  <p class="dim">{status}</p>
+  <p class="row">
+    <button disabled={!tracker || searching} onclick={record}>{recording ? "Stopp" : "Starta"}</button>
+    <button class="secondary" onclick={() => (camera = false)}>Sök med ord</button>
+    <label class="row dim">
+      Jag tecknar med
+      <input type="radio" name="handedness" value="right" bind:group={handedness} /> höger
+      <input type="radio" name="handedness" value="left" bind:group={handedness} /> vänster hand
+    </label>
+  </p>
+  {#if searching}<p class="dim">Söker...</p>{/if}
+{:else}
+  <input
+    type="search"
+    placeholder="Sök efter ord eller teman"
+    value={query}
+    oninput={(event) => search(event.currentTarget.value)}
+  />
+  <p class="dim">eller</p>
+  <button class="secondary" onclick={() => (camera = true)}>Sök med tecken</button>
+{/if}
 
 {#if note}
   <p class="dim">{note}</p>
@@ -87,6 +161,31 @@
     margin: 12px 0;
   }
 
+  .view {
+    position: relative;
+    width: 100%;
+    max-width: 560px;
+    transform: scaleX(-1);
+  }
+
+  .view video {
+    display: block;
+    width: 100%;
+    border-radius: 8px;
+    background: #000;
+  }
+
+  .view video.recording {
+    outline: 3px solid var(--bad);
+  }
+
+  canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
   ul {
     list-style: none;
     margin: 0;
@@ -102,7 +201,7 @@
     border-bottom: 1px solid var(--line);
   }
 
-  video {
+  li video {
     width: 140px;
     border-radius: 4px;
     background: #000;

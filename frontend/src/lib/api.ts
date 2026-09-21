@@ -116,3 +116,23 @@ export async function scoreAttempt(
 
 /** The Swedish word a lexicon sign is signed for ("sts:platta slag-25563" -> "platta slag"). */
 export const word = (sign: string) => sign.replace(/^sts:/, "").replace(/-\d+$/, "");
+
+/** The lexicon signs closest to a recording of one sign, the nearest first (step 10 of
+ * ROADMAP-takk.md). A lookup and not an attempt: nothing is spoken and nothing is scored, so the
+ * answer is the same list of words a text search gives, with a note when the recording was unusable. */
+export async function searchBySign(
+  frames: Frame[],
+  handedness: "left" | "right",
+  video: HTMLVideoElement,
+  fps: number,
+): Promise<{ words: SignWord[]; note: string }> {
+  const body = new FormData();
+  const landmarks = resample(frames, fps);
+  body.append("landmarks", new Blob([landmarks.buffer as ArrayBuffer]), "landmarks.f32");
+  body.append("handedness", handedness);
+  body.append("width", String(video.videoWidth));
+  body.append("height", String(video.videoHeight));
+  const response = await fetch(api("/api/search"), { method: "POST", body });
+  if (!response.ok) throw new Error(`the server answered ${response.status}`);
+  return response.json();
+}

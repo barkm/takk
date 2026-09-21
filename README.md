@@ -437,7 +437,10 @@ signed and spoken from beginning to end without touching anything.
 
 Vocabulary grows in one place only: "Tecken" (`/tecken`) searches the lexicon for a word or a theme
 (`GET /api/search`, `takk/vocabulary.py`) and lists the signs it finds, each with a checkbox and its
-clip, with "Lägg till alla" above them. A theme is one of the lexicon's own categories, so "mat"
+clip, with "Lägg till alla" above them. The camera searches the same list: "Sök med tecken" records
+a sign and `POST /api/search` answers with the twenty lexicon signs closest to it, which is the
+ranking an attempt already computes. It needs no microphone and scores nothing, since it is a lookup
+and not an attempt, and the recording is started and stopped by hand. A theme is one of the lexicon's own categories, so "mat"
 offers Mat och dryck's words before the word "mat" itself. A ticked sign is stored in box 0 and is
 taught by "Nya ord"; unticking it takes it out again, unless it has been practised, in which case its
 box stays and the checkbox is locked.

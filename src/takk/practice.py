@@ -35,6 +35,8 @@ from takk.story import write_story
 from takk.vocabulary import Index, search, spoken_word
 
 # Everything the learner reads is Swedish (see ROADMAP-takk.md): the app is for practising TAKK.
+CLOSEST = 20  # signs a search by signing answers with, as many as a list of rows can show at once
+
 NOTES = {
     "empty": "Inspelningen är tom.",
     "recorded": "Inspelat.",
@@ -164,6 +166,29 @@ def create_app(
             "sign": sign, "usable": True, "note": note, "score": score, "correct": score >= threshold,
             "closest": {"sign": names[closest], "score": float(scores[closest])},
         }  # fmt: skip
+
+    @app.post("/api/search")
+    async def search_by_sign(landmarks: UploadFile, handedness: str = Form(), width: int = Form(), height: int = Form()) -> dict:  # fmt: skip
+        """The lexicon signs closest to a recording of one sign, the nearest first: a learner who
+        knows a sign but not its Swedish word finds it by signing it (step 10 of ROADMAP-takk.md).
+
+        This is a lookup and not an attempt, so nothing is spoken and nothing is scored against a
+        threshold; the recording is checked and prepared exactly as an attempt is, and the ranking is
+        the one `judge` already computes over the whole glossary.
+        """
+        values = np.frombuffer(await landmarks.read(), dtype=np.float32)
+        if handedness not in ("left", "right") or width <= 0 or height <= 0 or values.size % (N_LANDMARKS * 3):
+            raise HTTPException(400, "malformed recording")
+        values = values.reshape(-1, N_LANDMARKS, 3)
+        usable, note, _ = check_clip(values, VideoInfo(config.fps, width, height), config, notes=NOTES)
+        frames = prepare_attempt(values, config.fps, width / height, handedness, config) if usable else None
+        if frames is None:
+            return {"words": [], "note": note}
+        scores = means @ embed_clip(model, frames, config, device)
+        closest = np.argsort(scores)[::-1][:CLOSEST]
+        # a word per sign, as the text search answers with, so both fill the same list of rows
+        words = [vocabulary.by_sign[names[at]] for at in closest if vocabulary and names[at] in vocabulary.by_sign]
+        return {"words": words, "note": note}
 
     @app.post("/api/attempt")
     async def attempt(landmarks: UploadFile, sign: list[str] = Form(), handedness: str = Form(), width: int = Form(), height: int = Form(), spoken: list[str] = Form([]), audio: UploadFile | None = None, audio_offset: float = Form(0.0), unheard_is_miss: bool = Form(False)) -> dict:  # fmt: skip

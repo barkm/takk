@@ -52,10 +52,12 @@ def word_index(entries: pl.DataFrame) -> dict[str, str]:
 
 
 class Index(NamedTuple):
-    """What a search reads: every practicable word, the most counted first, and the themes."""
+    """What a search reads: every practicable word, the most counted first, the themes, and the word
+    each sign is best known by, which is what a search by signing answers with."""
 
     words: list[dict]
     themes: dict[str, list[dict]]
+    by_sign: dict[str, dict]
 
 
 def search_index(clips: pl.DataFrame, raw_dir: Path = RAW_DIR) -> Index:
@@ -76,7 +78,11 @@ def search_index(clips: pl.DataFrame, raw_dir: Path = RAW_DIR) -> Index:
         if entry_id in sign_of
     ]
     themes = {name: words for name, words in sorted(category_words(clips, raw_dir).items()) if name != HISTORICAL}
-    return Index([word for _, _, word in sorted(found, key=lambda each: each[:2])], themes)
+    words = [word for _, _, word in sorted(found, key=lambda each: each[:2])]
+    by_sign: dict[str, dict] = {}
+    for word in words:  # the words are in order, so the first one a sign is met under is its best
+        by_sign.setdefault(word["sign"], word)
+    return Index(words, themes, by_sign)
 
 
 def search(index: Index, query: str, limit: int = 30) -> list[dict]:

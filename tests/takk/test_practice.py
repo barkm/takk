@@ -172,10 +172,31 @@ def test_search_answers_from_the_vocabulary_it_was_given():
     # the endpoint searches the vocabulary passed to `create_app`, which a local name inside it once
     # shadowed, so every search answered 500 until this test existed
     words = [{"sign": "sts:hej-1", "id": "1"}]
-    vocabulary = Index(words, {"Hälsningsfras": words})
+    vocabulary = Index(words, {"Hälsningsfras": words}, {"sts:hej-1": words[0]})
     app = create_app({"sts:hej-1": ["a1"]}, np.array([[1.0, 0.0]]), {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [], vocabulary=vocabulary)  # fmt: skip
     search = next(route for route in app.routes if getattr(route, "path", "") == "/api/search").endpoint
 
     assert search("hej") == {"words": words}
     assert search("hälsning") == {"words": words}  # the theme its name begins
     assert search("x") == {"words": []}
+
+
+def test_search_by_signing_ranks_the_whole_glossary():
+    # the model embeds every recording as [3, 4] / 5, so B is the nearer of the two signs
+    references = {"sts:hej-1": ["a1"], "sts:mamma-2": ["b1"]}
+    means = np.array([[1.0, 0.0], [0.6, 0.8]])
+    words = {"sts:hej-1": {"sign": "sts:hej-1", "id": "1"}, "sts:mamma-2": {"sign": "sts:mamma-2", "id": "2"}}
+    vocabulary = Index(list(words.values()), {}, words)
+    app = create_app(references, means, {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [], vocabulary=vocabulary)  # fmt: skip
+    search = next(route for route in app.routes if getattr(route, "path", "") == "/api/search" and "POST" in route.methods).endpoint  # fmt: skip
+
+    def send(landmarks: np.ndarray) -> dict:
+        upload = UploadFile(io.BytesIO(landmarks.astype(np.float32).tobytes()))
+        return asyncio.run(search(upload, handedness="right", width=640, height=480))
+
+    found = send(attempt_landmarks(("right_hand",)))
+    assert [word["sign"] for word in found["words"]] == ["sts:mamma-2", "sts:hej-1"]
+
+    # a recording with no hands in it is no lookup at all, and says why rather than ranking noise
+    empty = send(np.full((60, N_LANDMARKS, 3), np.nan, dtype=np.float32))
+    assert empty["words"] == [] and empty["note"] == NOTES["no_hands"]
