@@ -1,13 +1,19 @@
 :root {
-  color-scheme: dark;
-  --bg: #16181d;
-  --card: #23262e;
-  --line: #363a45;
-  --text: #e8eaee;
-  --dim: #a0a6b2;
-  --ok: #4ade80;
-  --bad: #f87171;
-  --accent: #60a5fa;
+  color-scheme: light;
+  --bg: #ffffff;
+  --text: #000000;
+  --dim: #6b6b6b;
+  --line: #dcdcdc;
+  /* The accents: standard colours, bright but unsaturated enough to sit calmly on white. Anything
+     coloured carries black text, so every one of them is readable without a second text colour. */
+  --blue: #7fb3f2;
+  --green: #8ed3a8;
+  --yellow: #f7d972;
+  --red: #f4a09a;
+  --purple: #c3aeea;
+  --accent: var(--blue);
+  --ok: #3e9e63;
+  --bad: #cf5b52;
 }
 
 * {
@@ -17,29 +23,47 @@
 body {
   margin: 0;
   padding: 24px 16px;
+  min-height: 100dvh;
+  display: flex;
   background: var(--bg);
   color: var(--text);
   font:
-    16px/1.5 system-ui,
-    sans-serif;
+    16px/1.6 ui-monospace,
+    "SF Mono",
+    "JetBrains Mono",
+    Menlo,
+    Consolas,
+    monospace;
 }
 
+/* SvelteKit's hydration wrapper sits between body and main; it takes part in no layout of its own,
+   so main is the flex child that gets centred. */
+body > div {
+  display: contents;
+}
+
+/* Centred horizontally, and vertically too while the page fits: auto margins centre without ever
+   cutting off the top of content taller than the viewport, which `align-items: center` does. */
 main {
-  max-width: 900px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: 720px;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
 }
 
+/* The blueprint has no cards: the class only groups a screen's own block. */
 .card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 16px;
+  width: 100%;
 }
 
 h1 {
-  font-size: 20px;
-  margin: 0 0 16px;
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0;
 }
 
 h2 {
@@ -49,7 +73,11 @@ h2 {
 }
 
 p {
-  margin: 8px 0;
+  margin: 0;
+}
+
+a {
+  color: var(--text);
 }
 
 .dim {
@@ -59,41 +87,63 @@ p {
 
 input[type="search"] {
   width: 100%;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
+  padding: 16px 20px;
+  border-radius: 14px;
+  border: 2px solid var(--line);
   background: var(--bg);
   color: var(--text);
-  font-size: 16px;
+  font: inherit;
+  text-align: center;
+}
+
+input[type="search"]:focus-visible {
+  outline: none;
+  border-color: var(--blue);
+}
+
+input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--blue);
 }
 
 button {
-  padding: 10px 18px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
+  padding: 18px 32px;
+  border-radius: 16px;
+  border: none;
   background: var(--accent);
-  color: #0b1220;
-  font-size: 16px;
-  font-weight: 600;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
   cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  filter: brightness(0.95);
 }
 
 button.secondary {
   background: transparent;
-  color: var(--text);
+  border: 2px solid var(--line);
   font-weight: 400;
-  padding: 6px 12px;
+  padding: 12px 24px;
 }
 
 button:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: default;
+}
+
+:focus-visible {
+  outline: 3px solid var(--text);
+  outline-offset: 3px;
 }
 
 .row {
   display: flex;
   gap: 12px;
   align-items: center;
+  justify-content: center;
   flex-wrap: wrap;
 }
 
@@ -101,12 +151,12 @@ button:disabled {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
-  margin-top: 12px;
+  justify-content: center;
 }
 
 .videos video {
   width: 240px;
-  border-radius: 8px;
+  border-radius: 12px;
   background: #000;
 }
 
@@ -128,17 +178,40 @@ button:disabled {
   color: var(--bad);
 }
 
-/* The menu and the Träna hub: a row of links to the sections. */
+/* The menu and the Träna hub: a row of big blocks, one colour each, so the sections are told apart
+   by colour rather than by anything written beside them. */
 .choices {
   display: flex;
-  gap: 12px;
+  gap: 16px;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
-.choices a {
-  padding: 10px 18px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+.choices a,
+.choices button {
+  padding: 28px 40px;
+  min-width: 160px;
+  border: none;
+  border-radius: 20px;
+  background: var(--blue);
   color: var(--text);
+  font-weight: 700;
   text-decoration: none;
+}
+
+.choices > :nth-child(2) {
+  background: var(--green);
+}
+
+.choices > :nth-child(3) {
+  background: var(--yellow);
+}
+
+.choices > :nth-child(4) {
+  background: var(--purple);
+}
+
+.choices a:hover,
+.choices button:hover {
+  filter: brightness(0.95);
 }
