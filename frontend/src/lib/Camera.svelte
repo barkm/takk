@@ -45,27 +45,45 @@
   });
 </script>
 
-<div class="view" class:recording={camera.recording}>
+<div class="view" class:recording={camera.recording} class:ready={camera.tracker}>
   <!-- svelte-ignore a11y_media_has_caption -->
   <video bind:this={video} autoplay muted playsinline></video>
   <canvas bind:this={canvas}></canvas>
-  {@render children?.()}
-  {#if camera.fit}<p class="fit">{camera.fit}</p>{/if}
+  {#if camera.tracker}
+    {@render children?.()}
+    {#if camera.fit}<p class="fit">{camera.fit}</p>{/if}
+  {:else}
+    <!-- the space is reserved above, so only what fills it changes when the camera is ready -->
+    <p class="starting">{camera.fit || "Startar kameran …"}</p>
+  {/if}
 </div>
 
 <style>
+  /* the box the picture will fill, held open at the shape of the camera from the first frame of the
+     page, so nothing jumps when the camera and the landmark model are finally ready */
   .view {
     position: relative;
     width: 100%;
     max-width: 560px;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border-radius: 12px;
     transform: scaleX(-1); /* a mirror, which is how a signer expects to see themselves */
+  }
+
+  /* the picture stays out of sight until the landmarks can be drawn over it, so the feed and the
+     tracking appear together rather than the raw camera first */
+  .view:not(.ready) video,
+  .view:not(.ready) canvas {
+    visibility: hidden;
   }
 
   video {
     display: block;
     width: 100%;
-    border-radius: 8px;
-    background: #000;
+    height: 100%;
+    border-radius: 12px;
+    object-fit: cover;
   }
 
   .view.recording video {
@@ -79,6 +97,19 @@
     height: 100%;
   }
 
+  /* what stands in for the picture until it is there, unmirrored like the framing text below */
+  .starting {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: scaleX(-1);
+    text-align: center;
+    color: #fff;
+  }
+
   /* over the picture it is about, and unmirrored: the view itself is flipped like a mirror */
   .fit {
     position: absolute;
@@ -88,6 +119,6 @@
     transform: scaleX(-1);
     text-align: center;
     background: #0009;
-    border-radius: 0 0 8px 8px;
+    border-radius: 0 0 12px 12px;
   }
 </style>
