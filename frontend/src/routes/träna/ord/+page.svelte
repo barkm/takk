@@ -5,12 +5,12 @@
   import { useCamera } from "$lib/camera.svelte";
   import { fresh, load, record, save, type Progress } from "$lib/progress";
 
-  // Nya ord (steps 9 and 12 of ROADMAP-takk.md): where a sign the learner picked in Tecken is taught
-  // for the first time. Every card is a word never practised, so it is always taught — its clip and
-  // the lexicon's description of the form are on screen while it is signed. An accepted word goes
-  // into the first Leitner box and is repeated in the story; a missed one is simply signed again,
-  // since there is nothing to test yet.
-  const SIZE = 5; // new words in one session
+  // Ord (steps 9, 12 and 16 of ROADMAP-takk.md): one sign at a time, with its clip and the lexicon's
+  // description of the form on screen while it is signed. It teaches the words the learner picked in
+  // Tecken and the ones they have missed since — the clip is what a word signed wrong needs, and
+  // Meningar never stops to show it. An accepted word goes into the first Leitner box, or keeps the
+  // box it had when it was not due; a missed one is simply signed again, with the clip still there.
+  const SIZE = 5; // words in one session
 
   const camera = useCamera(); // the camera of the Träna layout, which both modes share
   const lexicon = $derived(camera.lexicon);
@@ -64,18 +64,18 @@
 
 {#if !lexicon}
   <section class="card">
-    <h1>Nya ord</h1>
+    <h1>Ord</h1>
     <p class="dim">{note || "Laddar lexikonet ..."}</p>
   </section>
 {:else if !started}
   <section class="card">
-    <h1>Nya ord</h1>
+    <h1>Ord</h1>
     <p class="dim">
-      {SIZE} nya tecken av dem du valt. Du ser klippet och tecknar efter det.
+      {SIZE} tecken du inte övat än, eller tecknade fel. Du ser klippet och tecknar efter det.
     </p>
     <button onclick={start} disabled={!waiting.length}>Börja</button>
     {#if !waiting.length}
-      <p class="dim">Inga nya tecken valda. Välj några under <a href="/sök">Sök</a>.</p>
+      <p class="dim">Inga tecken att öva. Välj några under <a href="/sök">Sök</a>.</p>
     {/if}
   </section>
 {:else if current}
@@ -93,8 +93,8 @@
 {:else}
   <section class="card">
     <h1>Klart!</h1>
-    <p>{taken} nya tecken klara. <a href="/träna/repetera">Repetera</a> dem när du vill.</p>
-    <button onclick={start} disabled={!waiting.length}>Fler nya ord</button>
+    <p>{taken} tecken klara. Teckna dem i <a href="/träna/meningar">Meningar</a> när du vill.</p>
+    <button onclick={start} disabled={!waiting.length}>Fler ord</button>
   </section>
 {/if}
 

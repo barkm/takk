@@ -12,7 +12,7 @@
   import { add, load, save, type Progress } from "$lib/progress";
 
   // Sök (steps 9 and 10 of ROADMAP-takk.md): the one way vocabulary grows. A word, a theme or a
-  // sign shown to the camera lists signs to tick, and what is ticked is what Nya ord teaches.
+  // sign shown to the camera lists signs to tick, and what is ticked is what Ord teaches.
   const WAIT = 200; // milliseconds after the last keystroke, so a word is searched once and not per letter
 
   let query = $state("");

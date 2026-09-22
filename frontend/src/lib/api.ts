@@ -49,7 +49,7 @@ export async function fetchLexicon(): Promise<Lexicon> {
 export type SignWord = { sign: string; id: string; word?: string };
 
 /** The signs a learner searching for `query` is offered, a word or a theme alike. This is the one way
- * vocabulary grows (step 9 of ROADMAP-takk.md): what is ticked here is what Nya ord teaches. */
+ * vocabulary grows (step 9 of ROADMAP-takk.md): what is ticked here is what Ord teaches. */
 export async function fetchSearch(query: string): Promise<SignWord[]> {
   const response = await fetch(api(`/api/search?q=${encodeURIComponent(query)}`));
   if (!response.ok) return [];

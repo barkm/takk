@@ -5,7 +5,7 @@
   import { known, load, record, save, type Progress } from "$lib/progress";
   import { pieces as cut } from "$lib/text";
 
-  // Repetera (step 13 of ROADMAP-takk.md): a connected Swedish text over the words the learner
+  // Meningar (step 13 of ROADMAP-takk.md): a connected Swedish text over the words the learner
   // already knows, read line by line. The line to sign now is solid, the lines around it grey, and it
   // goes on whatever the verdict was — nothing is pressed and there is no end screen. To the learner
   // this is simply how words are repeated, so the page names it nothing and explains nothing.
@@ -103,7 +103,7 @@
 {:else if !story.length}
   <button onclick={write} disabled={writing || pool.length < 2}>{writing ? "Skriver ..." : "Börja"}</button>
   {#if pool.length < 2}
-    <p class="dim">Lär dig några <a href="/träna/nya">nya ord</a> först.</p>
+    <p class="dim">Öva några <a href="/träna/ord">ord</a> först.</p>
   {/if}
   {#if note}<p class="dim">{note}</p>{/if}
 {:else}

@@ -4,7 +4,7 @@ A story is how everything already learned is repeated (step 12 of ROADMAP-takk.m
 written around many of the words in the learner's Leitner boxes, and it is practised in order from
 beginning to end. The words are the ones
 in the learner's boxes, drawn towards the low ones, so the weak words are the ones the story leans
-on; nothing new is taught here, since new words are learned on their own ("Nya ord", step 9).
+on; nothing new is taught here, since words are learned on their own ("Ord", step 9).
 
 The story comes back in chunks ("avsnitt"), one recording each. A chunk carries at most `MOST_WORDS`
 signs: every sign is another boundary the split has to place, and the whole chunk has to be said in
