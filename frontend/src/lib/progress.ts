@@ -1,6 +1,6 @@
 // What the learner has picked and practised, kept in the browser (step 8 of ROADMAP-takk.md): no
 // accounts and no state on the server for as long as that holds. A sign enters the store in box 0
-// when it is ticked in Tecken, moves into the first box when Nya ord teaches it, up a box when a due
+// when it is ticked in Tecken, moves into the first box when Ord teaches it, up a box when a due
 // sign is signed right, and back to the first box the moment it is missed. The story is where a
 // learned sign is repeated (see steps 9 and 13 of ROADMAP-takk.md).
 import { word as signWord, type SignWord } from "$lib/api";
@@ -21,11 +21,15 @@ export const DAYS = [1, 3, 7, 21];
  * to practise the word again: the lexicon is the server's and the boxes are the browser's, and the
  * entry is what a card's description of the sign form is fetched by.
  *
+ * `missed` is when the sign was last signed wrong, and is cleared the next time it is signed right:
+ * it is what puts a word back among the ones Ord teaches, since a missed word and a word that has
+ * been learned and fallen due both sit in the first box (step 16 of ROADMAP-takk.md).
+ *
  * Box 0 is a sign picked in Tecken and not practised yet, which is where every sign enters the store
  * (step 9 of ROADMAP-takk.md); it has no `due`, since nothing about it is scheduled until it is
  * answered, and no `seen` or `first`, which an answer writes. `first` is when the sign was met, the
  * only way to tell a new word from a missed old one once both sit in the first box. */
-export type Learned = { box: number; due: number; added: number; word: string; id: string; seen?: number; first?: number };
+export type Learned = { box: number; due: number; added: number; word: string; id: string; seen?: number; first?: number; missed?: number };
 
 export type Progress = Record<string, Learned>;
 
@@ -42,8 +46,7 @@ export function save(progress: Progress) {
 }
 
 /** The progress after `card` was signed right or missed. A word met for the first time and signed
- * right lands in the first box, which is what "Nya ord" records; every later answer comes from a
- * story. */
+ * right lands in the first box, which is what Ord records; every later answer comes from a story. */
 export function record(progress: Progress, card: SignWord, correct: boolean, now = Date.now()): Progress {
   const previous = progress[card.sign];
   // A sign answered before it was due keeps its box and its date (user, 2026-09-21). A box is a claim
@@ -57,12 +60,15 @@ export function record(progress: Progress, card: SignWord, correct: boolean, now
   const due = early ? previous.due : now + DAYS[box - 1] * DAY;
   // the word and the entry are the card's, which is the word practised and not the name of the sign
   const learned: Learned = { ...previous, box, due, seen: now, first: previous?.first ?? now };
+  // a missed word is taught again in Ord, and signing it right there is what takes it off that list
+  if (correct) delete learned.missed;
+  else learned.missed = now;
   return { ...progress, [card.sign]: learned };
 }
 
 /** The progress after the learner picked `words` in Tecken. A sign already in the store keeps its
  * box, so picking a word again never undoes what has been learned of it; a new one lands in box 0,
- * which is "valt men inte övat" and what Nya ord teaches from. */
+ * which is "valt men inte övat" and what Ord teaches from. */
 export function add(progress: Progress, words: SignWord[], now = Date.now()): Progress {
   const picked = { ...progress };
   for (const each of words)
@@ -72,12 +78,15 @@ export function add(progress: Progress, words: SignWord[], now = Date.now()): Pr
   return picked;
 }
 
-/** The signs picked but never practised, the longest waiting first, which is the order Nya ord
- * teaches them in. */
-export function fresh(progress: Progress): SignWord[] {
+/** The signs Ord teaches: the ones missed since they were last taught, then the ones picked and
+ * never practised, each group longest waiting first. A missed word comes first of all because it is
+ * the one the learner is getting wrong now, and a vocabulary picked in one sitting would otherwise
+ * bury it under words that have been waiting since (step 16 of ROADMAP-takk.md). Meningar is where a
+ * word that is merely due comes back; Ord is where the clip is on screen while it is signed. */
+export function toLearn(progress: Progress): SignWord[] {
   return boxes(progress)
-    .filter((row) => row.box === 0)
-    .sort((a, b) => a.added - b.added)
+    .filter((row) => row.box === 0 || row.missed)
+    .sort((a, b) => Number(!a.missed) - Number(!b.missed) || (a.missed ?? a.added) - (b.missed ?? b.added))
     .map(card);
 }
 

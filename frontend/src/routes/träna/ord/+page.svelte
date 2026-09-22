@@ -3,7 +3,7 @@
   import Verdict from "$lib/Verdict.svelte";
   import { fetchForm, referenceUrl, word, type Attempt, type SignWord, type Sign } from "$lib/api";
   import { useCamera } from "$lib/camera.svelte";
-  import { fresh, load, record, save, type Progress } from "$lib/progress";
+  import { load, record, save, toLearn, type Progress } from "$lib/progress";
 
   // Ord (steps 9, 12 and 16 of ROADMAP-takk.md): one sign at a time, with its clip and the lexicon's
   // description of the form on screen while it is signed. It teaches the words the learner picked in
@@ -31,7 +31,7 @@
    * one sign form: "blå" is scored by `sts:öga-02636`, the lowest entry of that form. */
   const label = (each: SignWord) => each.word ?? word(each.sign);
 
-  const waiting = $derived(fresh(progress)); // picked in Tecken and not practised yet, oldest first
+  const waiting = $derived(toLearn(progress)); // missed first, then picked and never practised
 
   function start() {
     queue = waiting.slice(0, SIZE);

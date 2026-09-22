@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { add, boxes, fresh, known, record, type Learned } from "$lib/progress";
+import { add, boxes, known, record, toLearn, type Learned } from "$lib/progress";
 
 const DAY = 24 * 60 * 60 * 1000;
 /** A card: the sign that scores it, its lexicon entry and the word the learner reads. */
@@ -32,7 +32,13 @@ describe("record", () => {
     expect(third["sts:mjölk-1"]).toEqual(stored("mjölk", { box: 3, due: 11 * DAY, seen: 4 * DAY, first: 0 }));
 
     const missed = record(third, milk, false, 4 * DAY);
-    expect(missed["sts:mjölk-1"]).toEqual(stored("mjölk", { box: 1, due: 5 * DAY, seen: 4 * DAY, first: 0 }));
+    // the miss is dated too, which is what puts the word back among the ones Ord teaches
+    expect(missed["sts:mjölk-1"]).toEqual(
+      stored("mjölk", { box: 1, due: 5 * DAY, seen: 4 * DAY, first: 0, missed: 4 * DAY }),
+    );
+
+    // and signing it right again takes it off that list, whether or not it was due
+    expect(record(missed, milk, true, 4 * DAY)["sts:mjölk-1"].missed).toBeUndefined();
   });
 
   it("neither promotes nor reschedules a sign answered before it was due", () => {
@@ -46,7 +52,7 @@ describe("record", () => {
 
     // a miss is evidence whatever the day: the interval was already too long
     expect(record(progress, milk, false, DAY)["sts:mjölk-1"]).toEqual(
-      stored("mjölk", { box: 1, due: 2 * DAY, seen: DAY, first: 0 }),
+      stored("mjölk", { box: 1, due: 2 * DAY, seen: DAY, first: 0, missed: DAY }),
     );
 
     // and the same sign, answered on the day it fell due, moves up as before
@@ -97,15 +103,23 @@ describe("add", () => {
   });
 });
 
-describe("fresh", () => {
-  it("teaches the picked signs in the order they were picked, and only those", () => {
-    const progress = {
-      "sts:hej-1": stored("hej", { added: 2 * DAY }),
-      "sts:mamma-1": stored("mamma", { added: DAY }),
-      "sts:mjölk-1": stored("mjölk", { box: 1, due: DAY, seen: 0, first: 0 }), // already taught
-    };
+describe("toLearn", () => {
+  const progress = {
+    "sts:hej-1": stored("hej", { added: 2 * DAY }),
+    "sts:mamma-1": stored("mamma", { added: DAY }),
+    "sts:mjölk-1": stored("mjölk", { box: 1, due: DAY, seen: 0, first: 0 }), // taught and not missed
+  };
 
-    expect(fresh(progress)).toEqual([word("mamma"), word("hej")]);
+  it("teaches the picked signs in the order they were picked, and only those", () => {
+    expect(toLearn(progress)).toEqual([word("mamma"), word("hej")]);
+  });
+
+  it("teaches a missed sign again, before every word that is merely waiting", () => {
+    const missed = record(progress, word("mjölk"), false, 3 * DAY);
+
+    expect(toLearn(missed)).toEqual([word("mjölk"), word("mamma"), word("hej")]);
+    // and signing it right takes it off the list again, leaving the picked words
+    expect(toLearn(record(missed, word("mjölk"), true, 3 * DAY))).toEqual([word("mamma"), word("hej")]);
   });
 });
 
