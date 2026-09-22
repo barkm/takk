@@ -20,8 +20,7 @@
 
 <style>
   .back {
-    display: inline-block;
-    margin-bottom: 12px;
+    align-self: flex-start;
     color: var(--dim);
     text-decoration: none;
   }
