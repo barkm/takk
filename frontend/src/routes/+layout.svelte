@@ -17,7 +17,9 @@
 
   $effect(() => {
     fetchLexicon()
-      .then((loaded) => (camera.lexicon = loaded))
+      .then((loaded) => {
+        camera.lexicon = loaded; // in a block: a `$state` object reads back as its proxy, not as the value assigned
+      })
       .catch(() => (camera.fit = "Servern svarar inte. Starta den med uv run takk."));
   });
 

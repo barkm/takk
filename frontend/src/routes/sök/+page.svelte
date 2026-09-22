@@ -63,7 +63,9 @@
   function search(text: string) {
     clearTimeout(timer);
     (query = text), (signed = []); // a word search replaces what the rows were found with
-    timer = setTimeout(async () => (results = text.trim() ? await fetchSearch(text) : []), WAIT);
+    timer = setTimeout(async () => {
+      results = text.trim() ? await fetchSearch(text) : [];
+    }, WAIT);
   }
 
   function record() {
