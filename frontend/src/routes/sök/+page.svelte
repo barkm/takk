@@ -111,7 +111,7 @@
 </script>
 
 {#if opened && lexicon}
-  <div class:away={!bySign}>
+  <div class="camera" class:away={!bySign}>
     <CameraView {camera} edges={lexicon.edges}>
       <!-- the sign the rows were found by, in the camera's own place, until the next recording -->
       <canvas bind:this={replay} class="replay" class:away={!signed.length}></canvas>
@@ -171,6 +171,13 @@
     margin: 12px 0;
   }
 
+  /* the camera sizes itself against this wrapper, so the wrapper takes its width from the page
+     rather than from the picture: a video element reports its own size only once loaded, and the
+     camera used to grow from that size to the page's the moment the stream arrived */
+  .camera {
+    width: 100%;
+  }
+
   .away {
     display: none; /* hidden rather than removed, so the tracker keeps the element it started on */
   }
@@ -181,7 +188,7 @@
     width: 100%;
     height: 100%;
     background: #000; /* over the live picture, so what is shown is what was searched with */
-    border-radius: 8px;
+    border-radius: 12px;
   }
 
   ul {
@@ -195,12 +202,16 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 6px 0;
+    padding: 10px 0;
+    text-align: left;
     border-bottom: 1px solid var(--line);
   }
 
+  /* the lexicon's own shape, held before the clip loads so the row does not grow under the cursor */
   li video {
     width: 140px;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
     border-radius: 4px;
     background: #000;
   }

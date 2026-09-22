@@ -65,6 +65,7 @@
     position: relative;
     width: 100%;
     max-width: 560px;
+    margin: 0 auto;
     aspect-ratio: 16 / 9;
     background: #000;
     border-radius: 12px;

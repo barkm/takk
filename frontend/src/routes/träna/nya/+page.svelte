@@ -99,11 +99,15 @@
 {/if}
 
 <style>
+  /* the lexicon's own shape, held before the clip loads so the card does not jump when it arrives */
   video {
     display: block;
     width: 100%;
     max-width: 560px;
-    border-radius: 8px;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    background: #000;
+    border-radius: 12px;
   }
 
   .form {
