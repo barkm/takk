@@ -1,20 +1,18 @@
 <script lang="ts">
   import { framing } from "$lib/framing";
-  import { hand } from "$lib/hand";
   import { Tracker } from "$lib/tracking";
   import type { Camera } from "$lib/camera.svelte";
-  import type { Edges } from "$lib/landmarks";
 
   // The camera picture with the tracked landmarks drawn over it, and what is wrong with the framing
-  // written over the bottom of it. Both places that show a camera use this (steps 10 to 12 of
-  // ROADMAP-takk.md): Sök, to look a sign up by signing it, and the Träna layout, which keeps it
-  // mounted while the practice modes come and go under it.
+  // written over the bottom of it. The root layout mounts it above every page (step 12 of
+  // ROADMAP-takk.md), so the app looks the same throughout and the moving skeleton invites signing
+  // even on the menu, where nothing reads it.
   //
-  // The camera closes when this component goes away. Nothing else stops the stream, so leaving the
-  // page would otherwise leave the camera light on and the next page would open a second stream.
+  // The camera closes when this component goes away, which is when the app is left. Nothing else
+  // stops the stream, so it would otherwise leave the camera light on.
   const LOOK = 200; // ms between readings of how the signer sits; faster than that only flickers
 
-  let { camera, edges, children }: { camera: Camera; edges: Edges; children?: import("svelte").Snippet } = $props();
+  let { camera }: { camera: Camera } = $props();
 
   let video = $state<HTMLVideoElement>();
   let canvas = $state<HTMLCanvasElement>();
@@ -23,14 +21,19 @@
   $effect(() => {
     if (!video || !canvas) return;
     camera.video = video;
-    camera.handedness = hand() ?? "right"; // asked once on the menu, never on a camera screen
-    starting ??= Tracker.start(video, canvas, edges)
+    starting ??= Tracker.start(video, canvas)
       .then((started) => (camera.tracker = started))
       .catch((error) => (camera.fit = `Ingen åtkomst till kameran: ${error.message}`));
     return () => {
       camera.tracker?.stop();
       (camera.tracker = null), (starting = null);
     };
+  });
+
+  // The lines between the landmarks come from the lexicon, which arrives after the camera has
+  // started, so the tracker is given them when they are there.
+  $effect(() => {
+    if (camera.tracker) camera.tracker.edges = camera.lexicon?.edges ?? {};
   });
 
   // How the signer sits, read off the frame being tracked right now, so the framing is fixed before a
@@ -50,7 +53,7 @@
   <video bind:this={video} autoplay muted playsinline></video>
   <canvas bind:this={canvas}></canvas>
   {#if camera.tracker}
-    {@render children?.()}
+    {@render camera.overlay?.()}
     {#if camera.fit}<p class="fit">{camera.fit}</p>{/if}
   {:else}
     <!-- the space is reserved above, so only what fills it changes when the camera is ready -->

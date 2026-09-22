@@ -15,6 +15,10 @@ export class Tracker {
    * speaks, so without it only one sign at a time can be practised. */
   readonly hasAudio: boolean;
 
+  /** Which landmarks are joined by a line, from the lexicon. The camera starts before the lexicon
+   * has arrived, so this is set once it has rather than passed in. */
+  edges: Edges = {};
+
   private recorded: Frame[] | null = null;
   private done = false; // set by `stop`, which the frame loop reads to let itself end
   /** The landmarks of the frame tracked last, which is what the framing feedback reads. */
@@ -31,7 +35,6 @@ export class Tracker {
     private video: HTMLVideoElement,
     private canvas: HTMLCanvasElement,
     private landmarker: HolisticLandmarker,
-    private edges: Edges,
     hasAudio: boolean,
   ) {
     this.hasAudio = hasAudio;
@@ -40,7 +43,7 @@ export class Tracker {
   /** Open the camera, load the landmarker and start tracking. The microphone is what splits a
    * sentence into its signs, but a single sign is the whole recording, so a refused microphone
    * leaves that much working rather than being an error. */
-  static async start(video: HTMLVideoElement, canvas: HTMLCanvasElement, edges: Edges): Promise<Tracker> {
+  static async start(video: HTMLVideoElement, canvas: HTMLCanvasElement): Promise<Tracker> {
     const constraints = { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } };
     const stream = await navigator.mediaDevices
       .getUserMedia({ video: constraints, audio: true })
@@ -57,7 +60,7 @@ export class Tracker {
       delegate = "CPU";
       landmarker = await create(delegate);
     }
-    const tracker = new Tracker(video, canvas, landmarker, edges, stream.getAudioTracks().length > 0);
+    const tracker = new Tracker(video, canvas, landmarker, stream.getAudioTracks().length > 0);
     tracker.listen(stream);
     tracker.track();
     return tracker;

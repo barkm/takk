@@ -1,15 +1,13 @@
 <script lang="ts">
   import {
-    fetchLexicon,
     fetchSearch,
     referenceUrl,
     searchBySign,
     word,
-    type Lexicon,
     type SignWord,
   } from "$lib/api";
-  import CameraView from "$lib/Camera.svelte";
-  import { Camera } from "$lib/camera.svelte";
+  import { useCamera } from "$lib/camera.svelte";
+  import { hand } from "$lib/hand";
   import { draw, type Frame } from "$lib/landmarks";
   import { add, load, save, type Progress } from "$lib/progress";
 
@@ -17,21 +15,18 @@
   // sign shown to the camera lists signs to tick, and what is ticked is what Nya ord teaches.
   const WAIT = 200; // milliseconds after the last keystroke, so a word is searched once and not per letter
 
-  let lexicon = $state<Lexicon | null>(null);
   let query = $state("");
   let results: SignWord[] = $state([]);
   let progress: Progress = $state({});
   let note = $state("");
   let timer: ReturnType<typeof setTimeout>;
 
-  // Searching by signing: the camera takes the place of the field, and its recording fills the same
-  // list of rows. Nothing is spoken and nothing is scored — this is a lookup, not an attempt. The
-  // camera itself is the shared component, which the Träna layout mounts the same way.
-  const camera = new Camera();
+  // Searching by signing: the recording fills the same list of rows as the field does. Nothing is
+  // spoken and nothing is scored — this is a lookup, not an attempt. The picture is the app's own,
+  // above this page, so all that changes here is what is asked of it.
+  const camera = useCamera();
+  const lexicon = $derived(camera.lexicon);
   let bySign = $state(false);
-  // Once opened, the camera stays in the page and is only hidden: the tracker holds the video element
-  // it was started with and draws into its canvas, so unmounting them leaves a black picture behind.
-  let opened = $state(false);
   let searching = $state(false);
   // What the rows were searched with, kept as the field keeps the word that found them. Only the
   // landmarks are kept, never the camera's picture, so the replay is the skeleton that was sent.
@@ -40,9 +35,12 @@
 
   $effect(() => {
     progress = load();
-    fetchLexicon()
-      .then((loaded) => (lexicon = loaded))
-      .catch(() => (note = "Servern svarar inte. Starta den med uv run takk."));
+  });
+
+  // The replay goes in the app's picture, which is above this page, and leaves it when the page does.
+  $effect(() => {
+    camera.overlay = replayed;
+    return () => (camera.overlay = null);
   });
 
   const clips = $derived(new Map(lexicon?.signs.map((each) => [each.sign, each.references]) ?? []));
@@ -82,7 +80,7 @@
     if (!taken || taken.frames.length < 2) return void (note = "Inspelningen är tom.");
     searching = true;
     try {
-      const found = await searchBySign(taken.frames, camera.handedness, camera.video!, lexicon!.fps);
+      const found = await searchBySign(taken.frames, hand() ?? "right", camera.video!, lexicon!.fps);
       (results = found.words), (note = found.note), (query = "");
       signed = found.words.length ? taken.frames : []; // the camera stays, with the sign that found the rows in it
     } catch {
@@ -110,14 +108,10 @@
   }
 </script>
 
-{#if opened && lexicon}
-  <div class="camera" class:away={!bySign}>
-    <CameraView {camera} edges={lexicon.edges}>
-      <!-- the sign the rows were found by, in the camera's own place, until the next recording -->
-      <canvas bind:this={replay} class="replay" class:away={!signed.length}></canvas>
-    </CameraView>
-  </div>
-{/if}
+<!-- the sign the rows were found by, in the camera's own place, until the next recording -->
+{#snippet replayed()}
+  <canvas bind:this={replay} class="replay" class:away={!signed.length}></canvas>
+{/snippet}
 
 {#if bySign}
   <p class="row">
@@ -135,7 +129,7 @@
     oninput={(event) => search(event.currentTarget.value)}
   />
   <p class="dim">eller</p>
-  <button class="secondary" onclick={() => ((bySign = true), (opened = true))}>Sök med tecken</button>
+  <button class="secondary" onclick={() => (bySign = true)}>Sök med tecken</button>
 {/if}
 
 {#if note}
@@ -169,13 +163,6 @@
 <style>
   button {
     margin: 12px 0;
-  }
-
-  /* the camera sizes itself against this wrapper, so the wrapper takes its width from the page
-     rather than from the picture: a video element reports its own size only once loaded, and the
-     camera used to grow from that size to the page's the moment the stream arrived */
-  .camera {
-    width: 100%;
   }
 
   .away {

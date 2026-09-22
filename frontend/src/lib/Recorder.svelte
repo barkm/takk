@@ -3,6 +3,7 @@
 
   import { scoreAttempt, type Attempt, type Sign } from "$lib/api";
   import { useCamera } from "$lib/camera.svelte";
+  import { hand } from "$lib/hand";
   import { hear, listening, type Phase } from "$lib/voice";
 
   let {
@@ -95,7 +96,7 @@
         taken.audio,
         taken.audioStart,
         sentence,
-        camera.handedness,
+        hand() ?? "right", // read when the recording is sent, since it can be changed under Tecken
         camera.video!,
         lexicon.fps,
         unheardIsMiss,
