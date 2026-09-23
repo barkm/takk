@@ -101,11 +101,17 @@
 {#if !lexicon}
   <p class="dim">{note || "Laddar lexikonet ..."}</p>
 {:else if !story.length}
-  <button onclick={write} disabled={writing || pool.length < 2}>{writing ? "Skriver ..." : "Börja"}</button>
-  {#if pool.length < 2}
-    <p class="dim">Öva några <a href="/träna/ord">ord</a> först.</p>
-  {/if}
-  {#if note}<p class="dim">{note}</p>{/if}
+  <section class="card">
+    <h1>Meningar</h1>
+    <p class="dim">En text över orden du redan kan, en rad i taget. Säg raden högt och teckna orden i den.</p>
+    <div class="row">
+      <button onclick={write} disabled={writing || pool.length < 2}>{writing ? "Skriver ..." : "Börja"}</button>
+      {#if pool.length < 2}
+        <span class="dim">Öva några <a href="/träna/ord">ord</a> först.</span>
+      {/if}
+    </div>
+    {#if note}<p class="dim">{note}</p>{/if}
+  </section>
 {:else}
   <div class="story">
     {#each shown as { index, pieces } (index)}
@@ -127,14 +133,18 @@
 {/if}
 
 <style>
+  /* The text is the page: the line to sign is set large and solid, the lines around it recede. */
   .story {
-    font-size: 22px;
-    line-height: 1.5;
+    font-size: 26px;
+    line-height: 1.45;
+    letter-spacing: -0.01em;
   }
 
   .story p {
     color: var(--dim);
-    opacity: 0.55; /* what was signed and what comes next, readable but plainly not the line to sign */
+    opacity: 0.4; /* what was signed and what comes next, readable but plainly not the line to sign */
+    padding: 6px 0;
+    transition: opacity 0.2s ease;
   }
 
   .story p.now {

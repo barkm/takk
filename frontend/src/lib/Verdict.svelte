@@ -21,14 +21,27 @@
 </script>
 
 {#if headline}
-  <section class="card">
-    <p class="verdict" class:ok={only?.correct} class:bad={!only?.correct}>{headline}</p>
-  </section>
+  <p class="verdict" class:ok={only?.correct} class:bad={only && !only.correct}>{headline}</p>
 {/if}
 
 <style>
+  /* One line, marked by a rule in its own colour: the verdict is read at a glance and then gone. */
   .verdict {
-    font-size: 22px;
-    font-weight: 600;
+    padding: 12px 16px;
+    border-left: 3px solid var(--line);
+    border-radius: 0 8px 8px 0;
+    background: var(--surface);
+    font-size: 17px;
+    font-weight: 500;
+  }
+
+  .verdict.ok {
+    border-left-color: var(--ok);
+    color: var(--ok);
+  }
+
+  .verdict.bad {
+    border-left-color: var(--bad);
+    color: var(--bad);
   }
 </style>

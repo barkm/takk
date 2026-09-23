@@ -7,7 +7,7 @@
 
   // Ord (steps 9, 12 and 16 of ROADMAP-takk.md): one sign at a time, with its clip and the lexicon's
   // description of the form on screen while it is signed. It teaches the words the learner picked in
-  // Tecken and the ones they have missed since — the clip is what a word signed wrong needs, and
+  // Sök and the ones they have missed since — the clip is what a word signed wrong needs, and
   // Meningar never stops to show it. An accepted word goes into the first Leitner box, or keeps the
   // box it had when it was not due; a missed one is simply signed again, with the clip still there.
   const SIZE = 5; // words in one session
@@ -63,55 +63,78 @@
 </script>
 
 {#if !lexicon}
-  <section class="card">
-    <h1>Ord</h1>
-    <p class="dim">{note || "Laddar lexikonet ..."}</p>
-  </section>
+  <p class="dim">{note || "Laddar lexikonet ..."}</p>
 {:else if !started}
   <section class="card">
     <h1>Ord</h1>
     <p class="dim">
       {SIZE} tecken du inte övat än, eller tecknade fel. Du ser klippet och tecknar efter det.
     </p>
-    <button onclick={start} disabled={!waiting.length}>Börja</button>
-    {#if !waiting.length}
-      <p class="dim">Inga tecken att öva. Välj några under <a href="/sök">Sök</a>.</p>
-    {/if}
+    <div class="row">
+      <button onclick={start} disabled={!waiting.length}>Börja</button>
+      {#if !waiting.length}
+        <span class="dim">Inga tecken att öva. Välj några under <a href="/sök">Sök</a>.</span>
+      {/if}
+    </div>
   </section>
 {:else if current}
-  <section class="card">
-    <p class="dim">{taken} av {taken + queue.length} tecken klara. Säg ordet högt medan du tecknar det.</p>
-    <h1>{shown}</h1>
-    {#if references.length}
-      <!-- svelte-ignore a11y_media_has_caption -->
-      <video src={referenceUrl(references[0])} autoplay loop muted playsinline controls></video>
-    {/if}
-    {#if form}<p class="form">{form}</p>{/if}
-  </section>
+  <header class="head">
+    <div class="meter" style="--done: {taken / (taken + queue.length)}"></div>
+    <p class="dim">{taken} av {taken + queue.length} klara. Säg ordet högt medan du tecknar det.</p>
+  </header>
+  <h1>{shown}</h1>
+  {#if references.length}
+    <!-- svelte-ignore a11y_media_has_caption -->
+    <video src={referenceUrl(references[0])} autoplay loop muted playsinline controls></video>
+  {/if}
+  {#if form}<p class="form dim">{form}</p>{/if}
   <Recorder bind:this={recorder} {sentence} onattempt={scored} />
   <Verdict {attempt} {note} {labels} />
 {:else}
   <section class="card">
     <h1>Klart!</h1>
-    <p>{taken} tecken klara. Teckna dem i <a href="/träna/meningar">Meningar</a> när du vill.</p>
-    <button onclick={start} disabled={!waiting.length}>Fler ord</button>
+    <p class="dim">{taken} tecken klara. Teckna dem i <a href="/träna/meningar">Meningar</a> när du vill.</p>
+    <div class="row">
+      <button onclick={start} disabled={!waiting.length}>Fler ord</button>
+    </div>
   </section>
 {/if}
 
 <style>
-  /* the lexicon's own shape, held before the clip loads so the card does not jump when it arrives */
+  .head {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* How far this session has come, as the one piece of chrome the card carries. */
+  .meter {
+    height: 3px;
+    border-radius: 3px;
+    background: var(--line);
+  }
+
+  .meter::after {
+    content: "";
+    display: block;
+    height: 100%;
+    width: calc(var(--done) * 100%);
+    border-radius: 3px;
+    background: var(--accent);
+    transition: width 0.3s ease;
+  }
+
+  /* the lexicon's own shape, held before the clip loads so the page does not jump when it arrives */
   video {
     display: block;
     width: 100%;
-    max-width: 560px;
     aspect-ratio: 4 / 3;
     object-fit: cover;
-    background: #000;
-    border-radius: 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
   }
 
   .form {
-    margin: 8px 0;
     font-style: italic;
   }
 </style>
