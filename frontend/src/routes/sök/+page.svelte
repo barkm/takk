@@ -6,13 +6,14 @@
     word,
     type SignWord,
   } from "$lib/api";
+  import CameraView from "$lib/Camera.svelte";
   import { useCamera } from "$lib/camera.svelte";
   import { hand } from "$lib/hand";
   import { draw, type Frame } from "$lib/landmarks";
   import { add, load, save, type Progress } from "$lib/progress";
 
   // Sök (steps 9 and 10 of ROADMAP-takk.md): the one way vocabulary grows. A word, a theme or a
-  // sign shown to the camera lists signs to tick, and what is ticked is what Ord teaches.
+  // sign shown to the camera lists signs to pick, and what is picked is what Ord teaches.
   const WAIT = 200; // milliseconds after the last keystroke, so a word is searched once and not per letter
 
   let query = $state("");
@@ -21,9 +22,9 @@
   let note = $state("");
   let timer: ReturnType<typeof setTimeout>;
 
-  // Searching by signing: the recording fills the same list of rows as the field does. Nothing is
-  // spoken and nothing is scored — this is a lookup, not an attempt. The picture is the app's own,
-  // above this page, so all that changes here is what is asked of it.
+  // Searching by signing: the recording fills the same grid the field does. Nothing is spoken and
+  // nothing is scored — this is a lookup, not an attempt. The camera is only mounted while this is
+  // the way being searched (user, 2026-09-23), so a page of results costs nothing.
   const camera = useCamera();
   const lexicon = $derived(camera.lexicon);
   let bySign = $state(false);
@@ -37,7 +38,7 @@
     progress = load();
   });
 
-  // The replay goes in the app's picture, which is above this page, and leaves it when the page does.
+  // The replay goes in the camera's own place, and leaves it when the search by sign is left.
   $effect(() => {
     camera.overlay = replayed;
     return () => (camera.overlay = null);
@@ -92,14 +93,15 @@
     }
   }
 
-  function pick(each: SignWord, on: boolean) {
-    // Unticking is only ever undoing the tick: a sign that has been practised keeps its box, so its
-    // checkbox stays on and disabled rather than throwing away what is learned of it.
-    if (on) {
-      progress = add(progress, [each]);
-    } else {
+  function pick(each: SignWord) {
+    // Unpicking is only ever undoing the pick: a sign that has been practised keeps its box, so it
+    // stays picked rather than throwing away what is learned of it.
+    if (picked(each)) {
+      if (progress[each.sign].box > 0) return;
       const { [each.sign]: dropped, ...rest } = progress;
       progress = rest;
+    } else {
+      progress = add(progress, [each]);
     }
     save(progress);
   }
@@ -108,6 +110,9 @@
     progress = add(progress, results);
     save(progress);
   }
+
+  const picked = (each: SignWord) => !!progress[each.sign];
+  const missing = $derived(results.filter((each) => !progress[each.sign]).length);
 </script>
 
 <!-- the sign the rows were found by, in the camera's own place, until the next recording -->
@@ -115,56 +120,95 @@
   <canvas bind:this={replay} class="replay" class:away={!signed.length}></canvas>
 {/snippet}
 
-{#if bySign}
-  <p class="row">
-    <button disabled={!camera.tracker || searching} onclick={record}>
-      {camera.recording ? "Stopp" : "Starta"}
-    </button>
-    <button class="secondary" onclick={() => (bySign = false)}>Sök med ord</button>
-  </p>
-  {#if searching}<p class="dim">Söker...</p>{/if}
-{:else}
+<header class="search">
   <input
     type="search"
     placeholder="Sök efter ord eller teman"
     value={query}
     oninput={(event) => search(event.currentTarget.value)}
   />
-  <p class="dim">eller</p>
-  <button class="secondary" onclick={() => (bySign = true)}>Sök med tecken</button>
+  <button class="secondary" onclick={() => (bySign = !bySign)}>
+    {bySign ? "Sök med ord" : "Sök med tecken"}
+  </button>
+</header>
+
+{#if bySign}
+  <section class="signing">
+    <div class="picture"><CameraView {camera} /></div>
+    <div class="row">
+      <button disabled={!camera.tracker || searching} onclick={record}>
+        {camera.recording ? "Stopp" : "Spela in tecken"}
+      </button>
+      {#if searching}<span class="dim">Söker ...</span>{/if}
+    </div>
+  </section>
 {/if}
 
 {#if note}
-  <p class="dim">{note}</p>
+  <p class="dim note">{note}</p>
+{/if}
+
+{#if !results.length && !bySign && !query}
+  <p class="dim note">Sök på ett ord eller ett tema, till exempel "mat" eller "känslor".</p>
 {/if}
 
 {#if results.length}
-  <button onclick={pickAll}>Lägg till alla</button>
+  <div class="found">
+    <span class="dim">{results.length} tecken</span>
+    <button class="secondary" onclick={pickAll} disabled={!missing}>Lägg till alla</button>
+  </div>
 
-  <ul>
+  <ul class="grid">
     {#each results as each (each.sign)}
+      {@const clip = clips.get(each.sign)?.[0]}
       <li>
-        <label>
-          <input
-            type="checkbox"
-            checked={!!progress[each.sign]}
-            disabled={progress[each.sign]?.box > 0}
-            onchange={(event) => pick(each, event.currentTarget.checked)}
-          />
-          {label(each)}
-        </label>
-        {#if clips.get(each.sign)?.length}
-          <!-- svelte-ignore a11y_media_has_caption -->
-          <video src={referenceUrl(clips.get(each.sign)![0])} autoplay loop muted playsinline></video>
-        {/if}
+        <button
+          class="tile"
+          class:on={picked(each)}
+          aria-pressed={picked(each)}
+          onclick={() => pick(each)}
+        >
+          {#if clip}
+            <!-- svelte-ignore a11y_media_has_caption -->
+            <video src={referenceUrl(clip)} autoplay loop muted playsinline></video>
+          {:else}
+            <span class="noclip dim">inget klipp</span>
+          {/if}
+          <span class="name">
+            {label(each)}
+            <span class="mark">{picked(each) ? "Vald" : "Lägg till"}</span>
+          </span>
+        </button>
       </li>
     {/each}
   </ul>
 {/if}
 
 <style>
-  button {
-    margin: 12px 0;
+  .search {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .search input {
+    flex: 1;
+  }
+
+  .search button {
+    white-space: nowrap;
+  }
+
+  .signing {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 20px;
+    max-width: 420px;
+  }
+
+  .picture {
+    position: relative;
   }
 
   .away {
@@ -177,31 +221,83 @@
     width: 100%;
     height: 100%;
     background: #000; /* over the live picture, so what is shown is what was searched with */
-    border-radius: 12px;
   }
 
-  ul {
+  .note {
+    margin-top: 16px;
+  }
+
+  .found {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 28px 0 12px;
+  }
+
+  /* The results are their clips: a word is recognised by the sign, not by the row it sits in. */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 14px;
     list-style: none;
     margin: 0;
     padding: 0;
   }
 
-  li {
+  .tile {
+    display: block;
+    width: 100%;
+    padding: 0;
+    overflow: hidden;
+    text-align: left;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .tile:hover {
+    filter: none;
+    border-color: var(--dim);
+  }
+
+  .tile.on {
+    border-color: var(--accent);
+  }
+
+  /* the lexicon's own shape, held before the clip loads so the grid does not reflow under the cursor */
+  .tile video,
+  .noclip {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+  }
+
+  .noclip {
+    display: grid;
+    place-items: center;
+    background: var(--raised);
+    font-size: 13px;
+  }
+
+  .name {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    padding: 10px 0;
-    text-align: left;
-    border-bottom: 1px solid var(--line);
+    gap: 8px;
+    padding: 12px 14px;
   }
 
-  /* the lexicon's own shape, held before the clip loads so the row does not grow under the cursor */
-  li video {
-    width: 140px;
-    aspect-ratio: 4 / 3;
-    object-fit: cover;
-    border-radius: 4px;
-    background: #000;
+  .mark {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--dim);
+  }
+
+  .tile.on .mark {
+    color: var(--accent);
   }
 </style>
