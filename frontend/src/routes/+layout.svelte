@@ -2,16 +2,24 @@
   import { page } from "$app/state";
 
   import { fetchLexicon } from "$lib/api";
-  import CameraView from "$lib/Camera.svelte";
   import { Camera, provideCamera } from "$lib/camera.svelte";
 
   import "../app.css";
 
   let { children } = $props();
 
-  // The camera belongs to the app rather than to a section (user, 2026-09-22): it sits above every
-  // page, the menu included, so the app looks the same throughout and the tracked skeleton is there
-  // to sign at. It also opens once for the session, so no page waits for the landmarker to load.
+  // The three sections are always one click away (user, 2026-09-23): a rail beside the page on a
+  // desktop window, the same three items as a bar along the bottom on a phone. There is no menu page
+  // and no way back, since every page is reachable from every other one.
+  const sections = [
+    { href: "/sök", label: "Sök", at: "/sök" },
+    { href: "/träna/ord", label: "Träna", at: "/träna" },
+    { href: "/tecken", label: "Tecken", at: "/tecken" },
+  ];
+
+  // The camera itself is mounted by the pages that use it (user, 2026-09-23), so Sök's results and
+  // Tecken cost nothing; what the app owns is the lexicon and the handle the pages reach it through,
+  // which is this context.
   const camera = new Camera();
   provideCamera(camera);
 
@@ -23,28 +31,99 @@
       .catch(() => (camera.fit = "Servern svarar inte. Starta den med uv run takk."));
   });
 
-  // One way back on every page but the menu, so nothing depends on the browser's own back button.
-  // It goes to the section above rather than to wherever the learner came from: the map is a tree,
-  // and a page's parent is its path without the last segment.
-  const parent = $derived(page.url.pathname.replace(/\/[^/]*$/, "") || "/");
+  // The path carries the sections' Swedish names percent-encoded, which no link here is written in.
+  const path = $derived(decodeURIComponent(page.url.pathname));
 </script>
 
-<main>
-  {#if page.url.pathname !== "/"}
-    <a class="back" href={parent}>Tillbaka</a>
-  {/if}
-  <CameraView {camera} />
-  {@render children()}
-</main>
+<div class="app">
+  <nav class="rail">
+    <span class="brand">Takk</span>
+    {#each sections as section (section.href)}
+      <a href={section.href} class:on={path.startsWith(section.at)}>{section.label}</a>
+    {/each}
+  </nav>
+  <main>{@render children()}</main>
+</div>
 
 <style>
-  .back {
-    align-self: flex-start;
+  .app {
+    display: grid;
+    grid-template-columns: var(--rail) 1fr;
+    min-height: 100dvh;
+  }
+
+  .rail {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 24px 12px;
+    background: var(--surface);
+    border-right: 1px solid var(--line);
+  }
+
+  .brand {
+    margin: 4px 0 20px;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
     color: var(--dim);
+  }
+
+  .rail a {
+    padding: 10px 12px;
+    border-radius: 10px;
+    color: var(--dim);
+    font-weight: 500;
     text-decoration: none;
   }
 
-  .back::before {
-    content: "← ";
+  .rail a:hover {
+    color: var(--text);
+  }
+
+  .rail a.on {
+    color: var(--text);
+    background: var(--raised);
+  }
+
+  main {
+    width: 100%;
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 40px 32px 64px;
+  }
+
+  /* On a phone the rail becomes the bar along the bottom, where a thumb reaches it. */
+  @media (max-width: 720px) {
+    .app {
+      grid-template-columns: 1fr;
+    }
+
+    .rail {
+      position: fixed;
+      inset: auto 0 0;
+      height: auto;
+      z-index: 2;
+      flex-direction: row;
+      justify-content: space-around;
+      padding: 6px;
+      padding-bottom: max(6px, env(safe-area-inset-bottom));
+      border-right: none;
+      border-top: 1px solid var(--line);
+    }
+
+    .brand {
+      display: none;
+    }
+
+    main {
+      padding: 20px 16px 88px;
+    }
   }
 </style>

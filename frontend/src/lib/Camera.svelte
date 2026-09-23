@@ -67,11 +67,11 @@
   .view {
     position: relative;
     width: 100%;
-    max-width: 560px;
-    margin: 0 auto;
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 4 / 3;
     background: #000;
-    border-radius: 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
     transform: scaleX(-1); /* a mirror, which is how a signer expects to see themselves */
   }
 
@@ -86,12 +86,13 @@
     display: block;
     width: 100%;
     height: 100%;
-    border-radius: 12px;
     object-fit: cover;
   }
 
-  .view.recording video {
-    outline: 3px solid var(--bad);
+  /* a recording is marked on the picture itself, since that is where the learner is looking */
+  .view.recording {
+    border-color: var(--bad);
+    box-shadow: 0 0 0 1px var(--bad);
   }
 
   canvas {
@@ -109,9 +110,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 16px;
     transform: scaleX(-1);
     text-align: center;
-    color: #fff;
+    color: var(--dim);
+    font-size: 14px;
   }
 
   /* over the picture it is about, and unmirrored: the view itself is flipped like a mirror */
@@ -119,10 +122,10 @@
     position: absolute;
     inset: auto 0 0;
     margin: 0;
-    padding: 8px;
+    padding: 10px;
     transform: scaleX(-1);
     text-align: center;
-    background: #0009;
-    border-radius: 0 0 12px 12px;
+    font-size: 14px;
+    background: #000000b3;
   }
 </style>
