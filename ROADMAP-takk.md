@@ -6,11 +6,11 @@ The app (user, 2026-09-19): practising TAKK (tecken som alternativ och komplette
 
 ## The shape of the app
 
-The user drew the app as a screen map on 2026-09-21, and it is what the steps below build towards. A menu offers three sections and nothing else, above them the camera the app carries throughout (user, 2026-09-22, step 12):
+The user drew the app as a screen map on 2026-09-21, and it is what the steps below build towards. The sections are the map's; the layout around them was redesigned from scratch on 2026-09-23 (step 17), so the menu page and the camera above every page are gone and a rail of three sections stands beside the page instead:
 
-- **Sök** (`/sök`) — finding signs and choosing which ones to learn. A search field ("Sök efter ord eller teman") or a camera ("Sök med tecken") produces a list of signs, each row a checkbox, the word and a video preview, with "Lägg till alla" above it. Ticking a sign adds it to the learner's vocabulary.
-- **Träna** (`/träna`) — two ways on, under the camera every page now carries: **Ord** (`/träna/ord`), a card per word with the lexicon's reference clip beside the camera, looping to the next word, and **Meningar** (`/träna/meningar`), a connected text read line by line over the words already learned. The map called them Nya ord and Repetera; step 16 renamed both.
-- **Tecken** (`/tecken`) — the learner's own signs: a bar chart of how they are spread over the repetition schedule (nya, imorgon, 3 dagar, 7 dagar, 21 dagar), a line chart of signs met over time, and "Nollställ".
+- **Sök** (`/sök`) — finding signs and choosing which ones to learn. A search field ("Sök efter ord eller teman") or the camera ("Sök med tecken") produces a grid of signs, each tile the looping reference clip and the word, with "Lägg till alla" above it. Pressing a tile adds the sign to the learner's vocabulary.
+- **Träna** (`/träna/ord`, `/träna/meningar`) — two halves of one section, switched between at the top of both: **Ord**, a word at a time with the lexicon's reference clip and the camera beside it, looping to the next word, and **Meningar**, a connected text read line by line over the words already learned. The map called them Nya ord and Repetera; step 16 renamed both. The camera belongs to this section and is the column beside what is being signed.
+- **Tecken** (`/tecken`) — the learner's own signs: how many are chosen, practised and due now, a bar chart of how they are spread over the repetition schedule (nya, imorgon, 3 dagar, 7 dagar, 21 dagar), a line chart of signs met over time, the words themselves with the interval each has reached, and "Nollställ".
 
 The first section is named for what the learner does there and the third for what it holds (user, 2026-09-21). The two were briefly the other way round, as "Tecken" and "Framsteg"; "Tecken" belongs to the learner's own signs, and the way in is a search.
 
@@ -76,11 +76,25 @@ Steps 1 to 7 are built and in use. Steps 8 to 14 are the blueprint above and are
 
     **The modes are named Ord and Meningar** (user, 2026-09-22), and the routes with them. "Nya ord" became untrue the moment the mode taught missed words as well, and "Repetera" named the wrong half — both modes are repetition, and what actually separates them is the isolated word with its clip in front of you from your own words in running sentences. One word each, and neither explains how the mode works, as the blueprint decision asks. — done, checked with `npm run check`, `npm test`, `npm run build` and `uv run pytest`; `toLearn` and the new `missed` field are unit tested (`progress.test.ts`). Not tried in a browser yet.
 
+17. **The interface, redesigned from scratch** (user, 2026-09-23: "I don't really like the current UI. Help me redesign it from scratch. No need to take any of our previous decisions into account."). The features are the same ones — spaced repetition, a way to find words, word practice, sentence practice and an overview — and nothing under `frontend/src/lib/` changed: the store, the tracker, the recorder and the API client are untouched, and so is the API itself. What changed is everything the learner sees, and it is a branch of its own (`worktree-ui-redesign`) so that it can be compared with main.
+
+    **A rail of sections instead of a tree.** The three sections stand in a rail beside the page on a desktop window and as a bar along the bottom on a phone, so every page is one click from every other one. The menu page, the `/träna` hub and the "Tillbaka" link of step 8 are gone with it: nothing is behind anything any more, and `/` redirects to `/träna/ord`, the app opening on the practice it is opened to do. Ord and Meningar are a switch at the top of Träna rather than two destinations.
+
+    **Dark, with one accent.** Near-black surfaces, a single blue accent, green and red kept for verdicts alone, and the system sans in place of the monospace the blueprint was drawn in. What is bright on the screen is the camera picture and the lexicon clips, which is what the learner looks at. The pastel blocks that told the sections apart by colour are gone; the rail tells them apart by position.
+
+    **The camera only where it is used** (user, 2026-09-23), which reverses step 12: it is mounted by the Träna section and by Sök while a search by signing is running, so a page of results and the overview cost no camera and no landmarker. Träna mounts it in its layout rather than in either mode, so it still opens once and survives the switch between Ord and Meningar, and the hand is asked for there, before the first recording, instead of on the menu that no longer exists.
+
+    **Desktop first** (user, 2026-09-23): the work and the camera side by side in two columns, collapsing to one column with the picture on top under 860 px, and the rail becoming the bottom bar under 720 px.
+
+    Sök shows its results as a grid of clips, a whole tile being the control that picks the sign, since a word is recognised by its sign rather than by the row it sits in. Tecken leads with the three numbers, then the charts, then the words with the interval each has reached and when it comes back — the list is new, and it is what "an overview of the words being practised" asked for. — done, checked with `npm run check`, `npm test` and `npm run build`, and with headless screenshots of the shell. Not practised through in a browser yet: the camera, the recording and the verdicts are unchanged code, but the new layout around them has not been used with a live camera.
+
 ## Decisions
 
 - **The camera says how the signer sits, not how fast it runs** (user, 2026-09-21). The page carries the framing feedback of step 11 and nothing about frames per second.
 
 - **The blueprint is the layout, and the pages stay very minimal** (user, 2026-09-21). Each screen holds what its box in the map holds, in that order, and nothing beside it, and it shows the thing rather than explaining it: no page tells the learner how the mode they are in works. No icons, no cards or shadows, no colour beyond what marks a state, no UI framework or component library, and no headings or helper text the map has no room for. Charts are the exception (user, 2026-09-21): a charting library is fine where it makes the graphs much better. Where the map labels something in Swedish ("Sök efter ord eller teman", "Lägg till alla", "Nollställ"), that wording is the label.
+
+    **Step 17 replaced the layout half of this** (user, 2026-09-23): the map no longer dictates the arrangement, and panels, a rail and a two-column practice screen are now what the app is made of. What still holds is the rest: the pages explain nothing about how a mode works, colour marks a state and little else, there is no UI framework or component library, no icons, and the map's Swedish wording is still the wording.
 
 - **The learner chooses the vocabulary by searching the lexicon** (user, 2026-09-21). Ready-made lists — the starter packs and the lexicon's categories as a picker — are dropped in favour of search, by word or by theme or by signing. The categories remain underneath as what a theme search matches, which is what they were always good for: they are subject areas rather than a learning order (see findings), so they made a poor picker and make a reasonable search index.
 
