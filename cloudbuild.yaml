@@ -1,0 +1,73 @@
+# Build and deploy the API, from a Cloud Build trigger connected to this repository (step 18 of
+# ROADMAP-takk.md). Nothing about GCP lives in GitHub: the trigger holds the substitutions and Cloud
+# Build's own service account holds the credentials.
+#
+# The image needs the serving bundle, which is not in the repository - it is built from the datasets
+# on the training machine and uploaded with `scripts/build_serving.py --publish`. What is committed
+# is deploy/bundle.txt, the archive's name and digest, so a push of that file is what deploys a new
+# model and the history says which one each revision served.
+#
+# Substitutions the trigger sets: _BUNDLE_URI (gs://<bucket>/<prefix>, kept out of the repository),
+# _REGION, _REPO, _SERVICE, _RUNTIME_SA, _SECRET, _MIN_INSTANCES.
+substitutions:
+  _REGION: europe-north1
+  _REPO: takk
+  _SERVICE: takk
+  _SECRET: takk-anthropic
+  _MIN_INSTANCES: "0"
+
+steps:
+  # The bundle the pin names, verified against the digest beside it: the archive is content-addressed,
+  # so a mismatch means the object was replaced and the build must not deploy it.
+  - id: bundle
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        read -r name digest < deploy/bundle.txt
+        gcloud storage cp "${_BUNDLE_URI%/}/$name" /workspace/bundle.tar.gz
+        echo "${digest#sha256:}  /workspace/bundle.tar.gz" | sha256sum -c -
+        mkdir -p /workspace/bundle
+        tar -xzf /workspace/bundle.tar.gz -C /workspace/bundle
+        cat /workspace/bundle/meta.json
+
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --build-arg=BUNDLE=bundle
+      - --tag=$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE:$SHORT_SHA
+      - --tag=$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE:latest
+      - .
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: [push, --all-tags, $_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE]
+
+  # 2 vCPU scores an attempt of a 3 s recording in 0.66 s, nearly all of it the speech model (see the
+  # findings in ROADMAP-takk.md), so the concurrency is low and there is no GPU. The Anthropic key is
+  # read from Secret Manager at start; without it the API runs and only stories are off.
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - $_SERVICE
+      - --image=$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE:$SHORT_SHA
+      - --region=$_REGION
+      - --service-account=$_RUNTIME_SA
+      - --set-secrets=ANTHROPIC_API_KEY=$_SECRET:latest
+      - --cpu=2
+      - --memory=4Gi
+      - --concurrency=4
+      - --timeout=120
+      - --min-instances=$_MIN_INSTANCES
+      - --allow-unauthenticated
+
+options:
+  machineType: E2_HIGHCPU_8
+  logging: CLOUD_LOGGING_ONLY
+timeout: 2400s

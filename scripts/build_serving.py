@@ -16,7 +16,12 @@ Writes outputs/serving/<run>-<glossary>/.
 
 import argparse
 import dataclasses
+import hashlib
 import json
+import os
+import subprocess
+import tarfile
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -32,6 +37,7 @@ from takk.vocabulary import search_index, sign_forms
 
 RUNS_DIR = Path("outputs/runs")
 SERVING_DIR = Path("outputs/serving")
+PIN_FILE = Path("deploy/bundle.txt")  # which bundle the deployed API serves; committed, unlike the bucket
 
 
 def clip_embeddings(run_dir: Path, glossary: Path, clips: SignDataset, model, device: str) -> np.ndarray:
@@ -47,6 +53,28 @@ def clip_embeddings(run_dir: Path, glossary: Path, clips: SignDataset, model, de
     return embeddings
 
 
+def publish(bundle_dir: Path, uri: str, pin: Path = PIN_FILE) -> str:
+    """Upload `bundle_dir` as one archive named by its own sha256, and write that name and digest to
+    `pin`, which is committed. The bucket is not: it comes from TAKK_BUNDLE_URI here and from a
+    substitution in the build, so the repository says which bundle is served and never where it is
+    kept (see step 12 of ROADMAP.md).
+
+    The name holds the digest, so an object is never overwritten and an older bundle is still there
+    to deploy when a new one turns out worse.
+    """
+    archive = Path(tempfile.gettempdir()) / f"{bundle_dir.name}.tar.gz"
+    with tarfile.open(archive, "w:gz") as tar:
+        for path in sorted(bundle_dir.iterdir()):
+            tar.add(path, arcname=path.name)
+    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+    name = f"{bundle_dir.name}-{digest[:12]}.tar.gz"
+    subprocess.run(["gcloud", "storage", "cp", str(archive), f"{uri.rstrip('/')}/{name}"], check=True)
+    pin.parent.mkdir(parents=True, exist_ok=True)
+    pin.write_text(f"{name} sha256:{digest}\n")
+    archive.unlink()
+    return name
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--run", default="iv14_h384_e20", help="training run whose model the bundle serves")
@@ -54,7 +82,11 @@ def main() -> None:
     parser.add_argument("--threshold", type=float, default=0.38, help="lowest score that counts as the sign (see the decisions in ROADMAP.md)")  # fmt: skip
     parser.add_argument("--device", default="cpu", help="the GPU is shared; embedding the glossary on the CPU takes about a minute")  # fmt: skip
     parser.add_argument("--out", type=Path, help="where to write the bundle (default outputs/serving/<run>-<glossary>)")  # fmt: skip
+    parser.add_argument("--publish", action="store_true", help=f"also upload it to $TAKK_BUNDLE_URI and pin it in {PIN_FILE}")  # fmt: skip
     args = parser.parse_args()
+    uri = os.environ.get("TAKK_BUNDLE_URI", "")
+    if args.publish and not uri:
+        parser.error("--publish needs TAKK_BUNDLE_URI, the gs:// prefix the bundles are kept under")
 
     run_dir = RUNS_DIR / args.run
     data = PreparedData(args.glossary)
@@ -87,6 +119,8 @@ def main() -> None:
     size = sum(path.stat().st_size for path in out.iterdir()) / 1e6
     print(f"{out}: {len(clips.signs)} signs, {means.shape[1]} dimensions, {size:.0f} MB")
     print(json.dumps({key: value for key, value in json.loads((out / bundle.META_FILE).read_text()).items() if key != "train_config"}, indent=2))  # fmt: skip
+    if args.publish:
+        print(f"published {publish(out, uri)}, pinned in {PIN_FILE}: commit it to deploy it")
 
 
 if __name__ == "__main__":

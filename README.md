@@ -378,6 +378,19 @@ docker build --build-arg BUNDLE=outputs/serving/iv14_h384_e20-sts_lexikon-234f45
 docker run --rm -p 8002:8002 -e ANTHROPIC_API_KEY takk   # without the key, only words can be practised
 ```
 
+In the cloud the API is a Cloud Run service, built by a Cloud Build trigger connected to this
+repository (`cloudbuild.yaml`). The bundle is not in the repository, so deploying a model is two
+steps: upload it, then commit the pin that names it.
+
+```sh
+export TAKK_BUNDLE_URI=gs://<bucket>/serving          # the bucket is not committed
+uv run scripts/build_serving.py --publish             # uploads <run>-<glossary>-<sha>.tar.gz
+git commit deploy/bundle.txt -m "Serve <run>" && git push   # this is what deploys it
+```
+
+The archive is named by its own sha256 and the build checks it against the digest in
+`deploy/bundle.txt`, so an object is never overwritten and rolling back is committing an older pin.
+
 A part of a story is several signs, as TAKK signs the key words of a spoken sentence. Sign them in
 order and say the part aloud while you sign, the way TAKK is used: the recording is split into its
 signs by when the key words are spoken, and each part is scored against the sign at its place in

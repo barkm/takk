@@ -1,0 +1,22 @@
+# The Python tests. The API is deployed by a Cloud Build trigger on the same pushes (cloudbuild.yaml),
+# which runs no tests of its own, so this is where a broken push shows.
+name: Tests
+
+on:
+  push:
+    branches: [main]
+    paths: ["src/**", "tests/**", "scripts/**", "pyproject.toml", "uv.lock", ".github/workflows/tests.yml"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      # The whole suite, the extraction tests included, so the environment is the full one rather
+      # than the image's (see the dependency groups in pyproject.toml).
+      - run: uv run pytest -q
