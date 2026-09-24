@@ -29,7 +29,9 @@ import { page } from "$app/state";
       .then((loaded) => {
         camera.lexicon = loaded; // in a block: a `$state` object reads back as its proxy, not as the value assigned
       })
-      .catch(() => (camera.fit = "Servern svarar inte. Starta den med uv run takk."));
+      // The page is deployed apart from the API and reaches a learner who cannot start it, so this
+      // says what is wrong and nothing about how to fix it (see step 18 of ROADMAP-takk.md).
+      .catch(() => (camera.fit = "Servern svarar inte just nu."));
   });
 
   // The path carries the sections' Swedish names percent-encoded, which no link here is written in.
