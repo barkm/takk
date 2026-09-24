@@ -18,6 +18,7 @@ import itertools
 import shutil
 from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
+from typing import NamedTuple
 
 import numpy as np
 import polars as pl
@@ -30,6 +31,16 @@ LANDMARK_SLICES = {
 }
 N_LANDMARKS = 543
 METADATA_COLUMNS = ["dataset", "clip_id", "sign", "signer", "fps", "width", "height"]
+
+
+class VideoInfo(NamedTuple):
+    """The frame rate and frame size a clip's landmarks were extracted from. It lives here rather
+    than in `extraction.py` so that reading landmarks does not import MediaPipe: the practice app
+    takes them from a browser and never extracts any (see step 18 of ROADMAP-takk.md)."""
+
+    fps: float
+    width: int  # of the decoded frames, which the landmark coordinates are fractions of
+    height: int
 
 # Face mesh indices of the lips (MediaPipe FaceLandmarksConnections.FACE_LANDMARKS_LIPS).
 _LIPS = [0, 13, 14, 17, 37, 39, 40, 61, 78, 80, 81, 82, 84, 87, 88, 91, 95, 146, 178, 181, 185, 191, 267, 269, 270, 291, 308, 310, 311, 312, 314, 317, 318, 321, 324, 375, 402, 405, 409, 415]  # fmt: skip

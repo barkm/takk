@@ -18,16 +18,18 @@ sign it had failed to find, so it voided the whole sentence and with it the verd
 that were right, while the speech split scores a skipped sign as a miss.
 """
 
+import os
+
 import anthropic
 import numpy as np
 import torch
 from fastapi import Body, FastAPI, Form, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from torch import nn
 
 from isolated_sign_validation.checks import check_clip
 from isolated_sign_validation.dataset import collate
-from isolated_sign_validation.extraction import VideoInfo
-from isolated_sign_validation.landmarks import N_LANDMARKS, SKELETON_EDGES
+from isolated_sign_validation.landmarks import N_LANDMARKS, SKELETON_EDGES, VideoInfo
 from isolated_sign_validation.preparation import ONE_HANDED, PrepConfig, hand_presence, hide_low_hands, mirror, prepare_clip
 from takk.speech import MIN_WORD_SCORE, Aligner, decode_audio, split_speech
 from takk.story import write_story
@@ -107,6 +109,15 @@ def create_app(
     `aligner` times a spoken sentence's words, which is what splits it into its signs. The `writer`
     writes the story a learner signs their way through (see `story.py`)."""
     app = FastAPI()
+    # The page is served from another origin than this API (see the decisions in ROADMAP-takk.md),
+    # so every call from it is cross-origin. Any origin may call: there are no accounts, no cookies
+    # and nothing here that is not the public lexicon. `TAKK_ORIGINS` narrows it when that changes.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=os.environ.get("TAKK_ORIGINS", "*").split(","),
+        allow_methods=["GET", "POST"],
+        allow_headers=["*"],
+    )
     names = list(references)
     index = {sign: i for i, sign in enumerate(names)}
 

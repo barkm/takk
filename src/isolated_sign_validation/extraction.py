@@ -6,14 +6,13 @@ All video datasets go through this one setup, so their landmarks are consistent 
 import os
 import urllib.request
 from pathlib import Path
-from typing import NamedTuple
 
 import cv2
 import mediapipe as mp
 import numpy as np
 from mediapipe.tasks.python import BaseOptions, vision
 
-from isolated_sign_validation.landmarks import LANDMARK_SLICES, N_LANDMARKS
+from isolated_sign_validation.landmarks import LANDMARK_SLICES, N_LANDMARKS, VideoInfo
 
 MODEL_URL = "https://storage.googleapis.com/mediapipe-models/holistic_landmarker/holistic_landmarker/float16/latest/holistic_landmarker.task"
 MODEL_PATH = Path("data/models/holistic_landmarker.task")
@@ -25,12 +24,6 @@ _RESULT_FIELDS = {
     "pose": "pose_landmarks",
     "right_hand": "right_hand_landmarks",
 }
-
-
-class VideoInfo(NamedTuple):
-    fps: float
-    width: int  # of the decoded frames, which the landmark coordinates are fractions of
-    height: int
 
 
 def download_model(path: Path = MODEL_PATH) -> None:

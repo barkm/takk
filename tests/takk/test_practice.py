@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 import torch
 from fastapi import HTTPException, UploadFile
+from fastapi.testclient import TestClient
 from torch import nn
 
 from isolated_sign_validation.landmarks import LANDMARK_SLICES, N_LANDMARKS
@@ -201,3 +202,12 @@ def test_search_by_signing_ranks_the_whole_glossary():
     # a recording with no hands in it is no lookup at all, and says why rather than ranking noise
     empty = send(np.full((60, N_LANDMARKS, 3), np.nan, dtype=np.float32))
     assert empty["words"] == [] and empty["note"] == NOTES["no_hands"]
+
+
+def test_the_page_may_call_from_another_origin():
+    # the page is served from another origin than this API, so a call without CORS never arrives
+    app = create_app({"A": ["a1"]}, np.array([[1.0, 0.0]]), {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [])  # fmt: skip
+    response = TestClient(app).get("/api/signs", headers={"Origin": "https://example.github.io"})
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "*"
