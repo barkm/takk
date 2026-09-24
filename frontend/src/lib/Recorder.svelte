@@ -126,12 +126,12 @@
 
 <svelte:window {onkeydown} />
 
+<!-- Nothing is pressed to record (user, 2026-09-24): the recorder arms itself when a card appears,
+     starts on the voice, ends on the silence after it and arms again when a wait runs long, and the
+     pages arm it again after a verdict. Space starts a recording over, which is all the button that
+     used to stand here did. -->
 {#if silent}<p class="dim">{NO_MICROPHONE}</p>{/if}
-{#if told}<p class="dim">{told}</p>{/if}
-<p class="row">
-  <button disabled={!tracker || scoring || silent} onclick={() => arm()}>Spela in igen</button>
-  <span class="dim">{phase === "speaking" ? `${seconds.toFixed(1)} s` : ""}</span>
-</p>
+{#if told}<p class="dim">{told}{phase === "speaking" ? ` ${seconds.toFixed(1)} s` : ""}</p>{/if}
 {#if scoring}
   <p class="dim">Bedömer...</p>
 {/if}
