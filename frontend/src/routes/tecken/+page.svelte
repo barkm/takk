@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { base } from "$app/paths";
   import { useCamera } from "$lib/camera.svelte";
   import { hand, setHand } from "$lib/hand";
   import { boxes, DAYS, KEY, load, remove, save, type Progress } from "$lib/progress";
@@ -200,7 +201,7 @@
 {:else}
   <section class="card empty">
     <h1>Inga tecken än</h1>
-    <p class="dim">Välj tecken under <a href="/sök">Sök</a>, så övas de här.</p>
+    <p class="dim">Välj tecken under <a href="{base}/sök">Sök</a>, så övas de här.</p>
   </section>
 {/if}
 

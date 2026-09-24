@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { page } from "$app/state";
+  import { base } from "$app/paths";
+import { page } from "$app/state";
 
   import { fetchLexicon } from "$lib/api";
   import { Camera, provideCamera } from "$lib/camera.svelte";
@@ -32,14 +33,14 @@
   });
 
   // The path carries the sections' Swedish names percent-encoded, which no link here is written in.
-  const path = $derived(decodeURIComponent(page.url.pathname));
+  const path = $derived(decodeURIComponent(page.url.pathname).slice(base.length));
 </script>
 
 <div class="app">
   <nav class="rail">
     <span class="brand">Takk</span>
     {#each sections as section (section.href)}
-      <a href={section.href} class:on={path.startsWith(section.at)}>{section.label}</a>
+      <a href="{base}{section.href}" class:on={path.startsWith(section.at)}>{section.label}</a>
     {/each}
   </nav>
   <main>{@render children()}</main>

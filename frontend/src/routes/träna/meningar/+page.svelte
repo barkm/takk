@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { base } from "$app/paths";
   import Recorder from "$lib/Recorder.svelte";
   import { useCamera } from "$lib/camera.svelte";
   import { fetchStory, word, type Attempt, type SignWord, type Sign, type StoryPart } from "$lib/api";
@@ -121,7 +122,7 @@
     <div class="row">
       <button onclick={write} disabled={writing || pool.length < 2}>{writing ? "Skriver ..." : "Börja"}</button>
       {#if pool.length < 2}
-        <span class="dim">Öva några <a href="/träna/ord">ord</a> först.</span>
+        <span class="dim">Öva några <a href="{base}/träna/ord">ord</a> först.</span>
       {/if}
     </div>
     {#if note}<p class="dim">{note}</p>{/if}

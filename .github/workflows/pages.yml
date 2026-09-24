@@ -1,0 +1,55 @@
+# The page, on GitHub Pages (step 18 of ROADMAP-takk.md). It is a static site and a separate
+# deployment from the API, which it reaches at VITE_API_BASE: set that repository variable to the
+# Cloud Run URL, or the built page calls /api on its own origin, where nothing answers.
+name: Page
+
+on:
+  push:
+    branches: [main]
+    paths: ["frontend/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time, and a newer push wins: the site is the branch's current state.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      # A project site is served under /<repo>/, which the build has to know (svelte.config.js).
+      - run: npm run build
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}
+          VITE_API_BASE: ${{ vars.VITE_API_BASE }}
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/build
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

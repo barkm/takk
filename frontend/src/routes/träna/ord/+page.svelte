@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { base } from "$app/paths";
   import Recorder from "$lib/Recorder.svelte";
   import Verdict from "$lib/Verdict.svelte";
   import { fetchForm, word, type Attempt, type SignWord, type Sign } from "$lib/api";
@@ -106,7 +107,7 @@
     <div class="row">
       <button onclick={start} disabled={!waiting.length}>Börja</button>
       {#if !waiting.length}
-        <span class="dim">Inga tecken att öva. Välj några under <a href="/sök">Sök</a>.</span>
+        <span class="dim">Inga tecken att öva. Välj några under <a href="{base}/sök">Sök</a>.</span>
       {/if}
     </div>
   </section>
@@ -144,7 +145,7 @@
 {:else}
   <section class="card">
     <h1>Klart!</h1>
-    <p class="dim">{taken} tecken klara. Teckna dem i <a href="/träna/meningar">Meningar</a> när du vill.</p>
+    <p class="dim">{taken} tecken klara. Teckna dem i <a href="{base}/träna/meningar">Meningar</a> när du vill.</p>
     <div class="row">
       <button onclick={start} disabled={!waiting.length}>Fler ord</button>
     </div>

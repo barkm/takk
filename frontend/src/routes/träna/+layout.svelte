@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { page } from "$app/state";
+  import { base } from "$app/paths";
+import { page } from "$app/state";
 
   import CameraView from "$lib/Camera.svelte";
   import { useCamera } from "$lib/camera.svelte";
@@ -11,7 +12,7 @@
   let { children } = $props();
 
   const camera = useCamera();
-  const path = $derived(decodeURIComponent(page.url.pathname));
+  const path = $derived(decodeURIComponent(page.url.pathname).slice(base.length));
 
   // The hand is asked for once, before the first recording, since every recording is mirrored by it.
   // It is asked here because Träna is where recordings are made; Tecken carries the switch after.
@@ -41,8 +42,8 @@
   </section>
 {:else}
   <nav class="modes">
-    <a href="/träna/ord" class:on={path === "/träna/ord"}>Ord</a>
-    <a href="/träna/meningar" class:on={path === "/träna/meningar"}>Meningar</a>
+    <a href="{base}/träna/ord" class:on={path === "/träna/ord"}>Ord</a>
+    <a href="{base}/träna/meningar" class:on={path === "/träna/meningar"}>Meningar</a>
   </nav>
 
   <div class="split">

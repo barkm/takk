@@ -471,6 +471,11 @@ deployment from the API and is never served by it (see the decisions in ROADMAP-
 `VITE_API_BASE`. `src/lib/landmarks.ts` and `tracking.ts` hold the camera, the landmarker loop and the
 common landmark layout; the components only show them.
 
+`.github/workflows/pages.yml` builds and deploys it to GitHub Pages on every push to `main` that
+touches `frontend/`. A project site is served under `/<repo>/`, so the build sets `BASE_PATH` and
+every link goes through `base` from `$app/paths`; `VITE_API_BASE` is a repository variable holding
+the API's URL. Turn Pages on once under Settings → Pages with "GitHub Actions" as the source.
+
 ```sh
 uv run takk                      # the API, in one terminal
 cd frontend && npm install       # once
