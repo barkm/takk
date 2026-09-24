@@ -15,6 +15,9 @@ substitutions:
   _SERVICE: takk
   _SECRET: takk-anthropic
   _MIN_INSTANCES: "0"
+  # Which origins may call the API. The deployed page, and a development page pointed at this service
+  # with VITE_API_BASE; everything else calls it from a terminal, where CORS does not apply anyway.
+  _ORIGINS: https://barkm.se,http://localhost:5173
 
 steps:
   # The bundle the pin names, verified against the digest beside it: the archive is content-addressed,
@@ -65,6 +68,7 @@ steps:
       - --region=$_REGION
       - --service-account=$_RUNTIME_SA
       - --set-secrets=ANTHROPIC_API_KEY=$_SECRET:latest
+      - --set-env-vars=TAKK_ORIGINS=$_ORIGINS
       - --cpu=2
       - --memory=4Gi
       - --concurrency=4
