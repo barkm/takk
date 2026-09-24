@@ -9,6 +9,7 @@ from isolated_sign_validation.datasets.sts_lexikon import (
     parse_group,
     read_videos,
     sign_classes,
+    video_urls,
 )
 
 # the markup of an /ord/<id> page, cut down to the parts the adapter reads
@@ -145,4 +146,17 @@ def test_read_videos(tmp_path):
     assert videos["sign"].to_list() == ["a-00001", "a-00001", "c-00003"]  # a class, and an entry of its own
     assert videos["signer"].to_list() == [None, None, None]  # the lexicon publishes no signer ids
     assert videos["path"][0] == f"{tmp_path}/movies/00/a-00001-tecken.mp4"
+
+
+def test_video_urls_point_at_the_lexicon(tmp_path):
+    write_crawl(
+        tmp_path,
+        [
+            {"id": "00001", "word": "a", "video": "/movies/00/a-00001-tecken.mp4", "same_form": False},
+            {"id": "00004", "word": None, "video": None, "same_form": None},
+        ],
+        [],
+    )
+
+    assert video_urls(tmp_path) == {"00001": "https://teckensprakslexikon.su.se/movies/00/a-00001-tecken.mp4"}
 

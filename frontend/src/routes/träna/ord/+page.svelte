@@ -1,7 +1,7 @@
 <script lang="ts">
   import Recorder from "$lib/Recorder.svelte";
   import Verdict from "$lib/Verdict.svelte";
-  import { fetchForm, referenceUrl, word, type Attempt, type SignWord, type Sign } from "$lib/api";
+  import { fetchForm, word, type Attempt, type SignWord, type Sign } from "$lib/api";
   import { useCamera } from "$lib/camera.svelte";
   import Choice from "$lib/Choice.svelte";
   import {
@@ -136,7 +136,7 @@
   </h1>
   {#if references.length}
     <!-- svelte-ignore a11y_media_has_caption -->
-    <video src={referenceUrl(references[0])} autoplay loop muted playsinline controls></video>
+    <video src={references[0]} autoplay loop muted playsinline controls></video>
   {/if}
   {#if form}<p class="form dim">{form}</p>{/if}
   <Recorder bind:this={recorder} {sentence} onattempt={scored} />

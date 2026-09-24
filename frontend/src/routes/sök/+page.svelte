@@ -1,7 +1,6 @@
 <script lang="ts">
   import {
     fetchSearch,
-    referenceUrl,
     searchBySign,
     word,
     type SignWord,
@@ -144,7 +143,7 @@
                  camera and the landmarker, is more video than a browser will decode: the ones it
                  gives up on stay black, and the camera can be the one it gives up on. -->
             <video
-              src="{referenceUrl(clip)}#t=0.1"
+              src="{clip}#t=0.1"
               muted
               loop
               playsinline

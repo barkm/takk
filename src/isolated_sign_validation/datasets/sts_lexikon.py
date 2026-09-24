@@ -192,6 +192,17 @@ def read_videos(raw_dir: Path) -> pl.DataFrame:
     )
 
 
+def video_urls(raw_dir: Path = RAW_DIR) -> dict[str, str]:
+    """The lexicon's own address for each entry's sign video, by clip id.
+
+    The crawl keeps the site's path of every video it downloaded, so a clip can be watched from the
+    lexicon itself instead of from a copy: the practice app hands these to the page (see
+    ROADMAP-takk.md) rather than serving the 17 GB of clips through its API.
+    """
+    entries = pl.read_ndjson(raw_dir / ENTRIES_FILE).filter(pl.col("video").is_not_null())
+    return dict(zip(entries["id"], BASE_URL + entries["video"]))
+
+
 def mixed_transcriptions(raw_dir: Path) -> pl.DataFrame:
     """The sign classes whose entries don't all share one transcription, most entries first.
 

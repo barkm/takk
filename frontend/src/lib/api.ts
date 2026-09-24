@@ -6,7 +6,8 @@ const BASE = import.meta.env.VITE_API_BASE ?? "";
 
 export const api = (path: string) => `${BASE}${path}`;
 
-/** A sign of an attempt: the sign that scores it, its lexicon clips, and the word the signer says
+/** A sign of an attempt: the sign that scores it, the addresses of its lexicon clips (the lexicon's
+ * own, so they play whether or not the API is up), and the word the signer says
  * for it when that is not the sign's own name (a learner practising "blå" signs `sts:öga-02636`,
  * because blå and öga are one sign form and the lower entry names the class). */
 export type Sign = { sign: string; references: string[]; spoken?: string };
@@ -77,8 +78,6 @@ export async function fetchForm(entryId: string): Promise<string> {
   const response = await fetch(api(`/api/form/${encodeURIComponent(entryId)}`));
   return (await response.json()).form;
 }
-
-export const referenceUrl = (clip: string) => api(`/api/reference/${encodeURIComponent(clip)}`);
 
 /** Score a recording as an attempt of `signs`, in order. Every attempt is spoken and its signs are
  * located by the words said over it, so it needs the microphone. Throws when the server refuses it.

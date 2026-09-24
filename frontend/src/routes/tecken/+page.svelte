@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { referenceUrl } from "$lib/api";
   import { useCamera } from "$lib/camera.svelte";
   import { hand, setHand } from "$lib/hand";
   import { boxes, DAYS, KEY, load, remove, save, type Progress } from "$lib/progress";
@@ -162,7 +161,7 @@
             <!-- still until it is pointed at, since a page of vocabulary is a page of moving pictures -->
             <!-- the fragment seeks a frame in, so the card shows the sign rather than a black box -->
             <video
-              src="{referenceUrl(clip)}#t=0.1"
+              src="{clip}#t=0.1"
               muted
               loop
               playsinline

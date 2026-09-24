@@ -92,7 +92,7 @@ def embed_clip(model: nn.Module, frames: np.ndarray, config: PrepConfig, device:
 def create_app(
     references: dict[str, list[str]],
     means: np.ndarray,
-    reference_videos: dict[str, str],
+    clip_urls: dict[str, str],
     model: nn.Module,
     config: PrepConfig,
     threshold: float,
@@ -103,8 +103,9 @@ def create_app(
     writer: anthropic.Anthropic | None = None,
 ) -> FastAPI:
     """The practice app: the page, the glossary's signs with their clips (`references`, sign ->
-    clip ids, in the order of the rows of `means`, see sign_means), the clips' videos (by clip id, see
-    video_paths), the extraction model for the browser, and the scoring of attempts. The `aligner`
+    clip ids, in the order of the rows of `means`, see sign_means), the address each clip is watched
+    at (`clip_urls`, by clip id, see sts_lexikon.video_urls), the extraction model for the browser,
+    and the scoring of attempts. The `aligner`
     times a spoken sentence's words, which is what splits it into its signs. The `writer` writes the
     story a learner signs their way through (see `story.py`)."""
     app = FastAPI()
@@ -113,8 +114,13 @@ def create_app(
 
     @app.get("/api/signs")
     def signs() -> dict:
+        """The glossary, each sign with the addresses of its clips: the lexicon's own, so the page
+        plays them whether or not this server is up (see ROADMAP-takk.md)."""
         return {
-            "signs": [{"sign": sign, "references": clips} for sign, clips in references.items()],
+            "signs": [
+                {"sign": sign, "references": [clip_urls[clip] for clip in clips if clip in clip_urls]}
+                for sign, clips in references.items()
+            ],
             "fps": config.fps,
             "max_seconds": config.max_frames / config.fps,
             "edges": {group: edges.tolist() for group, edges in SKELETON_EDGES.items()},  # to draw the tracked landmarks
@@ -145,12 +151,6 @@ def create_app(
         vänsterriktad och inåtvänd, kontakt med bröstet, ..."). It is what a learner is taught by
         besides the clip, so it is fetched per sign rather than sent with the whole glossary."""
         return {"form": (forms or {}).get(entry_id, "")}
-
-    @app.get("/api/reference/{clip_id}")
-    def reference(clip_id: str) -> FileResponse:
-        if clip_id not in reference_videos:
-            raise HTTPException(404, "unknown reference clip")
-        return FileResponse(reference_videos[clip_id])
 
     @app.get("/api/model")
     def extraction_model() -> FileResponse:

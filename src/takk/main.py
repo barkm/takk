@@ -1,4 +1,5 @@
-"""The API of the practice app: it scores an attempt at a sign, and serves the lexicon and its clips.
+"""The API of the practice app: it scores an attempt at a sign, and serves the lexicon. The clips
+themselves are watched at the lexicon's own addresses, which it hands the page.
 
 The landmarks are extracted in the browser and only they are sent (see practice.py). An attempt
 counts as the sign when its mean cosine similarity to the sign's glossary clips reaches --threshold.
@@ -25,8 +26,8 @@ import numpy as np
 import polars as pl
 import uvicorn
 
-from isolated_sign_validation.collection import video_paths
 from isolated_sign_validation.dataset import SignDataset
+from isolated_sign_validation.datasets.sts_lexikon import video_urls
 from isolated_sign_validation.extraction import download_model
 from isolated_sign_validation.preparation import PrepConfig, PreparedData
 from isolated_sign_validation.training import embed, load_run
@@ -83,7 +84,7 @@ def main() -> None:
     print(f"loading the Swedish speech model {SPEECH_MODEL} that times a spoken sentence's words (about 1.2 GB, downloaded once)")
     aligner = load_aligner(args.device)  # a sentence is split by its spoken words, so this is not optional
     vocabulary = search_index(table)
-    app = create_app(references, means, video_paths(table), model, PrepConfig(), args.threshold, args.device, aligner, vocabulary, sign_forms(), story_writer(args.story_model))
+    app = create_app(references, means, video_urls(), model, PrepConfig(), args.threshold, args.device, aligner, vocabulary, sign_forms(), story_writer(args.story_model))
     uvicorn.run(app, host=args.host, port=args.port)
 
 
