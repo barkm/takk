@@ -23,6 +23,8 @@
   //
   // How many words a pass holds and how often each of them comes back are the learner's to set, on
   // this card before the pass starts (user, 2026-09-24).
+  const ACCEPTED = 700; // ms a word signed right is marked before the next one comes up
+
   const camera = useCamera(); // the camera of the Träna layout, which both modes share
   const lexicon = $derived(camera.lexicon);
   let progress: Progress = $state({});
@@ -33,6 +35,7 @@
   let attempt: Attempt | null = $state(null);
   let note = $state("");
   let form = $state(""); // the lexicon's description of the current sign
+  let accepted = $state(false); // the word was signed right, and is marked while the card waits
   let recorder: ReturnType<typeof Recorder> | undefined = $state();
 
   $effect(() => {
@@ -71,7 +74,13 @@
     if (!judged.length || !judged[0].usable || !judged[0].correct) return void recorder?.arm(true);
     progress = record(progress, { ...current, word: shown }, true);
     save(progress);
-    (queue = queue.slice(1)), (taken += 1), (attempt = null), (note = "");
+    // The word that was signed right is marked for a moment before the next one (user, 2026-09-24):
+    // the card used to move on the instant it was accepted, so the learner never saw that it was.
+    accepted = true;
+    setTimeout(() => {
+      accepted = false;
+      (queue = queue.slice(1)), (taken += 1), (attempt = null), (note = "");
+    }, ACCEPTED);
   }
 </script>
 
@@ -95,7 +104,13 @@
     <div class="meter" style="--done: {taken / (taken + queue.length)}"></div>
     <p class="dim">{taken} av {taken + queue.length} klara. Säg ordet högt medan du tecknar det.</p>
   </header>
-  <h1>{shown}</h1>
+  <!-- the tick keeps its place whether or not it is shown, so the word does not move when it lands -->
+  <h1 class:accepted>
+    {shown}
+    <svg class="tick" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 13l5 5L20 6" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  </h1>
   {#if references.length}
     <!-- svelte-ignore a11y_media_has_caption -->
     <video src={referenceUrl(references[0])} autoplay loop muted playsinline controls></video>
@@ -135,6 +150,31 @@
     border-radius: 3px;
     background: var(--accent);
     transition: width 0.3s ease;
+  }
+
+  h1 {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* The one mark of approval the app gives (user, 2026-09-24): the word turns green and a tick lands
+     beside it for a moment, so the learner sees the word was accepted rather than only seeing the
+     next one appear. Nothing is written — a word signed wrong is what gets a sentence. */
+  .tick {
+    width: 28px;
+    height: 28px;
+    fill: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  h1.accepted {
+    color: var(--ok);
+  }
+
+  h1.accepted .tick {
+    opacity: 1;
   }
 
   /* the lexicon's own shape, held before the clip loads so the page does not jump when it arrives */
