@@ -1,31 +1,29 @@
 <script lang="ts">
-  import { word, type Attempt } from "$lib/api";
+  import type { Attempt } from "$lib/api";
 
-  // A card says only whether the sign was right (user, 2026-09-21). `labels` gives the word the
-  // learner was asked to sign, which is not always what the sign is called: signs of one form are one
-  // class named after its lowest entry, so "grön" is scored as `sts:land-00416`.
-  let {
-    attempt,
-    note,
-    labels = {},
-  }: { attempt: Attempt | null; note: string; labels?: Record<string, string> } = $props();
+  // What was wrong with a recording, and nothing else (user, 2026-09-24). Right and wrong are marked
+  // on the word itself, with a tick or a cross beside it, so neither is written here: naming the
+  // sign that was signed instead said nothing the learner could act on. What is left is the cases
+  // where there is no verdict at all — a recording that could not be used, and the recorder's own
+  // message when it has one.
+  let { attempt, note }: { attempt: Attempt | null; note: string } = $props();
 
   // A card is one sign: a story colours its own words and shows no verdict of its own.
   const only = $derived(attempt?.signs[0]);
 
   const headline = $derived.by(() => {
     if (!attempt) return note;
-    if (!only) return attempt.note;
-    return only.correct ? "Rätt" : `Fel — det såg inte ut som ${labels[only.sign] ?? word(only.sign)}`;
+    if (!only) return attempt.note; // the recording could not be split into the sign at all
+    return only.usable ? "" : only.note;
   });
 </script>
 
 {#if headline}
-  <p class="verdict" class:ok={only?.correct} class:bad={only && !only.correct}>{headline}</p>
+  <p class="verdict">{headline}</p>
 {/if}
 
 <style>
-  /* One line, marked by a rule in its own colour: the verdict is read at a glance and then gone. */
+  /* One line, set apart by a rule: it is read at a glance and then gone. */
   .verdict {
     padding: 12px 16px;
     border-left: 3px solid var(--line);
@@ -33,15 +31,5 @@
     background: var(--surface);
     font-size: 17px;
     font-weight: 500;
-  }
-
-  .verdict.ok {
-    border-left-color: var(--ok);
-    color: var(--ok);
-  }
-
-  .verdict.bad {
-    border-left-color: var(--bad);
-    color: var(--bad);
   }
 </style>

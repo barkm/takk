@@ -23,7 +23,7 @@
   //
   // How many words a pass holds and how often each of them comes back are the learner's to set, on
   // this card before the pass starts (user, 2026-09-24).
-  const ACCEPTED = 700; // ms a word signed right is marked before the next one comes up
+  const MARKED = 700; // ms the verdict's mark stays on the word before the card goes on
 
   const camera = useCamera(); // the camera of the Träna layout, which both modes share
   const lexicon = $derived(camera.lexicon);
@@ -35,7 +35,7 @@
   let attempt: Attempt | null = $state(null);
   let note = $state("");
   let form = $state(""); // the lexicon's description of the current sign
-  let accepted = $state(false); // the word was signed right, and is marked while the card waits
+  let mark = $state<"ok" | "bad" | null>(null); // the verdict on the word, while the card holds it
   let recorder: ReturnType<typeof Recorder> | undefined = $state();
 
   $effect(() => {
@@ -58,7 +58,6 @@
   const shown = $derived(current ? label(current) : "");
   const references = $derived(lexicon?.signs.find((each) => each.sign === current?.sign)?.references ?? []);
   const sentence: Sign[] = $derived(current ? [{ sign: current.sign, references, spoken: shown }] : []);
-  const labels = $derived(current ? { [current.sign]: shown } : {});
 
   $effect(() => {
     const entryId = current?.id;
@@ -71,16 +70,24 @@
     // Nothing is pressed between cards: a recording that could not be used, and a sign that was not
     // recognised, are both simply recorded again, with the clip still on screen to sign from.
     const judged = scoredAttempt?.signs ?? [];
-    if (!judged.length || !judged[0].usable || !judged[0].correct) return void recorder?.arm(true);
+    if (!judged.length || !judged[0].usable) return void recorder?.arm(true); // the line below says why
+    // The verdict is a mark on the word and nothing written (user, 2026-09-24): a tick for a sign
+    // that was right, a cross for one that was not, held for a moment. The card used to move on the
+    // instant it was accepted, so the learner never saw that it had been.
+    if (!judged[0].correct) {
+      mark = "bad";
+      return void setTimeout(() => {
+        mark = null;
+        recorder?.arm(true); // the same word again, with its clip still on screen
+      }, MARKED);
+    }
     progress = record(progress, { ...current, word: shown }, true);
     save(progress);
-    // The word that was signed right is marked for a moment before the next one (user, 2026-09-24):
-    // the card used to move on the instant it was accepted, so the learner never saw that it was.
-    accepted = true;
+    mark = "ok";
     setTimeout(() => {
-      accepted = false;
+      mark = null;
       (queue = queue.slice(1)), (taken += 1), (attempt = null), (note = "");
-    }, ACCEPTED);
+    }, MARKED);
   }
 </script>
 
@@ -104,11 +111,17 @@
     <div class="meter" style="--done: {taken / (taken + queue.length)}"></div>
     <p class="dim">{taken} av {taken + queue.length} klara. Säg ordet högt medan du tecknar det.</p>
   </header>
-  <!-- the tick keeps its place whether or not it is shown, so the word does not move when it lands -->
-  <h1 class:accepted>
+  <!-- the mark keeps its place whether or not it is shown, so the word does not move when it lands -->
+  <h1 class={mark}>
     {shown}
-    <svg class="tick" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M4 13l5 5L20 6" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+    <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d={mark === "bad" ? "M5 5 19 19M19 5 5 19" : "M4 13l5 5L20 6"}
+        stroke="currentColor"
+        stroke-width="3"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
     </svg>
   </h1>
   {#if references.length}
@@ -117,7 +130,7 @@
   {/if}
   {#if form}<p class="form dim">{form}</p>{/if}
   <Recorder bind:this={recorder} {sentence} onattempt={scored} />
-  <Verdict {attempt} {note} {labels} />
+  <Verdict {attempt} {note} />
 {:else}
   <section class="card">
     <h1>Klart!</h1>
@@ -158,10 +171,10 @@
     gap: 12px;
   }
 
-  /* The one mark of approval the app gives (user, 2026-09-24): the word turns green and a tick lands
-     beside it for a moment, so the learner sees the word was accepted rather than only seeing the
-     next one appear. Nothing is written — a word signed wrong is what gets a sentence. */
-  .tick {
+  /* The whole verdict (user, 2026-09-24): the word turns green with a tick or red with a cross for a
+     moment, and nothing is written. A sentence naming the sign that was signed instead told the
+     learner nothing they could act on; the clip beside them is what does. */
+  .mark {
     width: 28px;
     height: 28px;
     fill: none;
@@ -169,11 +182,16 @@
     transition: opacity 0.15s ease;
   }
 
-  h1.accepted {
+  h1.ok {
     color: var(--ok);
   }
 
-  h1.accepted .tick {
+  h1.bad {
+    color: var(--bad);
+  }
+
+  h1.ok .mark,
+  h1.bad .mark {
     opacity: 1;
   }
 
