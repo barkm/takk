@@ -122,7 +122,11 @@ Steps 1 to 7 are built and in use. Steps 8 to 14 are the blueprint above and are
 
     **The build runs in GitHub Actions**, not locally and not in Cloud Build: Pages needs Actions anyway, Workload Identity Federation removes the service-account key, and one place then shows both deploys. Cloud Build is the fallback if the hosted runner's free disk cannot hold the ~2.5 GB image. Two workflows: one on `frontend/**` that runs `npm run check`, `npm test` and `npm run build` and deploys the site, and one on `src/**`, the Dockerfile and `deploy/bundle.txt` that runs `uv run pytest` (148 tests, 26 s, no datasets needed), fetches the bundle named by `deploy/bundle.txt` from the secret bucket, builds, pushes to Artifact Registry and deploys the Cloud Run revision. CI never trains and never touches a dataset.
 
-    First step, asked for by the user (2026-09-24): build the image locally and run it, before any of the cloud pieces exist.
+    — the local image is done (2026-09-24, the first step the user asked for, before any cloud piece exists). `Dockerfile` builds it from the repo root around a bundle named by `--build-arg BUNDLE=`, and `.dockerignore` keeps the build context to the four things it copies, since `data/` and `outputs/` are tens of gigabytes. It runs: `/api/signs` answers with lexicon addresses, `/api/search` and `/api/form` answer, `/api/story` answers with no parts when no `ANTHROPIC_API_KEY` is passed, and a cross-origin request gets `access-control-allow-origin: *`.
+
+    **The image takes CPU torch from PyTorch's own index, not the lockfile's wheels** — the first build was 14.2 GB, because `uv sync --frozen` installs what the machine trains with, and the CUDA runtime is 12 GB of that. The image resolves the lockfile's versions with `uv export` and installs them with `--index-url https://download.pytorch.org/whl/cpu`, dropping the `nvidia-*` and `triton` lines, so the versions stay pinned while the wheels carry no CUDA. That brought it to **4.8 GB**: 1.6 GB virtual environment (769 MB torch, 172 MB polars, 114 MB transformers, 109 MB scipy, 48 MB scikit-learn), 1.2 GB speech model, 39 MB bundle, the rest the Debian base with ffmpeg. Trimming further means dropping scikit-learn (transformers imports it) or pruning torch, and neither is worth doing before the pull time is a measured problem.
+
+    Still to do: the Pages base path and the workflows, the Artifact Registry repository and the Cloud Run service, and `--publish` on `build_serving.py` once there is a bucket.
 
 ## Decisions
 

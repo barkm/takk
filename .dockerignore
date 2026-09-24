@@ -1,0 +1,7 @@
+# The build context is only what the image copies: the datasets in data/ and the training runs in
+# outputs/ are tens of gigabytes and none of them belongs in it (see the Dockerfile).
+*
+!pyproject.toml
+!uv.lock
+!src
+!outputs/serving

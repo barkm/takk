@@ -370,7 +370,13 @@ uv run takk                       # the API; the page is the SvelteKit app below
 
 Everything the API serves comes from that bundle (`takk/bundle.py`): the model, one mean embedding
 per sign, the addresses of its lexicon clips and the words that lead to them, about 40 MB. It reads
-no dataset, no prepared store and no training run, so it can be deployed without any of them.
+no dataset, no prepared store and no training run, so it can be deployed without any of them — which
+is what the image is (`Dockerfile`, 4.8 GB, the speech model and CPU torch being most of it):
+
+```sh
+docker build --build-arg BUNDLE=outputs/serving/iv14_h384_e20-sts_lexikon-234f4575 -t takk .
+docker run --rm -p 8002:8002 -e ANTHROPIC_API_KEY takk   # without the key, only words can be practised
+```
 
 A part of a story is several signs, as TAKK signs the key words of a spoken sentence. Sign them in
 order and say the part aloud while you sign, the way TAKK is used: the recording is split into its
