@@ -117,21 +117,20 @@
     if (!event.repeat && tracker && !scoring) arm();
   }
 
-  const recording = $derived(phase !== "idle");
-  $effect(() => void (camera.recording = recording)); // the layout outlines the picture and asks for the hands
-  const told = $derived(
-    phase === "calibrating" ? "Lyssnar på rummet..." : phase === "armed" ? "Säg meningen när du är redo." : phase === "speaking" ? "Hör dig — teckna medan du talar." : "",
-  );
+  // The picture is outlined while the voice is being recorded and not before (user, 2026-09-24):
+  // waiting for the learner to speak is not recording anything they would want back, and an outline
+  // that is on throughout says nothing. Sök outlines it the same way while its own recording runs.
+  $effect(() => void (camera.recording = phase === "speaking"));
 </script>
 
 <svelte:window {onkeydown} />
 
-<!-- Nothing is pressed to record (user, 2026-09-24): the recorder arms itself when a card appears,
-     starts on the voice, ends on the silence after it and arms again when a wait runs long, and the
-     pages arm it again after a verdict. Space starts a recording over, which is all the button that
-     used to stand here did. -->
+<!-- Nothing is pressed to record and nothing is written about it (user, 2026-09-24): the recorder
+     arms itself when a card appears, starts on the voice, ends on the silence after it and arms
+     again when a wait runs long, and the pages arm it again after a verdict. What it is doing is the
+     outline on the picture, so the phases are not written out beside it. Space starts a recording
+     over, which is all the button that used to stand here did. -->
 {#if silent}<p class="dim">{NO_MICROPHONE}</p>{/if}
-{#if told}<p class="dim">{told}{phase === "speaking" ? ` ${seconds.toFixed(1)} s` : ""}</p>{/if}
 {#if scoring}
   <p class="dim">Bedömer...</p>
 {/if}
