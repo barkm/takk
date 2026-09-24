@@ -132,6 +132,8 @@ Steps 1 to 7 are built and in use. Steps 8 to 14 are the blueprint above and are
 
     **Publishing a model is an upload and a commit** (see step 12 of ROADMAP.md): `scripts/build_serving.py --publish` tars the bundle, names it by its own sha256, uploads it to `$TAKK_BUNDLE_URI` with `gcloud storage cp` and rewrites `deploy/bundle.txt`. Committing that one line is what deploys it, so the history says which model each revision served and a rollback is an older pin. The bucket is in the environment and in a trigger substitution, never in the repository (user, 2026-09-24).
 
+    **It runs on the free tier** (user, 2026-09-24), which decides three things. `--min-instances` is 0, since the free tier covers request-based billing only, so the first request after an idle period waits for the image pull and the 3.2 s the speech model takes to load. The build uses Cloud Build's default machine type, the only one the free build minutes cover. And the API now gzips: `/api/signs` is 2.32 MB of JSON that every page load fetches, 271 kB compressed, so a gigabyte of egress went from about 430 page loads to about 3,700 (`GZipMiddleware`, measured on the served glossary). What is not free is Artifact Registry: 0.5 GB is, and the image is 4.8 GB, so expect about half a dollar a month unless the image shrinks or old versions are pruned.
+
     Still to do, all of it in the GCP console: the Artifact Registry repository, the bundle bucket, the Anthropic secret, the runtime service account and the trigger itself, then the first deploy, `VITE_API_BASE` pointed at the service, and narrowing `TAKK_ORIGINS` from `*` to the page's origin.
 
 ## Decisions

@@ -25,6 +25,7 @@ import numpy as np
 import torch
 from fastapi import Body, FastAPI, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from torch import nn
 
 from isolated_sign_validation.checks import check_clip
@@ -108,6 +109,9 @@ def create_app(
     is what splits it into its signs. The `writer` writes the story a learner signs their way through
     (see `story.py`)."""
     app = FastAPI()
+    # The glossary is 2.3 MB of JSON and every page load fetches it, which compresses to 271 kB: the
+    # page is quicker for it and the egress is a tenth of what it was (see step 18 of ROADMAP-takk.md).
+    app.add_middleware(GZipMiddleware, minimum_size=1000)
     # The page is served from another origin than this API (see the decisions in ROADMAP-takk.md),
     # so every call from it is cross-origin. Any origin may call: there are no accounts, no cookies
     # and nothing here that is not the public lexicon. `TAKK_ORIGINS` narrows it when that changes.

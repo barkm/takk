@@ -204,6 +204,14 @@ def test_search_by_signing_ranks_the_whole_glossary():
     assert empty["words"] == [] and empty["note"] == NOTES["no_hands"]
 
 
+def test_the_glossary_is_compressed():
+    # 2.3 MB of JSON on every page load, a tenth of that compressed
+    app = create_app({"A": ["a1"] * 500}, np.array([[1.0, 0.0]]), Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [])  # fmt: skip
+    response = TestClient(app).get("/api/signs", headers={"accept-encoding": "gzip"})
+
+    assert response.headers["content-encoding"] == "gzip"
+
+
 def test_the_page_may_call_from_another_origin():
     # the page is served from another origin than this API, so a call without CORS never arrives
     app = create_app({"A": ["a1"]}, np.array([[1.0, 0.0]]), Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [])  # fmt: skip

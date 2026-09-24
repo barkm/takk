@@ -49,6 +49,8 @@ steps:
   # 2 vCPU scores an attempt of a 3 s recording in 0.66 s, nearly all of it the speech model (see the
   # findings in ROADMAP-takk.md), so the concurrency is low and there is no GPU. The Anthropic key is
   # read from Secret Manager at start; without it the API runs and only stories are off.
+  # _MIN_INSTANCES stays 0 for the free tier, which covers request-based billing only: the first
+  # request after an idle period waits for the image and the 3.2 s the speech model takes to load.
   - id: deploy
     name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     entrypoint: gcloud
@@ -67,7 +69,8 @@ steps:
       - --min-instances=$_MIN_INSTANCES
       - --allow-unauthenticated
 
+# The default machine type, because the free tier's build minutes only cover that one; a bigger one
+# would build faster and be billed from the first minute.
 options:
-  machineType: E2_HIGHCPU_8
   logging: CLOUD_LOGGING_ONLY
 timeout: 2400s
