@@ -23,7 +23,11 @@
   //
   // How many words a pass holds and how often each of them comes back are the learner's to set, on
   // this card before the pass starts (user, 2026-09-24).
-  const MARKED = 700; // ms the verdict's mark stays on the word before the card goes on
+  // How long the verdict's mark stays on the word. A miss holds twice as long (user, 2026-09-24):
+  // the word is about to be signed again, so it is worth reading, while an accepted word is on its
+  // way out and only has to be seen.
+  const MARKED = 700;
+  const MISSED = 2 * MARKED;
 
   const camera = useCamera(); // the camera of the Träna layout, which both modes share
   const lexicon = $derived(camera.lexicon);
@@ -79,7 +83,7 @@
       return void setTimeout(() => {
         mark = null;
         recorder?.arm(true); // the same word again, with its clip still on screen
-      }, MARKED);
+      }, MISSED);
     }
     progress = record(progress, { ...current, word: shown }, true);
     save(progress);
