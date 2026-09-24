@@ -9,12 +9,14 @@
   import CameraView from "$lib/Camera.svelte";
   import { useCamera } from "$lib/camera.svelte";
   import { hand } from "$lib/hand";
+  import { hands, see, watching } from "$lib/hands";
   import { draw, type Frame } from "$lib/landmarks";
   import { add, load, remove, save, type Progress } from "$lib/progress";
 
   // Sök (steps 9 and 10 of ROADMAP-takk.md): the one way vocabulary grows. A word, a theme or a
   // sign shown to the camera lists signs to pick, and what is picked is what Ord teaches.
   const WAIT = 200; // milliseconds after the last keystroke, so a word is searched once and not per letter
+  const LOOK = 50; // ms between readings of whether the hands are up, as the voice is read in Träna
 
   let query = $state("");
   let results: SignWord[] = $state([]);
@@ -69,15 +71,41 @@
     }, WAIT);
   }
 
+  // The hands start and end the recording, as the voice does in Träna (user, 2026-09-24): raising
+  // them to sign records, lowering them searches. Nothing is pressed here either, and a learner
+  // reading their results never has a recording started under them, because the hands have to leave
+  // the picture before the next one can begin.
+  let eyes = $state(watching());
+
+  $effect(() => {
+    const tracker = camera.tracker;
+    if (!bySign || !tracker) return;
+    const watch = setInterval(() => {
+      if (searching) return; // the last sign is still being looked up; the next one waits for it
+      eyes = see(eyes, hands(tracker.latest));
+      if (eyes.phase === "signing" && !camera.recording) return void record();
+      // Hands held up and never lowered would record until the page is left, so a recording is cut
+      // at the length one sign is allowed to be, which is what it is going to be searched for.
+      const tooLong = lexicon && Date.now() - began > lexicon.maxSeconds * 1000;
+      if (eyes.phase === "done" || (camera.recording && tooLong)) (eyes = watching()), void finish();
+    }, LOOK);
+    return () => {
+      clearInterval(watch);
+      (eyes = watching()), (camera.recording = false);
+    };
+  });
+
+  let began = 0; // when the running recording started, for the length one sign is allowed to be
+
   function record() {
     if (!camera.tracker) return;
-    if (camera.recording) return void finish();
-    camera.tracker.resume();
     camera.tracker.startRecording();
+    began = Date.now();
     (camera.recording = true), (note = ""), (signed = []); // the live picture, until this replaces it
   }
 
   async function finish() {
+    if (!camera.recording) return;
     camera.recording = false;
     const taken = await camera.tracker?.stopRecording();
     if (!taken || taken.frames.length < 2) return void (note = "Inspelningen är tom.");
@@ -129,12 +157,8 @@
 {#if bySign}
   <section class="signing">
     <div class="picture"><CameraView {camera} /></div>
-    <div class="row">
-      <button disabled={!camera.tracker || searching} onclick={record}>
-        {camera.recording ? "Stopp" : "Spela in tecken"}
-      </button>
-      {#if searching}<span class="dim">Söker ...</span>{/if}
-    </div>
+    <!-- the picture says whether it is recording, so the only line here is the wait after a sign -->
+    {#if searching}<p class="dim">Söker ...</p>{/if}
   </section>
 {/if}
 
