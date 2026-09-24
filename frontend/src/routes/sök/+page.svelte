@@ -139,7 +139,19 @@
         >
           {#if clip}
             <!-- svelte-ignore a11y_media_has_caption -->
-            <video src={referenceUrl(clip)} autoplay loop muted playsinline></video>
+            <!-- Still until the tile is pointed at, with the fragment seeking a frame in so the tile
+                 shows the sign rather than a black box. Thirty clips playing at once, beside the
+                 camera and the landmarker, is more video than a browser will decode: the ones it
+                 gives up on stay black, and the camera can be the one it gives up on. -->
+            <video
+              src="{referenceUrl(clip)}#t=0.1"
+              muted
+              loop
+              playsinline
+              preload="metadata"
+              onpointerenter={(event) => event.currentTarget.play()}
+              onpointerleave={(event) => event.currentTarget.pause()}
+            ></video>
           {:else}
             <span class="noclip dim">inget klipp</span>
           {/if}
