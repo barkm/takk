@@ -86,6 +86,8 @@ Steps 1 to 7 are built and in use. Steps 8 to 14 are the blueprint above and are
 
     **Desktop first** (user, 2026-09-23): the work and the camera side by side in two columns, collapsing to one column with the picture on top under 860 px, and the rail becoming the bottom bar under 720 px.
 
+    **Meningar scrolls** (user, 2026-09-24): the whole story so far stands in the page inside a box that fades out at both ends, and the line being signed is scrolled to the middle of it as it comes up, so the lines already signed stay above with the colours their words were given. Showing one line above and one below the current one, which the redesign inherited from step 13, is gone. The scroll is smooth unless the browser asks for reduced motion.
+
     Sök shows its results as a grid of clips, a whole tile being the control that picks the sign, since a word is recognised by its sign rather than by the row it sits in. Tecken leads with the three numbers, then the charts, then the words with the interval each has reached and when it comes back — the list is new, and it is what "an overview of the words being practised" asked for. — done, checked with `npm run check`, `npm test` and `npm run build`, and with headless screenshots of the shell. Not practised through in a browser yet: the camera, the recording and the verdicts are unchanged code, but the new layout around them has not been used with a live camera.
 
 ## Decisions
