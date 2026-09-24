@@ -8,10 +8,15 @@
   // Meningar (step 13 of ROADMAP-takk.md): a connected Swedish text over the words the learner
   // already knows, read line by line. The text scrolls (user, 2026-09-24): the line to sign now is
   // solid and held in the middle, the lines before and after it grey, and it goes on whatever the
-  // verdict was — nothing is pressed and there is no end screen. To the learner
-  // this is simply how words are repeated, so the page names it nothing and explains nothing.
+  // verdict was — nothing is pressed between the lines. To the learner this is simply how words are
+  // repeated, so the page names it nothing and explains nothing.
   // Only words already practised are used, drawn towards the low boxes, so it leans on the weak ones.
-  const LINES = 6; // lines written per request; the next ones are asked for as the learner reaches them
+  //
+  // A story is one text and it ends (user, 2026-09-24). Signing its last line puts the page back
+  // where it started, and the next story is written when the learner asks for it: a story written
+  // under the finished one would be a second story with its own beginning, which reads as a break in
+  // the text now that the whole of it stands on the page.
+  const LINES = 6; // lines in a story
   // How long a line may be recorded for: it is read aloud, so its length is its text and not its
   // signs — a wordy line with one sign would be cut off by the one sign's worth of seconds a card
   // gets. Swedish read aloud runs at about two words a second; the slack is for reading it at all.
@@ -30,7 +35,6 @@
   let note = $state("");
   let verdicts: Record<number, Record<string, boolean>> = $state({}); // per line, by lowercased word
   let waiting: ReturnType<typeof setTimeout> | null = null; // the pause the coloured words are read in
-  let stalled = $state(false); // the writer failed, so nothing is asked for again until it is asked for
   let recorder: ReturnType<typeof Recorder> | undefined = $state();
 
   $effect(() => {
@@ -43,23 +47,16 @@
   const same = (text: string) => text.toLowerCase();
   const pool = $derived(known(progress, Infinity, () => 0)); // everything practised, for the count
 
-  /** Write the next lines over the words this learner knows, weakest first. Twice as many words are
+  /** Write a story over the words this learner knows, weakest first. Twice as many words are
    * offered as there are lines, so the model has something to choose from in every one of them. */
   async function write() {
     const words = known(progress, LINES * 2);
-    cards = { ...cards, ...Object.fromEntries(words.map((each) => [label(each), each])) };
+    cards = Object.fromEntries(words.map((each) => [label(each), each]));
     writing = true;
     const written = await fetchStory(words.map(label), LINES).finally(() => (writing = false));
-    stalled = !written.length;
-    if (stalled) return void (note = "Kunde inte skriva någon text. Försök igen.");
-    (story = [...story, ...written]), (note = "");
+    if (!written.length) return void (note = "Kunde inte skriva någon text. Försök igen.");
+    (story = written), (note = ""), (at = 0), (verdicts = {}), (lines = []);
   }
-
-  // The story never ends: when the learner reaches the last written line, the next ones are asked
-  // for. A writer that failed is not asked again by itself, or a dead server would be asked forever.
-  $effect(() => {
-    if (story.length && at >= story.length - 1 && !writing && !stalled) void write();
-  });
 
   const line = $derived(story[at]);
   const limit = $derived(line ? line.text.split(/\s+/).length * PER_WORD + SLACK : 0);
@@ -102,7 +99,10 @@
   }
 
   function next() {
-    (at += 1), (attempt = null), (note = "");
+    (attempt = null), (note = "");
+    // The last line signed ends the story, and the page is the start card again.
+    if (at + 1 < story.length) return void (at += 1);
+    (story = []), (cards = {}), (at = 0), (verdicts = {}), (lines = []);
   }
 </script>
 
@@ -136,7 +136,6 @@
     {/each}
   </div>
   {#if note}<p class="dim">{note}</p>{/if}
-  {#if stalled}<button onclick={write} disabled={writing}>Fortsätt</button>{/if}
   <Recorder bind:this={recorder} {sentence} {limit} onattempt={scored} unheardIsMiss />
 {/if}
 
