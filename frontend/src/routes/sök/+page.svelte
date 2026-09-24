@@ -105,26 +105,23 @@
   const picked = (each: SignWord) => !!progress[each.sign];
 </script>
 
-<input
-  type="search"
-  placeholder="Sök efter ord eller teman"
-  value={query}
-  oninput={(event) => search(event.currentTarget.value)}
-/>
-
-<!-- the two ways in stand together: a word is typed above, a sign is made in front of the camera -->
+<!-- The picture first and the field under it (user, 2026-09-24): the two ways in read as one, and
+     the field's placeholder is where both are said, so the page needs no line of instructions. -->
 <section class="signing">
   <CameraView {camera} />
   <!-- the picture says whether it is recording, so the only line here is the wait after a sign -->
   {#if searching}<p class="dim">Söker ...</p>{/if}
 </section>
 
+<input
+  type="search"
+  placeholder="Teckna ordet, eller sök efter ord eller teman"
+  value={query}
+  oninput={(event) => search(event.currentTarget.value)}
+/>
+
 {#if note}
   <p class="dim note">{note}</p>
-{/if}
-
-{#if !results.length && !query}
-  <p class="dim note">Sök på ett ord eller ett tema, eller teckna ordet framför kameran.</p>
 {/if}
 
 {#if results.length}
@@ -157,12 +154,15 @@
 {/if}
 
 <style>
+  /* the picture is the middle of the page, with the field under it */
   .signing {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    margin-top: 16px;
+    width: 100%;
     max-width: 360px;
+    margin: 0 auto 16px;
+    text-align: center;
   }
 
   .note {
