@@ -22,12 +22,11 @@ import anthropic
 import numpy as np
 import torch
 from fastapi import Body, FastAPI, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
 from torch import nn
 
 from isolated_sign_validation.checks import check_clip
 from isolated_sign_validation.dataset import collate
-from isolated_sign_validation.extraction import MODEL_PATH, VideoInfo
+from isolated_sign_validation.extraction import VideoInfo
 from isolated_sign_validation.landmarks import N_LANDMARKS, SKELETON_EDGES
 from isolated_sign_validation.preparation import ONE_HANDED, PrepConfig, hand_presence, hide_low_hands, mirror, prepare_clip
 from takk.speech import MIN_WORD_SCORE, Aligner, decode_audio, split_speech
@@ -104,10 +103,9 @@ def create_app(
 ) -> FastAPI:
     """The practice app: the page, the glossary's signs with their clips (`references`, sign ->
     clip ids, in the order of the rows of `means`, see sign_means), the address each clip is watched
-    at (`clip_urls`, by clip id, see sts_lexikon.video_urls), the extraction model for the browser,
-    and the scoring of attempts. The `aligner`
-    times a spoken sentence's words, which is what splits it into its signs. The `writer` writes the
-    story a learner signs their way through (see `story.py`)."""
+    at (`clip_urls`, by clip id, see sts_lexikon.video_urls), and the scoring of attempts. The
+    `aligner` times a spoken sentence's words, which is what splits it into its signs. The `writer`
+    writes the story a learner signs their way through (see `story.py`)."""
     app = FastAPI()
     names = list(references)
     index = {sign: i for i, sign in enumerate(names)}
@@ -151,10 +149,6 @@ def create_app(
         vänsterriktad och inåtvänd, kontakt med bröstet, ..."). It is what a learner is taught by
         besides the clip, so it is fetched per sign rather than sent with the whole glossary."""
         return {"form": (forms or {}).get(entry_id, "")}
-
-    @app.get("/api/model")
-    def extraction_model() -> FileResponse:
-        return FileResponse(MODEL_PATH)
 
     def judge(values: np.ndarray, sign: str, handedness: str, width: int, height: int) -> dict:
         """Score the landmarks of one sign as an attempt of `sign`."""

@@ -3,10 +3,13 @@
 // extraction.py. Only the landmarks of a recording are sent to the server, never the video.
 import { FilesetResolver, HolisticLandmarker } from "@mediapipe/tasks-vision";
 
-import { api } from "$lib/api";
 import { draw, layout, type Edges, type Frame } from "$lib/landmarks";
 
 const WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm";
+// The landmarker is loaded from MediaPipe's own address, as the wasm beside it is, so neither the
+// API nor this site carries the 13.7 MB (see ROADMAP-takk.md). It is the model extraction.py
+// downloads, by the same URL.
+const MODEL = "https://storage.googleapis.com/mediapipe-models/holistic_landmarker/holistic_landmarker/float16/latest/holistic_landmarker.task";
 
 export type Recording = { frames: Frame[]; audio: Blob | null; audioStart: number };
 
@@ -51,7 +54,7 @@ export class Tracker {
     video.srcObject = stream;
     const files = await FilesetResolver.forVisionTasks(WASM);
     const create = (delegate: "GPU" | "CPU") =>
-      HolisticLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: api("/api/model"), delegate }, runningMode: "VIDEO" });
+      HolisticLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: MODEL, delegate }, runningMode: "VIDEO" });
     let delegate: "GPU" | "CPU" = "GPU";
     let landmarker: HolisticLandmarker;
     try {

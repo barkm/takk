@@ -28,7 +28,6 @@ import uvicorn
 
 from isolated_sign_validation.dataset import SignDataset
 from isolated_sign_validation.datasets.sts_lexikon import video_urls
-from isolated_sign_validation.extraction import download_model
 from isolated_sign_validation.preparation import PrepConfig, PreparedData
 from isolated_sign_validation.training import embed, load_run
 from takk.practice import create_app, sign_means
@@ -65,7 +64,6 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8002)
     args = parser.parse_args()
 
-    download_model()
     glossary = PreparedData(args.glossary)
     clips = SignDataset(glossary, "test")
     _, model = load_run(RUNS_DIR / args.run, glossary)
