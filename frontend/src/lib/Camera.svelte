@@ -53,7 +53,6 @@
   <video bind:this={video} autoplay muted playsinline></video>
   <canvas bind:this={canvas}></canvas>
   {#if camera.tracker}
-    {@render camera.overlay?.()}
     {#if camera.fit}<p class="fit">{camera.fit}</p>{/if}
   {:else}
     <!-- the space is reserved above, so only what fills it changes when the camera is ready -->

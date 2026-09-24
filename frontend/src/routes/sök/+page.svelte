@@ -10,7 +10,6 @@
   import { useCamera } from "$lib/camera.svelte";
   import { hand } from "$lib/hand";
   import { hands, see, watching } from "$lib/hands";
-  import { draw, type Frame } from "$lib/landmarks";
   import { add, load, remove, save, type Progress } from "$lib/progress";
 
   // Sök (steps 9 and 10 of ROADMAP-takk.md): the one way vocabulary grows. A word, a theme or a
@@ -31,41 +30,17 @@
   const camera = useCamera();
   const lexicon = $derived(camera.lexicon);
   let searching = $state(false);
-  // What the rows were searched with, kept as the field keeps the word that found them. Only the
-  // landmarks are kept, never the camera's picture, so the replay is the skeleton that was sent.
-  let signed: Frame[] = $state([]);
-  let replay = $state<HTMLCanvasElement>();
 
   $effect(() => {
     progress = load();
   });
 
-  // The replay goes in the camera's own place, and leaves it when the search by sign is left.
-  $effect(() => {
-    camera.overlay = replayed;
-    return () => (camera.overlay = null);
-  });
-
   const clips = $derived(new Map(lexicon?.signs.map((each) => [each.sign, each.references]) ?? []));
   const label = (each: SignWord) => each.word ?? word(each.sign);
 
-  // The recording plays on a loop beside its results, a frame at the rate the landmarks were sent at.
-  $effect(() => {
-    const canvas = replay;
-    if (!canvas || !signed.length || !lexicon || !camera.video) return;
-    // the canvas keeps the camera's own proportions, since the landmarks are normalised to its frame
-    const size = { width: camera.video.videoWidth, height: camera.video.videoHeight };
-    let at = 0;
-    const shown = setInterval(() => {
-      draw(canvas, size, signed[at].landmarks, lexicon!.edges);
-      at = (at + 1) % signed.length;
-    }, 1000 / lexicon.fps);
-    return () => clearInterval(shown);
-  });
-
   function search(text: string) {
     clearTimeout(timer);
-    (query = text), (signed = []); // a word search replaces what the rows were found with
+    query = text;
     timer = setTimeout(async () => {
       results = text.trim() ? await fetchSearch(text) : [];
     }, WAIT);
@@ -101,7 +76,7 @@
     if (!camera.tracker) return;
     camera.tracker.startRecording();
     began = Date.now();
-    (camera.recording = true), (note = ""), (signed = []); // the live picture, until this replaces it
+    (camera.recording = true), (note = "");
   }
 
   async function finish() {
@@ -113,7 +88,6 @@
     try {
       const found = await searchBySign(taken.frames, hand() ?? "right", camera.video!, lexicon!.fps);
       (results = found.words), (note = found.note), (query = "");
-      signed = found.words.length ? taken.frames : []; // the camera stays, with the sign that found the rows in it
     } catch {
       note = "Sökningen misslyckades. Teckna igen.";
     } finally {
@@ -136,11 +110,6 @@
   const picked = (each: SignWord) => !!progress[each.sign];
   const missing = $derived(results.filter((each) => !progress[each.sign]).length);
 </script>
-
-<!-- the sign the rows were found by, in the camera's own place, until the next recording -->
-{#snippet replayed()}
-  <canvas bind:this={replay} class="replay" class:away={!signed.length}></canvas>
-{/snippet}
 
 <input
   type="search"
@@ -203,18 +172,6 @@
     gap: 12px;
     margin-top: 16px;
     max-width: 360px;
-  }
-
-  .away {
-    display: none; /* hidden rather than removed, so the tracker keeps the element it started on */
-  }
-
-  .replay {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    background: #000; /* over the live picture, so what is shown is what was searched with */
   }
 
   .note {
