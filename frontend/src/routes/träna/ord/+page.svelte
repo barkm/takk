@@ -111,18 +111,24 @@
     <div class="meter" style="--done: {taken / (taken + queue.length)}"></div>
     <p class="dim">{taken} av {taken + queue.length} klara. Säg ordet högt medan du tecknar det.</p>
   </header>
-  <!-- the mark keeps its place whether or not it is shown, so the word does not move when it lands -->
+  <!-- The slot keeps its place whether or not there is a mark in it, so the word does not move when
+       one lands; the mark itself is only there while it is shown, since a mark on its way out would
+       otherwise change shape and colour as it went. -->
   <h1 class={mark}>
     {shown}
-    <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        d={mark === "bad" ? "M5 5 19 19M19 5 5 19" : "M4 13l5 5L20 6"}
-        stroke="currentColor"
-        stroke-width="3"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      />
-    </svg>
+    <span class="mark">
+      {#if mark}
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d={mark === "bad" ? "M5 5 19 19M19 5 5 19" : "M4 13l5 5L20 6"}
+            stroke="currentColor"
+            stroke-width="3"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      {/if}
+    </span>
   </h1>
   {#if references.length}
     <!-- svelte-ignore a11y_media_has_caption -->
@@ -175,11 +181,24 @@
      moment, and nothing is written. A sentence naming the sign that was signed instead told the
      learner nothing they could act on; the clip beside them is what does. */
   .mark {
+    display: grid;
+    place-items: center;
     width: 28px;
     height: 28px;
+  }
+
+  .mark svg {
+    width: 100%;
+    height: 100%;
     fill: none;
-    opacity: 0;
-    transition: opacity 0.15s ease;
+    animation: land 0.15s ease;
+  }
+
+  /* it fades in and is simply gone again, which is why there is no transition on the way out */
+  @keyframes land {
+    from {
+      opacity: 0;
+    }
   }
 
   h1.ok {
@@ -188,11 +207,6 @@
 
   h1.bad {
     color: var(--bad);
-  }
-
-  h1.ok .mark,
-  h1.bad .mark {
-    opacity: 1;
   }
 
   /* the lexicon's own shape, held before the clip loads so the page does not jump when it arrives */
