@@ -3,6 +3,16 @@
   import Verdict from "$lib/Verdict.svelte";
   import { fetchForm, referenceUrl, word, type Attempt, type SignWord, type Sign } from "$lib/api";
   import { useCamera } from "$lib/camera.svelte";
+  import Choice from "$lib/Choice.svelte";
+  import {
+    load as loadOptions,
+    pass,
+    save as saveOptions,
+    DEFAULTS,
+    REPEATS,
+    WORDS,
+    type Options,
+  } from "$lib/options";
   import { load, record, save, toLearn, type Progress } from "$lib/progress";
 
   // Ord (steps 9, 12 and 16 of ROADMAP-takk.md): one sign at a time, with its clip and the lexicon's
@@ -10,11 +20,13 @@
   // Sök and the ones they have missed since — the clip is what a word signed wrong needs, and
   // Meningar never stops to show it. An accepted word goes into the first Leitner box, or keeps the
   // box it had when it was not due; a missed one is simply signed again, with the clip still there.
-  const SIZE = 5; // words in one session
-
+  //
+  // How many words a pass holds and how often each of them comes back are the learner's to set, on
+  // this card before the pass starts (user, 2026-09-24).
   const camera = useCamera(); // the camera of the Träna layout, which both modes share
   const lexicon = $derived(camera.lexicon);
   let progress: Progress = $state({});
+  let chosen: Options = $state(DEFAULTS);
   let queue: SignWord[] = $state([]); // the words left, the current one first
   let started = $state(false);
   let taken = $state(0); // how many of this session's words are done
@@ -24,7 +36,7 @@
   let recorder: ReturnType<typeof Recorder> | undefined = $state();
 
   $effect(() => {
-    progress = load();
+    (progress = load()), (chosen = loadOptions());
   });
 
   /** The word on a card, which is not the name of the sign that scores it when several words share
@@ -34,7 +46,8 @@
   const waiting = $derived(toLearn(progress)); // missed first, then picked and never practised
 
   function start() {
-    queue = waiting.slice(0, SIZE);
+    saveOptions(chosen); // what was set for this pass is what the next one starts with
+    queue = pass(waiting.slice(0, chosen.words), chosen.repeats);
     (taken = 0), (started = true), (attempt = null), (note = "");
   }
 
@@ -67,9 +80,9 @@
 {:else if !started}
   <section class="card">
     <h1>Ord</h1>
-    <p class="dim">
-      {SIZE} tecken du inte övat än, eller tecknade fel. Du ser klippet och tecknar efter det.
-    </p>
+    <p class="dim">Tecken du inte övat än, eller tecknade fel. Du ser klippet och tecknar efter det.</p>
+    <Choice label="Antal ord" values={WORDS} bind:value={chosen.words} />
+    <Choice label="Repetitioner per ord" values={REPEATS} bind:value={chosen.repeats} />
     <div class="row">
       <button onclick={start} disabled={!waiting.length}>Börja</button>
       {#if !waiting.length}
