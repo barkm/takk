@@ -25,11 +25,11 @@
   let timer: ReturnType<typeof setTimeout>;
 
   // Searching by signing: the recording fills the same grid the field does. Nothing is spoken and
-  // nothing is scored — this is a lookup, not an attempt. The camera is only mounted while this is
-  // the way being searched (user, 2026-09-23), so a page of results costs nothing.
+  // nothing is scored — this is a lookup, not an attempt. The camera is simply there the whole time
+  // (user, 2026-09-24): now that the hands start a search by themselves there is no way to be in,
+  // and so nothing to switch between — the learner types a word or signs one.
   const camera = useCamera();
   const lexicon = $derived(camera.lexicon);
-  let bySign = $state(false);
   let searching = $state(false);
   // What the rows were searched with, kept as the field keeps the word that found them. Only the
   // landmarks are kept, never the camera's picture, so the replay is the skeleton that was sent.
@@ -79,7 +79,7 @@
 
   $effect(() => {
     const tracker = camera.tracker;
-    if (!bySign || !tracker) return;
+    if (!tracker) return;
     const watch = setInterval(() => {
       if (searching) return; // the last sign is still being looked up; the next one waits for it
       eyes = see(eyes, hands(tracker.latest));
@@ -142,32 +142,26 @@
   <canvas bind:this={replay} class="replay" class:away={!signed.length}></canvas>
 {/snippet}
 
-<header class="search">
-  <input
-    type="search"
-    placeholder="Sök efter ord eller teman"
-    value={query}
-    oninput={(event) => search(event.currentTarget.value)}
-  />
-  <button class="secondary" onclick={() => (bySign = !bySign)}>
-    {bySign ? "Sök med ord" : "Sök med tecken"}
-  </button>
-</header>
+<input
+  type="search"
+  placeholder="Sök efter ord eller teman"
+  value={query}
+  oninput={(event) => search(event.currentTarget.value)}
+/>
 
-{#if bySign}
-  <section class="signing">
-    <div class="picture"><CameraView {camera} /></div>
-    <!-- the picture says whether it is recording, so the only line here is the wait after a sign -->
-    {#if searching}<p class="dim">Söker ...</p>{/if}
-  </section>
-{/if}
+<!-- the two ways in stand together: a word is typed above, a sign is made in front of the camera -->
+<section class="signing">
+  <CameraView {camera} />
+  <!-- the picture says whether it is recording, so the only line here is the wait after a sign -->
+  {#if searching}<p class="dim">Söker ...</p>{/if}
+</section>
 
 {#if note}
   <p class="dim note">{note}</p>
 {/if}
 
-{#if !results.length && !bySign && !query}
-  <p class="dim note">Sök på ett ord eller ett tema, till exempel "mat" eller "känslor".</p>
+{#if !results.length && !query}
+  <p class="dim note">Sök på ett ord eller ett tema, eller teckna ordet framför kameran.</p>
 {/if}
 
 {#if results.length}
@@ -203,30 +197,12 @@
 {/if}
 
 <style>
-  .search {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-  }
-
-  .search input {
-    flex: 1;
-  }
-
-  .search button {
-    white-space: nowrap;
-  }
-
   .signing {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    margin-top: 20px;
-    max-width: 420px;
-  }
-
-  .picture {
-    position: relative;
+    margin-top: 16px;
+    max-width: 360px;
   }
 
   .away {
