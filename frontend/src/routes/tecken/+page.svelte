@@ -1,12 +1,16 @@
 <script lang="ts">
+  import { referenceUrl } from "$lib/api";
+  import { useCamera } from "$lib/camera.svelte";
   import { hand, setHand } from "$lib/hand";
   import { boxes, DAYS, KEY, load, remove, save, type Progress } from "$lib/progress";
 
   // Tecken (step 14 of ROADMAP-takk.md): the learner's own signs. The numbers first, then how the
   // vocabulary is spread over the repetition schedule and how many signs have been met over time,
-  // then the words themselves with the interval each one sits at. Everything is read off the store,
-  // so no history is written for it. Drawn as inline SVG: one bar series and one line are not worth a
-  // charting dependency.
+  // then the signs themselves as a board: a card per word with its lexicon clip, grouped under the
+  // step of the schedule it has reached (user, 2026-09-24). The board says what the bar chart says,
+  // with the signs in it, which a list of words alone cannot show. Everything is read off the store,
+  // so no history is written for it. The charts are inline SVG: one bar series and one line are not
+  // worth a charting dependency.
   const PLOT = { width: 320, height: 140, pad: 22 }; // the viewBox both charts are drawn in
 
   let progress: Progress = $state({});
@@ -30,12 +34,21 @@
   const practised = $derived(rows.filter((row) => row.box > 0).length);
   const due = $derived(rows.filter((row) => row.box > 0 && row.due <= Date.now()).length);
 
-  /** What a word's row says about where it stands: the interval it has reached, or that it is new. */
-  const interval = (box: number) =>
-    box === 0 ? "ny" : DAYS[Math.min(box, DAYS.length) - 1] === 1 ? "1 dag" : `${DAYS[Math.min(box, DAYS.length) - 1]} dagar`;
+  // The board: one group per step of the schedule, in the order a word climbs them, and the words of
+  // each group soonest due first, which is the order `boxes` gives them in. A step with no words is
+  // left out rather than standing empty — the bar chart above is where the zeroes are read.
+  const groups = $derived(
+    labels
+      .map((label, box) => ({ label, box, words: rows.filter((row) => row.box === box) }))
+      .filter((group) => group.words.length),
+  );
 
-  const when = (row: { box: number; due: number }) =>
-    row.box === 0 ? "inte övat" : row.due <= Date.now() ? "nu" : new Date(row.due).toLocaleDateString("sv-SE", { day: "numeric", month: "short" });
+  // The clips are the lexicon's, which the app loads once into the camera context; this page shows
+  // them but opens no camera.
+  const camera = useCamera();
+  const clips = $derived(new Map(camera.lexicon?.signs.map((each) => [each.sign, each.references]) ?? []));
+
+  const overdue = (row: { box: number; due: number }) => row.box > 0 && row.due <= Date.now();
 
   /** The signs met over time, counted cumulatively: one point per sign, at the day it was first
    * practised. A sign picked and not yet practised has no such day, so it has not been met. */
@@ -137,17 +150,39 @@
     {/if}
   </section>
 
-  <!-- the words themselves, soonest due first, which is the order `boxes` gives them in -->
-  <ul class="words">
-    {#each rows as row (row.sign)}
-      <li>
-        <span class="word">{row.word}</span>
-        <span class="dim">{interval(row.box)}</span>
-        <span class="dim due" class:now={row.box > 0 && row.due <= Date.now()}>{when(row)}</span>
-        <button class="drop" aria-label="Ta bort {row.word}" onclick={() => drop(row.sign)}>×</button>
-      </li>
-    {/each}
-  </ul>
+  <!-- the signs themselves, grouped by the step of the schedule they have reached -->
+  {#each groups as group (group.box)}
+    <h2 class="group">{group.label} <span class="dim">{group.words.length}</span></h2>
+    <ul class="board">
+      {#each group.words as row (row.sign)}
+        {@const clip = clips.get(row.sign)?.[0]}
+        <li class:due={overdue(row)}>
+          {#if clip}
+            <!-- svelte-ignore a11y_media_has_caption -->
+            <!-- still until it is pointed at, since a page of vocabulary is a page of moving pictures -->
+            <!-- the fragment seeks a frame in, so the card shows the sign rather than a black box -->
+            <video
+              src="{referenceUrl(clip)}#t=0.1"
+              muted
+              loop
+              playsinline
+              preload="metadata"
+              onpointerenter={(event) => event.currentTarget.play()}
+              onpointerleave={(event) => event.currentTarget.pause()}
+            ></video>
+          {/if}
+          <span class="word">{row.word}</span>
+          <span class="dots" aria-hidden="true">
+            {#each DAYS as _, step (step)}
+              <i class:on={step < row.box}></i>
+            {/each}
+          </span>
+          {#if overdue(row)}<span class="now">nu</span>{/if}
+          <button class="drop" aria-label="Ta bort {row.word}" onclick={() => drop(row.sign)}>×</button>
+        </li>
+      {/each}
+    </ul>
+  {/each}
 
   <section class="settings">
     <p class="dim">Du tecknar med {signs === "right" ? "höger" : "vänster"} hand.</p>
@@ -233,28 +268,107 @@
     text-anchor: end;
   }
 
-  .words {
-    list-style: none;
-    margin: 28px 0;
-    padding: 0;
-    border-top: 1px solid var(--line);
+  /* One heading per step of the schedule, written as the chart's own tick is written. */
+  .group {
+    margin: 28px 0 12px;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
   }
 
-  .words li {
+  .group::first-letter {
+    text-transform: uppercase;
+  }
+
+  .group .dim {
+    margin-left: 6px;
+    font-weight: 400;
+  }
+
+  /* The board: a card per word, small enough that a vocabulary is seen at once. */
+  .board {
     display: grid;
-    grid-template-columns: 1fr auto 90px 32px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 12px;
-    align-items: baseline;
-    padding: 12px 4px;
-    border-bottom: 1px solid var(--line);
+    list-style: none;
+    margin: 0;
+    padding: 0;
   }
 
+  .board li {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 4px 8px;
+    padding-bottom: 10px;
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+
+  /* a word the schedule asks for now, marked on the card itself rather than only in the numbers */
+  .board li.due {
+    border-color: var(--accent);
+  }
+
+  /* the lexicon's own shape, held before the clip loads so the board does not reflow as it fills */
+  .board video {
+    grid-column: 1 / -1;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    margin-bottom: 8px;
+  }
+
+  .word {
+    padding-left: 12px;
+    font-weight: 500;
+  }
+
+  /* how far up the schedule the word has come, one dot per box */
+  .dots {
+    display: flex;
+    gap: 3px;
+    padding-right: 12px;
+  }
+
+  .dots i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--line);
+  }
+
+  .dots i.on {
+    background: var(--accent);
+  }
+
+  /* on the clip, so a card that is due is no taller than one that is not */
+  .now {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #0b0b0d;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  /* over the clip, in the corner of the card */
   .drop {
-    padding: 0;
-    background: transparent;
-    color: var(--dim);
-    font-size: 20px;
-    line-height: 1;
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    padding: 0 6px;
+    background: #000000a6;
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 18px;
+    line-height: 1.4;
   }
 
   .drop:hover {
@@ -262,29 +376,17 @@
     filter: none;
   }
 
-  /* Where there is a cursor it stays out of the way until the row is under it, since removing a word
-     is not what the list is for. Where there is none it is always there, or it could not be hit. */
+  /* Where there is a cursor it stays out of the way until the card is under it, since removing a word
+     is not what the board is for. Where there is none it is always there, or it could not be hit. */
   @media (hover: hover) {
     .drop {
       opacity: 0;
     }
 
-    .words li:hover .drop,
+    .board li:hover .drop,
     .drop:focus-visible {
       opacity: 1;
     }
-  }
-
-  .word {
-    font-weight: 500;
-  }
-
-  .due {
-    text-align: right;
-  }
-
-  .due.now {
-    color: var(--accent);
   }
 
   .settings {
