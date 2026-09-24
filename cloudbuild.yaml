@@ -22,12 +22,15 @@ steps:
   - id: bundle
     name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     entrypoint: bash
+    # Through the environment, because a substitution is only replaced where it is written exactly
+    # as $_NAME: inside ${_BUNDLE_URI%/} it is left alone and bash then sees an unset variable.
+    env: ["BUNDLE_URI=${_BUNDLE_URI}"]
     args:
       - -c
       - |
         set -euo pipefail
         read -r name digest < deploy/bundle.txt
-        gcloud storage cp "${_BUNDLE_URI%/}/$name" /workspace/bundle.tar.gz
+        gcloud storage cp "${BUNDLE_URI%/}/$name" /workspace/bundle.tar.gz
         echo "${digest#sha256:}  /workspace/bundle.tar.gz" | sha256sum -c -
         mkdir -p /workspace/bundle
         tar -xzf /workspace/bundle.tar.gz -C /workspace/bundle
