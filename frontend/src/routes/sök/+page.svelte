@@ -102,13 +102,7 @@
     save(progress);
   }
 
-  function pickAll() {
-    progress = add(progress, results);
-    save(progress);
-  }
-
   const picked = (each: SignWord) => !!progress[each.sign];
-  const missing = $derived(results.filter((each) => !progress[each.sign]).length);
 </script>
 
 <input
@@ -134,10 +128,7 @@
 {/if}
 
 {#if results.length}
-  <div class="found">
-    <span class="dim">{results.length} tecken</span>
-    <button class="secondary" onclick={pickAll} disabled={!missing}>Lägg till alla</button>
-  </div>
+  <p class="dim found">{results.length} tecken</p>
 
   <ul class="grid">
     {#each results as each (each.sign)}
@@ -179,10 +170,6 @@
   }
 
   .found {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
     margin: 28px 0 12px;
   }
 
