@@ -6,12 +6,12 @@
   import { pieces as cut } from "$lib/text";
 
   // Meningar (step 13 of ROADMAP-takk.md): a connected Swedish text over the words the learner
-  // already knows, read line by line. The line to sign now is solid, the lines around it grey, and it
-  // goes on whatever the verdict was — nothing is pressed and there is no end screen. To the learner
+  // already knows, read line by line. The text scrolls (user, 2026-09-24): the line to sign now is
+  // solid and held in the middle, the lines before and after it grey, and it goes on whatever the
+  // verdict was — nothing is pressed and there is no end screen. To the learner
   // this is simply how words are repeated, so the page names it nothing and explains nothing.
   // Only words already practised are used, drawn towards the low boxes, so it leans on the weak ones.
   const LINES = 6; // lines written per request; the next ones are asked for as the learner reaches them
-  const CONTEXT = 1; // lines shown above and below the one being signed
   // How long a line may be recorded for: it is read aloud, so its length is its text and not its
   // signs — a wordy line with one sign would be cut off by the one sign's worth of seconds a card
   // gets. Swedish read aloud runs at about two words a second; the slack is for reading it at all.
@@ -70,12 +70,20 @@
       .map((each) => ({ sign: cards[each].sign, references: clipsOf(cards[each].sign), spoken: each })),
   );
 
-  /** The lines around the one being signed, each cut into what is signed and what is only spoken. */
-  const shown = $derived(
-    story
-      .map((each, index) => ({ index, pieces: cut(each.text, each.words) }))
-      .filter(({ index }) => Math.abs(index - at) <= CONTEXT),
-  );
+  /** The whole story so far, each line cut into what is signed and what is only spoken. It is read
+   * as one text that scrolls (user, 2026-09-24): the lines already signed stay above with the
+   * colours they were given, and the line being signed is scrolled to the middle as it comes up. */
+  const shown = $derived(story.map((each, index) => ({ index, pieces: cut(each.text, each.words) })));
+
+  let lines: HTMLParagraphElement[] = $state([]);
+
+  // The line being signed is scrolled to the middle of the text, whenever it changes and as soon as
+  // it is on the page: a line written after this ran lands in `lines`, which the effect reads. The
+  // learner is reading rather than scrolling, so a browser told to keep motion down jumps instead.
+  $effect(() => {
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    lines[at]?.scrollIntoView({ block: "center", behavior: still ? "auto" : "smooth" });
+  });
 
   function scored(scoredAttempt: Attempt | null, told: string) {
     (attempt = scoredAttempt), (note = told);
@@ -115,7 +123,7 @@
 {:else}
   <div class="story">
     {#each shown as { index, pieces } (index)}
-      <p class:now={index === at}>
+      <p bind:this={lines[index]} class:now={index === at}>
         {#each pieces as piece, k (k)}
           {#if piece.key}
             <span
@@ -133,11 +141,19 @@
 {/if}
 
 <style>
-  /* The text is the page: the line to sign is set large and solid, the lines around it recede. */
+  /* The text is the page: the line to sign is set large and solid, the lines around it recede. The
+     whole story scrolls inside this box, which the line being signed is kept in the middle of; the
+     padding is what lets the first and the last line reach that middle, and the mask fades the text
+     out at both ends rather than cutting it off at an edge. */
   .story {
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 28vh 0;
     font-size: 26px;
     line-height: 1.45;
     letter-spacing: -0.01em;
+    mask-image: linear-gradient(to bottom, transparent, #000 18%, #000 82%, transparent);
+    scrollbar-width: thin;
   }
 
   .story p {
