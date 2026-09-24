@@ -138,12 +138,13 @@
         >
           {#if clip}
             <!-- svelte-ignore a11y_media_has_caption -->
-            <!-- Still until the tile is pointed at, with the fragment seeking a frame in so the tile
-                 shows the sign rather than a black box. Thirty clips playing at once, beside the
-                 camera and the landmarker, is more video than a browser will decode: the ones it
-                 gives up on stay black, and the camera can be the one it gives up on. -->
+            <!-- Still until the tile is pointed at, with the fragment seeking 0.6 s in so the tile
+                 shows the sign being made rather than the signer still at rest. Thirty clips playing
+                 at once, beside the camera and the landmarker, is more video than a browser will
+                 decode: the ones it gives up on stay black, and the camera can be the one it gives
+                 up on. -->
             <video
-              src="{clip}#t=0.1"
+              src="{clip}#t=0.6"
               muted
               loop
               playsinline

@@ -159,9 +159,10 @@
           {#if clip}
             <!-- svelte-ignore a11y_media_has_caption -->
             <!-- still until it is pointed at, since a page of vocabulary is a page of moving pictures -->
-            <!-- the fragment seeks a frame in, so the card shows the sign rather than a black box -->
+            <!-- the fragment seeks into the clip, so the card shows the sign being made rather than
+                 the signer still at rest; 0.6 s is short enough for all but the shortest clips -->
             <video
-              src="{clip}#t=0.1"
+              src="{clip}#t=0.6"
               muted
               loop
               playsinline
