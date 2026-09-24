@@ -859,8 +859,6 @@ source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
     { name = "fastapi" },
-    { name = "matplotlib" },
-    { name = "mediapipe" },
     { name = "numpy" },
     { name = "polars" },
     { name = "python-multipart" },
@@ -870,10 +868,14 @@ dependencies = [
     { name = "tqdm" },
     { name = "transformers" },
     { name = "uvicorn" },
-    { name = "yt-dlp", extra = ["default"] },
 ]
 
 [package.dev-dependencies]
+data = [
+    { name = "matplotlib" },
+    { name = "mediapipe" },
+    { name = "yt-dlp", extra = ["default"] },
+]
 dev = [
     { name = "playwright" },
     { name = "pytest" },
@@ -883,8 +885,6 @@ dev = [
 requires-dist = [
     { name = "anthropic", specifier = ">=1.7.0" },
     { name = "fastapi", specifier = ">=0.141.1" },
-    { name = "matplotlib", specifier = ">=3.11.2" },
-    { name = "mediapipe", specifier = ">=1.0.1" },
     { name = "numpy", specifier = ">=2.5.3" },
     { name = "polars", specifier = ">=1.44.2" },
     { name = "python-multipart", specifier = ">=0.0.32" },
@@ -894,10 +894,14 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.70.1" },
     { name = "transformers", specifier = ">=5.17.0" },
     { name = "uvicorn", specifier = ">=0.53.0" },
-    { name = "yt-dlp", extras = ["default"], specifier = ">=2026.8.19" },
 ]
 
 [package.metadata.requires-dev]
+data = [
+    { name = "matplotlib", specifier = ">=3.11.2" },
+    { name = "mediapipe", specifier = ">=1.0.1" },
+    { name = "yt-dlp", extras = ["default"], specifier = ">=2026.8.19" },
+]
 dev = [
     { name = "playwright", specifier = ">=1.63.0" },
     { name = "pytest", specifier = ">=9.1.1" },

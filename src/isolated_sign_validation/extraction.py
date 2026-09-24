@@ -7,10 +7,7 @@ import os
 import urllib.request
 from pathlib import Path
 
-import cv2
-import mediapipe as mp
 import numpy as np
-from mediapipe.tasks.python import BaseOptions, vision
 
 from isolated_sign_validation.landmarks import LANDMARK_SLICES, N_LANDMARKS, VideoInfo
 
@@ -60,6 +57,13 @@ def extract_landmarks(video: Path, model_path: Path = MODEL_PATH) -> tuple[np.nd
 
     Returns the landmarks, shape (n_frames, N_LANDMARKS, 3), and the video's frame rate and frame size.
     """
+    # MediaPipe and OpenCV are imported here rather than at the top of the module so that reading a
+    # dataset's metadata does not need them: the practice app takes landmarks from a browser and
+    # extracts none, and its image carries neither (see step 18 of ROADMAP-takk.md).
+    import cv2
+    import mediapipe as mp
+    from mediapipe.tasks.python import BaseOptions, vision
+
     options = vision.HolisticLandmarkerOptions(
         base_options=BaseOptions(model_asset_path=str(model_path)), running_mode=vision.RunningMode.VIDEO
     )

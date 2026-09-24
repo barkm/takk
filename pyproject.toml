@@ -2,11 +2,11 @@
 name = "isolated-sign-validation"
 version = "0.1.0"
 requires-python = ">=3.12"
+# What the TAKK app needs to serve a bundle; the deployed image installs these alone (see
+# ROADMAP-takk.md step 18). scikit-learn is here because transformers imports it.
 dependencies = [
     "anthropic>=1.7.0",
     "fastapi>=0.141.1",
-    "matplotlib>=3.11.2",
-    "mediapipe>=1.0.1",
     "numpy>=2.5.3",
     "polars>=1.44.2",
     "python-multipart>=0.0.32",
@@ -16,7 +16,6 @@ dependencies = [
     "tqdm>=4.70.1",
     "transformers>=5.17.0",
     "uvicorn>=0.53.0",
-    "yt-dlp[default]>=2026.8.19",
 ]
 
 [project.scripts]
@@ -35,3 +34,13 @@ dev = [
     "playwright>=1.63.0",
     "pytest>=9.1.1",
 ]
+# Landmark extraction, the datasets and the figures: everything but the app needs these, and
+# `uv sync` installs them here as before. The image is built with --no-default-groups.
+data = [
+    "matplotlib>=3.11.2",
+    "mediapipe>=1.0.1",
+    "yt-dlp[default]>=2026.8.19",
+]
+
+[tool.uv]
+default-groups = ["dev", "data"]
