@@ -45,7 +45,9 @@ NOTES = {
     "long": "{seconds:.0f} s tecknande syntes, vilket är för långt för ett tecken.",
     "no_body": "Din överkropp syntes inte. Sitt så att båda axlarna är i bild.",
     "lost_hand": "Går att bedöma, men en hand tappades i {lost:.0%} av bildrutorna medan du tecknade.",
-    "ok": "Det ser bra ut.",
+    # A recording with nothing wrong with it says nothing (user, 2026-09-24): the app tells the
+    # learner what to fix and never praises them, and "usable" already carries that it was fine.
+    "ok": "",
     "no_audio": "Mikrofonen behövs: orden du säger är det som visar var tecknen är i inspelningen.",
     "not_said": "Meningens ord hittades inte i det du sa. Säg vart och ett av dem tydligt.",
     "not_heard": "Hörde inte {words}. Säg hela meningen högt medan du tecknar den.",
