@@ -68,7 +68,9 @@ steps:
       - --region=$_REGION
       - --service-account=$_RUNTIME_SA
       - --set-secrets=ANTHROPIC_API_KEY=$_SECRET:latest
-      - --set-env-vars=TAKK_ORIGINS=$_ORIGINS
+      # ^@^ is gcloud's own way of saying the list is split on @ rather than on a comma, which the
+      # origins contain; without it the second origin is read as another variable and the deploy fails.
+      - --set-env-vars=^@^TAKK_ORIGINS=$_ORIGINS
       - --cpu=2
       - --memory=4Gi
       - --concurrency=4
