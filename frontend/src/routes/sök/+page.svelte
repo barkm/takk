@@ -107,10 +107,10 @@
 
 <!-- The picture first and the field under it (user, 2026-09-24): the two ways in read as one, and
      the field's placeholder is where both are said, so the page needs no line of instructions. -->
+<!-- nothing is written about the picture: not what it is doing, and not that a sign is being looked
+     up — the results arriving is what says the lookup is done -->
 <section class="signing">
   <CameraView {camera} />
-  <!-- the picture says whether it is recording, so the only line here is the wait after a sign -->
-  {#if searching}<p class="dim">Söker ...</p>{/if}
 </section>
 
 <input
