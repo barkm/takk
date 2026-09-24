@@ -10,7 +10,7 @@
   import { useCamera } from "$lib/camera.svelte";
   import { hand } from "$lib/hand";
   import { draw, type Frame } from "$lib/landmarks";
-  import { add, load, save, type Progress } from "$lib/progress";
+  import { add, load, remove, save, type Progress } from "$lib/progress";
 
   // Sök (steps 9 and 10 of ROADMAP-takk.md): the one way vocabulary grows. A word, a theme or a
   // sign shown to the camera lists signs to pick, and what is picked is what Ord teaches.
@@ -94,15 +94,9 @@
   }
 
   function pick(each: SignWord) {
-    // Unpicking is only ever undoing the pick: a sign that has been practised keeps its box, so it
-    // stays picked rather than throwing away what is learned of it.
-    if (picked(each)) {
-      if (progress[each.sign].box > 0) return;
-      const { [each.sign]: dropped, ...rest } = progress;
-      progress = rest;
-    } else {
-      progress = add(progress, [each]);
-    }
+    // A picked sign can always be unpicked (user, 2026-09-24), practised or not: the tile is the one
+    // switch for whether the word is in the vocabulary, and unpicking drops what was learned of it.
+    progress = picked(each) ? remove(progress, each.sign) : add(progress, [each]);
     save(progress);
   }
 

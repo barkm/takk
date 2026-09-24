@@ -78,6 +78,14 @@ export function add(progress: Progress, words: SignWord[], now = Date.now()): Pr
   return picked;
 }
 
+/** The progress without `sign`. A picked sign can always be unpicked, in Sök where it was picked and
+ * in the list under Tecken alike (user, 2026-09-24), and unpicking drops what was learned of it:
+ * that is what removing a word from the vocabulary means, and the sign can be picked again. */
+export function remove(progress: Progress, sign: string): Progress {
+  const { [sign]: dropped, ...rest } = progress;
+  return rest;
+}
+
 /** The signs Ord teaches: the ones missed since they were last taught, then the ones picked and
  * never practised, each group longest waiting first. A missed word comes first of all because it is
  * the one the learner is getting wrong now, and a vocabulary picked in one sitting would otherwise

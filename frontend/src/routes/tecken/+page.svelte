@@ -1,6 +1,6 @@
 <script lang="ts">
   import { hand, setHand } from "$lib/hand";
-  import { boxes, DAYS, KEY, load, type Progress } from "$lib/progress";
+  import { boxes, DAYS, KEY, load, remove, save, type Progress } from "$lib/progress";
 
   // Tecken (step 14 of ROADMAP-takk.md): the learner's own signs. The numbers first, then how the
   // vocabulary is spread over the repetition schedule and how many signs have been met over time,
@@ -66,6 +66,13 @@
       })
       .join(" ");
   });
+
+  // The list is where the vocabulary is pruned: a word is dropped here as it is unpicked in Sök, and
+  // what was learned of it goes with it (user, 2026-09-24).
+  function drop(sign: string) {
+    progress = remove(progress, sign);
+    save(progress);
+  }
 
   function reset() {
     localStorage.removeItem(KEY);
@@ -137,6 +144,7 @@
         <span class="word">{row.word}</span>
         <span class="dim">{interval(row.box)}</span>
         <span class="dim due" class:now={row.box > 0 && row.due <= Date.now()}>{when(row)}</span>
+        <button class="drop" aria-label="Ta bort {row.word}" onclick={() => drop(row.sign)}>×</button>
       </li>
     {/each}
   </ul>
@@ -234,11 +242,37 @@
 
   .words li {
     display: grid;
-    grid-template-columns: 1fr auto 90px;
+    grid-template-columns: 1fr auto 90px 32px;
     gap: 12px;
     align-items: baseline;
     padding: 12px 4px;
     border-bottom: 1px solid var(--line);
+  }
+
+  .drop {
+    padding: 0;
+    background: transparent;
+    color: var(--dim);
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  .drop:hover {
+    color: var(--bad);
+    filter: none;
+  }
+
+  /* Where there is a cursor it stays out of the way until the row is under it, since removing a word
+     is not what the list is for. Where there is none it is always there, or it could not be hit. */
+  @media (hover: hover) {
+    .drop {
+      opacity: 0;
+    }
+
+    .words li:hover .drop,
+    .drop:focus-visible {
+      opacity: 1;
+    }
   }
 
   .word {
