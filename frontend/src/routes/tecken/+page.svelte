@@ -178,7 +178,13 @@
             {/each}
           </span>
           {#if overdue(row)}<span class="now">nu</span>{/if}
-          <button class="drop" aria-label="Ta bort {row.word}" onclick={() => drop(row.sign)}>×</button>
+          <!-- the cross is drawn rather than written: a glyph sits on the font's own axis, which is
+               not the middle of the button it is centred in -->
+          <button class="drop" aria-label="Ta bort {row.word}" onclick={() => drop(row.sign)}>
+            <svg viewBox="0 0 24 24" width="11" height="11" aria-hidden="true">
+              <path d="M4 4 20 20M20 4 4 20" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+            </svg>
+          </button>
         </li>
       {/each}
     </ul>
@@ -358,17 +364,24 @@
     font-weight: 600;
   }
 
-  /* over the clip, in the corner of the card */
+  /* over the clip, in the corner of the card: a square with the drawn cross centred in it */
   .drop {
     position: absolute;
-    top: 4px;
+    top: 6px;
     right: 6px;
-    padding: 0 6px;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
     background: #000000a6;
     border-radius: 8px;
     color: var(--text);
-    font-size: 18px;
-    line-height: 1.4;
+  }
+
+  .drop svg {
+    display: block;
+    fill: none;
   }
 
   .drop:hover {
