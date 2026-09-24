@@ -364,8 +364,13 @@ and accepts it when its mean cosine similarity to the sign's lexicon clips reach
 provisional 0.38, see ROADMAP.md). It also names the closest sign of the whole lexicon:
 
 ```sh
-uv run takk   # the API; the page is the SvelteKit app below
+uv run scripts/build_serving.py   # once per model: the bundle the API serves, in outputs/serving/
+uv run takk                       # the API; the page is the SvelteKit app below
 ```
+
+Everything the API serves comes from that bundle (`takk/bundle.py`): the model, one mean embedding
+per sign, the addresses of its lexicon clips and the words that lead to them, about 40 MB. It reads
+no dataset, no prepared store and no training run, so it can be deployed without any of them.
 
 A part of a story is several signs, as TAKK signs the key words of a spoken sentence. Sign them in
 order and say the part aloud while you sign, the way TAKK is used: the recording is split into its

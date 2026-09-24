@@ -30,7 +30,7 @@ from torch.utils.data import DataLoader
 
 from isolated_sign_validation.dataset import AugmentConfig, SignDataset, collate
 from isolated_sign_validation.evaluation import cosine_similarity, evaluate
-from isolated_sign_validation.models import ArcFace, ConvTransformerEncoder, GRUEncoder
+from isolated_sign_validation.models import ArcFace, build_model
 from isolated_sign_validation.preparation import PreparedData
 
 
@@ -69,24 +69,12 @@ class TrainConfig:
     seed: int = 0
 
 
-def build_model(config: TrainConfig, data: PreparedData) -> nn.Module:
-    hands = [data.config.group_slices[hand] for hand in ("left_hand", "right_hand")]
-    n_landmarks, inputs = len(data.config.landmarks), {"n_coords": data.config.n_coords, "bones": config.hand_bones, "attention_pool": config.attention_pool}
-    if config.encoder == "gru":
-        return GRUEncoder(n_landmarks, hands, config.hidden, config.layers, config.embedding_dim, config.dropout, **inputs)
-    if config.encoder == "conv_transformer":
-        return ConvTransformerEncoder(
-            n_landmarks, hands, config.hidden, config.layers, config.embedding_dim, config.dropout, config.heads, config.kernel_size, **inputs
-        )
-    raise ValueError(f"unknown encoder {config.encoder}")
-
-
 def load_run(run_dir: Path, data: PreparedData) -> tuple[TrainConfig, nn.Module]:
     """The config of a training run and its best model (on the CPU)."""
     values = json.loads((run_dir / "config.json").read_text())
     as_tuples = lambda d: {k: tuple(v) if isinstance(v, list) else v for k, v in d.items()}  # noqa: E731
     config = TrainConfig(**as_tuples(values) | {"augment": AugmentConfig(**as_tuples(values.get("augment", {})))})
-    model = build_model(config, data)
+    model = build_model(config, data.config)
     model.load_state_dict(torch.load(run_dir / "best.pt", map_location="cpu")["model"])
     return config, model
 
@@ -179,7 +167,7 @@ def train(config: TrainConfig, data: PreparedData, run_dir: Path, device: str = 
         train_set, batch_size=config.batch_size, shuffle=True, drop_last=True,
         collate_fn=collate, num_workers=config.num_workers, persistent_workers=True,
     )  # fmt: skip
-    model = build_model(config, data).to(device)
+    model = build_model(config, data.config).to(device)
     head = ArcFace(config.embedding_dim, len(train_set.signs), config.arcface_scale, config.arcface_margin, config.arcface_subcenters).to(device)
     uses_phonology = config.phonology_weight or config.minimal_pair_margin
     targets, n_classes = phonology_targets(data.clips, train_set.signs) if uses_phonology else (np.zeros((0, 0)), [])

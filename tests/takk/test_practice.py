@@ -67,7 +67,7 @@ def test_attempt_scores_against_the_chosen_sign():
     references = {"A": ["a1"], "B": ["b1", "b2"]}
     means = np.array([[0.6, 0.8], [1.0, 0.0]])  # A: cosine 1 with the model's embedding, B: 0.6
     heard = [(0.5, 0.7, -0.4)]  # one word, clearly said, so the whole recording is the attempt
-    app = create_app(references, means, {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: heard)
+    app = create_app(references, means, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: heard)
     attempt = next(route for route in app.routes if getattr(route, "path", "") == "/api/attempt").endpoint
 
     def send(landmarks: np.ndarray, *signs: str) -> dict:
@@ -93,7 +93,7 @@ def test_attempt_listens_for_the_word_the_learner_practises_not_the_sign_name():
     """A learner practising "blå" signs sts:öga-02636, because blå and öga are one sign form and the
     lower entry names the class. Aligning the class name would listen for "öga" while they say "blå"."""
     heard: list[list[str]] = []
-    app = create_app({"sts:öga-2636": ["a1"]}, np.array([[0.6, 0.8]]), {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: (heard.append(words), [(0.5, 0.7, -0.4)])[1])  # fmt: skip
+    app = create_app({"sts:öga-2636": ["a1"]}, np.array([[0.6, 0.8]]), Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: (heard.append(words), [(0.5, 0.7, -0.4)])[1])  # fmt: skip
     attempt = next(route for route in app.routes if getattr(route, "path", "") == "/api/attempt").endpoint
     upload = lambda: UploadFile(io.BytesIO(attempt_landmarks(("right_hand",)).astype(np.float32).tobytes()))  # noqa: E731
     audio = lambda: UploadFile(io.BytesIO(wav(np.zeros(2 * SAMPLE_RATE, dtype=np.float32))))  # noqa: E731
@@ -115,7 +115,7 @@ def test_attempt_splits_a_spoken_sentence_by_its_words():
     references = {"A": ["a1"], "B": ["b1"]}
     means = np.array([[0.6, 0.8], [1.0, 0.0]])
     spoken = [(0.5, 0.7, -0.4), (2.5, 2.7, -0.3)]  # "A" then "B", so the cut falls 1.6 s into the audio
-    app = create_app(references, means, {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: spoken)
+    app = create_app(references, means, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: spoken)
     attempt = next(route for route in app.routes if getattr(route, "path", "") == "/api/attempt").endpoint
 
     landmarks = np.concatenate([attempt_landmarks(("right_hand",))] * 2)  # 4 s, a sign in each half
@@ -129,7 +129,7 @@ def test_attempt_refuses_a_sentence_whose_words_were_not_spoken():
     """Forced alignment always returns a path, so silence aligns too, only with a poor score. Without
     the score the sentence would be cut at arbitrary places and scored as if the words were heard."""
     silent = [(0.5, 0.7, -5.4), (2.5, 2.7, -5.2)]  # the scores silence gets from the real model
-    app = create_app({"A": ["a1"], "B": ["b1"]}, np.array([[0.6, 0.8], [1.0, 0.0]]), {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: silent)  # fmt: skip
+    app = create_app({"A": ["a1"], "B": ["b1"]}, np.array([[0.6, 0.8], [1.0, 0.0]]), Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: silent)  # fmt: skip
     attempt = next(route for route in app.routes if getattr(route, "path", "") == "/api/attempt").endpoint
 
     landmarks = np.concatenate([attempt_landmarks(("right_hand",))] * 2)
@@ -143,7 +143,7 @@ def test_attempt_scores_an_unheard_word_as_a_miss_when_the_caller_asks_for_it():
     """A story never stops: a word the learner did not say is a miss of that sign, with a verdict of
     its own, and the signs around it are still scored (step 12 of ROADMAP-takk.md)."""
     heard = [(0.5, 0.7, -0.2), (2.5, 2.7, -5.2)]  # the second word was not spoken
-    app = create_app({"A": ["a1"], "B": ["b1"]}, np.array([[0.6, 0.8], [1.0, 0.0]]), {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: heard)  # fmt: skip
+    app = create_app({"A": ["a1"], "B": ["b1"]}, np.array([[0.6, 0.8], [1.0, 0.0]]), Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: heard)  # fmt: skip
     attempt = next(route for route in app.routes if getattr(route, "path", "") == "/api/attempt").endpoint
 
     landmarks = np.concatenate([attempt_landmarks(("right_hand",))] * 2)
@@ -158,7 +158,7 @@ def test_attempt_needs_the_microphone_however_few_signs_it_has():
     """Every attempt is spoken, so the words said over it are the only thing that locates its signs.
     One sign is no exception: the alignment has nothing to cut there, and its job is to say the word
     was said at all."""
-    app = create_app({"A": ["a1"]}, np.array([[0.6, 0.8]]), {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [])
+    app = create_app({"A": ["a1"]}, np.array([[0.6, 0.8]]), Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [])
     attempt = next(route for route in app.routes if getattr(route, "path", "") == "/api/attempt").endpoint
     landmarks = np.concatenate([attempt_landmarks(("right_hand",))] * 2)
     upload = lambda: UploadFile(io.BytesIO(landmarks.astype(np.float32).tobytes()))  # noqa: E731
@@ -175,7 +175,7 @@ def test_search_answers_from_the_vocabulary_it_was_given():
     # shadowed, so every search answered 500 until this test existed
     words = [{"sign": "sts:hej-1", "id": "1"}]
     vocabulary = Index(words, {"Hälsningsfras": words}, {"sts:hej-1": words[0]})
-    app = create_app({"sts:hej-1": ["a1"]}, np.array([[1.0, 0.0]]), {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [], vocabulary=vocabulary)  # fmt: skip
+    app = create_app({"sts:hej-1": ["a1"]}, np.array([[1.0, 0.0]]), Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [], vocabulary=vocabulary)  # fmt: skip
     search = next(route for route in app.routes if getattr(route, "path", "") == "/api/search").endpoint
 
     assert search("hej") == {"words": words}
@@ -189,7 +189,7 @@ def test_search_by_signing_ranks_the_whole_glossary():
     means = np.array([[1.0, 0.0], [0.6, 0.8]])
     words = {"sts:hej-1": {"sign": "sts:hej-1", "id": "1"}, "sts:mamma-2": {"sign": "sts:mamma-2", "id": "2"}}
     vocabulary = Index(list(words.values()), {}, words)
-    app = create_app(references, means, {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [], vocabulary=vocabulary)  # fmt: skip
+    app = create_app(references, means, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [], vocabulary=vocabulary)  # fmt: skip
     search = next(route for route in app.routes if getattr(route, "path", "") == "/api/search" and "POST" in route.methods).endpoint  # fmt: skip
 
     def send(landmarks: np.ndarray) -> dict:
@@ -206,7 +206,7 @@ def test_search_by_signing_ranks_the_whole_glossary():
 
 def test_the_page_may_call_from_another_origin():
     # the page is served from another origin than this API, so a call without CORS never arrives
-    app = create_app({"A": ["a1"]}, np.array([[1.0, 0.0]]), {}, Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [])  # fmt: skip
+    app = create_app({"A": ["a1"]}, np.array([[1.0, 0.0]]), Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [])  # fmt: skip
     response = TestClient(app).get("/api/signs", headers={"Origin": "https://example.github.io"})
 
     assert response.status_code == 200

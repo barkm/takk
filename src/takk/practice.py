@@ -93,7 +93,6 @@ def embed_clip(model: nn.Module, frames: np.ndarray, config: PrepConfig, device:
 def create_app(
     references: dict[str, list[str]],
     means: np.ndarray,
-    clip_urls: dict[str, str],
     model: nn.Module,
     config: PrepConfig,
     threshold: float,
@@ -103,11 +102,11 @@ def create_app(
     forms: dict[str, str] | None = None,
     writer: anthropic.Anthropic | None = None,
 ) -> FastAPI:
-    """The practice app: the page, the glossary's signs with their clips (`references`, sign ->
-    clip ids, in the order of the rows of `means`, see sign_means), the address each clip is watched
-    at (`clip_urls`, by clip id, see sts_lexikon.video_urls), and the scoring of attempts. The
-    `aligner` times a spoken sentence's words, which is what splits it into its signs. The `writer`
-    writes the story a learner signs their way through (see `story.py`)."""
+    """The practice app: the glossary's signs with the addresses their clips are watched at
+    (`references`, sign -> clip URLs, in the order of the rows of `means`, see sign_means and
+    `bundle.py`), and the scoring of attempts. The `aligner` times a spoken sentence's words, which
+    is what splits it into its signs. The `writer` writes the story a learner signs their way through
+    (see `story.py`)."""
     app = FastAPI()
     # The page is served from another origin than this API (see the decisions in ROADMAP-takk.md),
     # so every call from it is cross-origin. Any origin may call: there are no accounts, no cookies
@@ -126,10 +125,7 @@ def create_app(
         """The glossary, each sign with the addresses of its clips: the lexicon's own, so the page
         plays them whether or not this server is up (see ROADMAP-takk.md)."""
         return {
-            "signs": [
-                {"sign": sign, "references": [clip_urls[clip] for clip in clips if clip in clip_urls]}
-                for sign, clips in references.items()
-            ],
+            "signs": [{"sign": sign, "references": clips} for sign, clips in references.items()],
             "fps": config.fps,
             "max_seconds": config.max_frames / config.fps,
             "edges": {group: edges.tolist() for group, edges in SKELETON_EDGES.items()},  # to draw the tracked landmarks

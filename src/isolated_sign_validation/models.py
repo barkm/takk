@@ -6,6 +6,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from isolated_sign_validation.preparation import PrepConfig
+
 
 # The 20 bones of a hand, from the wrist out along each finger (MediaPipe hand landmark order).
 HAND_BONES = [(0 if joint == 0 else 4 * finger + joint, 4 * finger + joint + 1) for finger in range(5) for joint in range(4)]
@@ -166,3 +168,18 @@ class ArcFace(nn.Module):
         target = F.one_hot(labels, cos.shape[1]).bool()
         logits = self.scale * torch.where(target, with_margin, cos)
         return logits if twins is None else logits.masked_fill(twins[labels], float("-inf"))
+
+
+def build_model(config, prep: PrepConfig) -> nn.Module:
+    """The encoder a training config describes, for clips prepared with `prep`. `config` is a
+    `TrainConfig`, or anything carrying the same fields: a served model is built from the fields
+    stored beside its weights, without the training package (see `takk/bundle.py`)."""
+    hands = [prep.group_slices[hand] for hand in ("left_hand", "right_hand")]
+    n_landmarks, inputs = len(prep.landmarks), {"n_coords": prep.n_coords, "bones": config.hand_bones, "attention_pool": config.attention_pool}
+    if config.encoder == "gru":
+        return GRUEncoder(n_landmarks, hands, config.hidden, config.layers, config.embedding_dim, config.dropout, **inputs)
+    if config.encoder == "conv_transformer":
+        return ConvTransformerEncoder(
+            n_landmarks, hands, config.hidden, config.layers, config.embedding_dim, config.dropout, config.heads, config.kernel_size, **inputs
+        )
+    raise ValueError(f"unknown encoder {config.encoder}")
