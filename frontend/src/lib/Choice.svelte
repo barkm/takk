@@ -1,11 +1,11 @@
-<script lang="ts">
+<script lang="ts" generics="T extends string | number">
   // One option on a start card: its name and the values it offers, the chosen one marked. The
   // options are set before a pass starts and never while one is running (user, 2026-09-24).
   let {
     label,
     values,
     value = $bindable(),
-  }: { label: string; values: number[]; value: number } = $props();
+  }: { label: string; values: T[]; value: T } = $props();
 </script>
 
 <div class="choice">

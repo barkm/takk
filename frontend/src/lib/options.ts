@@ -6,17 +6,23 @@ import type { SignWord } from "$lib/api";
 
 const KEY = "takk.options";
 
-export type Options = { words: number; repeats: number; lines: number };
+export type Length = "kort" | "lång";
+export type Options = { words: number; repeats: number; length: Length };
 
 /** The values each option offers. A few sensible ones rather than any number at all: the page asks
  * for a tap, not for a decision about what a good number would be. */
 export const WORDS = [3, 5, 10, 20];
 export const REPEATS = [1, 2, 3];
-export const LINES = [3, 6, 10];
+export const LENGTHS: Length[] = ["kort", "lång"];
+
+/** How many parts a story of each length is asked for. The learner picks a length rather than a
+ * number of lines (user, 2026-09-25): the number is an internal unit, and the writer is free to
+ * answer with a part more or fewer anyway, so a name is the honest thing to promise. */
+export const PARTS: Record<Length, number> = { kort: 3, lång: 10 };
 
 /** What a learner who has set nothing practises with, and what a page holds until it has read the
  * store — which it does in an effect, as the progress store is read. */
-export const DEFAULTS: Options = { words: 5, repeats: 1, lines: 6 };
+export const DEFAULTS: Options = { words: 5, repeats: 1, length: "kort" };
 
 export function load(): Options {
   try {

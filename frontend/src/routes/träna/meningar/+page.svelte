@@ -4,7 +4,7 @@
   import { useCamera } from "$lib/camera.svelte";
   import { fetchStory, word, type Attempt, type SignWord, type Sign, type StoryPart } from "$lib/api";
   import Choice from "$lib/Choice.svelte";
-  import { load as loadOptions, save as saveOptions, DEFAULTS, LINES, type Options } from "$lib/options";
+  import { load as loadOptions, save as saveOptions, DEFAULTS, LENGTHS, PARTS, type Options } from "$lib/options";
   import { known, load, record, save, type Progress } from "$lib/progress";
   import { pieces as cut } from "$lib/text";
 
@@ -18,8 +18,8 @@
   // A story is one text and it ends (user, 2026-09-24). Signing its last line puts the page back
   // where it started, and the next story is written when the learner asks for it: a story written
   // under the finished one would be a second story with its own beginning, which reads as a break in
-  // the text now that the whole of it stands on the page. How many lines it has is the learner's to
-  // set, on the start card before it is written (user, 2026-09-24).
+  // the text now that the whole of it stands on the page. How long it is is the learner's to set, on
+  // the start card before it is written, as a length and not as a number of lines (user, 2026-09-25).
   //
   // How long a line may be recorded for: it is read aloud, so its length is its text and not its
   // signs — a wordy line with one sign would be cut off by the one sign's worth of seconds a card
@@ -53,10 +53,11 @@
    * offered as there are lines, so the model has something to choose from in every one of them. */
   async function write() {
     saveOptions(chosen); // what this story was asked for is what the next one starts with
-    const words = known(progress, chosen.lines * 2);
+    const parts = PARTS[chosen.length];
+    const words = known(progress, parts * 2);
     cards = Object.fromEntries(words.map((each) => [label(each), each]));
     writing = true;
-    const written = await fetchStory(words.map(label), chosen.lines).finally(() => (writing = false));
+    const written = await fetchStory(words.map(label), parts).finally(() => (writing = false));
     if (!written.length) return void (note = "Kunde inte skriva någon text. Försök igen.");
     (story = written), (note = ""), (at = 0), (verdicts = {}), (lines = []);
   }
@@ -129,7 +130,7 @@
   <section class="card">
     <h1>Meningar</h1>
     <p class="dim">En text över orden du redan kan, en rad i taget. Säg raden högt och teckna orden i den.</p>
-    <Choice label="Antal rader" values={LINES} bind:value={chosen.lines} />
+    <Choice label="Längd" values={LENGTHS} bind:value={chosen.length} />
     <div class="row">
       <button onclick={write} disabled={writing || pool.length < 2}>{writing ? "Skriver ..." : "Börja"}</button>
       {#if pool.length < 2}
