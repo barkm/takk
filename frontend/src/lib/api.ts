@@ -57,9 +57,10 @@ export async function fetchSearch(query: string): Promise<SignWord[]> {
   return (await response.json()).words;
 }
 
-/** A part of a story: the Swedish text to say aloud, and the words of it that are signed, in the
- * order they are spoken. */
-export type StoryPart = { text: string; words: string[] };
+/** A part of a story: the Swedish text to say aloud, and its signs in the order they are spoken.
+ * `said` is the form as the text says it, which is what is spoken and marked; `word` is the word of
+ * the learner's own list that the form signs, which is what names the sign and moves its box. */
+export type StoryPart = { text: string; signs: { said: string; word: string }[] };
 
 /** A Swedish story over `words` in `parts` parts, one recording each (see `story.py`). Empty when the
  * server could not write one. The words are the learner's own, as in `fetchSentence`. */

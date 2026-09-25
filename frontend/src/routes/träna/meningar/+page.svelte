@@ -37,7 +37,7 @@
   let writing = $state(false);
   let attempt: Attempt | null = $state(null);
   let note = $state("");
-  let verdicts: Record<number, Record<string, boolean>> = $state({}); // per line, by lowercased word
+  let verdicts: Record<number, Record<number, boolean>> = $state({}); // per line, by sign of the line
   let waiting: ReturnType<typeof setTimeout> | null = null; // the pause the coloured words are read in
   let recorder: ReturnType<typeof Recorder> | undefined = $state();
   let chosen: Options = $state(DEFAULTS);
@@ -47,9 +47,6 @@
   });
 
   const label = (each: SignWord) => each.word ?? word(each.sign);
-  // A word is written as the story has it, so "Mamma" opening a line is the same word as "mamma" in
-  // the list: verdicts are kept under the lowercase word.
-  const same = (text: string) => text.toLowerCase();
   const pool = $derived(known(progress, Infinity, () => 0)); // everything practised, for the count
 
   /** Write a story over the words this learner knows, weakest first. Twice as many words are
@@ -67,16 +64,24 @@
   const line = $derived(story[at]);
   const limit = $derived(line ? line.text.split(/\s+/).length * PER_WORD + SLACK : 0);
   const clipsOf = (sign: string) => lexicon?.signs.find((each) => each.sign === sign)?.references ?? [];
+  // One entry per sign of the line, in the order they are spoken, which is the order the server
+  // answers in: the verdicts come back as a list parallel to this one. The form is what is spoken,
+  // so it is what the alignment times; the word is what names the sign. Every word of a line was
+  // offered from `cards`, which is what the story was written over, so the card is always there.
   const sentence: Sign[] = $derived(
-    (line?.words ?? [])
-      .filter((each) => cards[each])
-      .map((each) => ({ sign: cards[each].sign, references: clipsOf(cards[each].sign), spoken: each })),
+    (line?.signs ?? []).map(({ said, word: each }) => ({
+      sign: cards[each].sign,
+      references: clipsOf(cards[each].sign),
+      spoken: said,
+    })),
   );
 
   /** The whole story so far, each line cut into what is signed and what is only spoken. It is read
    * as one text that scrolls (user, 2026-09-24): the lines already signed stay above with the
    * colours they were given, and the line being signed is scrolled to the middle as it comes up. */
-  const shown = $derived(story.map((each, index) => ({ index, pieces: cut(each.text, each.words) })));
+  const shown = $derived(
+    story.map((each, index) => ({ index, pieces: cut(each.text, each.signs.map((sign) => sign.said)) })),
+  );
 
   let lines: HTMLParagraphElement[] = $state([]);
 
@@ -93,12 +98,18 @@
     // A recording that could not be located at all is no answer: the story waits for another one.
     // A word that was not said is not that case — the server scores it as a miss of its sign.
     if (!scoredAttempt?.signs.length) return void recorder?.arm(true);
-    for (const judged of scoredAttempt.signs) {
-      const spoken = line.words.find((each) => cards[each]?.sign === judged.sign) ?? word(judged.sign);
-      const correct = !!judged.correct && judged.usable;
-      verdicts = { ...verdicts, [at]: { ...verdicts[at], [same(spoken)]: correct } };
-      if (cards[spoken]) progress = record(progress, cards[spoken], correct);
-    }
+    // The verdicts come back in the order the signs were sent, so they are read by position rather
+    // than looked up by the sign they scored: a line may sign one word twice, and two words of the
+    // learner's own can be one sign form ("blå" and "öga"), so a sign does not name its verdict.
+    const judged = scoredAttempt.signs.map((each) => !!each.correct && each.usable);
+    verdicts = { ...verdicts, [at]: { ...verdicts[at], ...judged } };
+    // A word signed twice in one line is still one answer, so the box moves once per line: it is
+    // correct only when every occurrence of it was.
+    const answers = new Map<string, boolean>();
+    line.signs.forEach(({ word: each }, index) => {
+      answers.set(each, (answers.get(each) ?? true) && judged[index]);
+    });
+    for (const [each, correct] of answers) progress = record(progress, cards[each], correct);
     save(progress);
     if (waiting) clearTimeout(waiting); // a second recording of the same line replaces the first
     waiting = setTimeout(next, SHOWN); // the colours are the point of the pause, not the verdict
@@ -132,11 +143,11 @@
     {#each shown as { index, pieces } (index)}
       <p bind:this={lines[index]} class:now={index === at}>
         {#each pieces as piece, k (k)}
-          {#if piece.key}
+          {#if piece.at !== null}
             <span
               class="key"
-              class:ok={verdicts[index]?.[same(piece.text)] === true}
-              class:bad={verdicts[index]?.[same(piece.text)] === false}>{piece.text}</span>
+              class:ok={piece.at !== null && verdicts[index]?.[piece.at] === true}
+              class:bad={piece.at !== null && verdicts[index]?.[piece.at] === false}>{piece.text}</span>
           {:else}{piece.text}{/if}
         {/each}
       </p>
