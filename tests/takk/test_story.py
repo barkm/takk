@@ -1,16 +1,20 @@
 from types import SimpleNamespace
 
 import anthropic
-import pytest
 
-from takk.story import Told, key_words, story_parts, write_story
+from takk.story import Part, Signed, Told, signed_words, story_parts, write_story
+
+
+def part(text: str, *signs: tuple[str, str]) -> Part:
+    return Part(text=text, signs=[Signed(said=said, word=word) for said, word in signs])
 
 
 class FakeClient:
     """A stand-in for the Anthropic client: answers with each of `answers` (a story's parts) in turn.
-    An answer of None is a response with nothing parsed, as a turn cut off by `max_tokens` is."""
+    An answer of None is a response with nothing parsed, as a turn cut off by `max_tokens` is, and an
+    exception is raised where the API would raise it."""
 
-    def __init__(self, *answers: list[str] | None):
+    def __init__(self, *answers: list[Part] | None | Exception):
         self.answers = list(answers)
         self.asked: list[list[dict]] = []
 
@@ -18,7 +22,7 @@ class FakeClient:
     def messages(self):
         return SimpleNamespace(parse=self.parse)
 
-    def parse(self, model, max_tokens, system, messages, output_format):
+    def parse(self, model, max_tokens, system, messages, output_config, output_format):
         self.asked.append(messages)
         answer = self.answers.pop(0)
         if isinstance(answer, Exception):
@@ -26,72 +30,82 @@ class FakeClient:
         return SimpleNamespace(parsed_output=Told(parts=answer) if answer is not None else None)
 
 
-def test_key_words_reads_off_the_part_which_offered_words_it_signs():
-    assert key_words("Jag vill ha mer mjölk", ["mjölk", "mer"]) == ["mer", "mjölk"]
-    assert key_words("Mjölk är gott", ["mjölk"]) == ["mjölk"]  # a sentence-initial capital still matches
-    assert key_words("Vi ska äta platta slag idag", ["äta", "platta slag"]) == ["äta", "platta slag"]  # a sign of two words
-    # the words are offered, not required, so a part may leave them out
-    assert key_words("Jag vill ha mjölk", ["mjölk", "mer", "bröd"]) == ["mjölk"]
-    assert key_words("Jag vill ha mer mjölk", ["mjölk", "mer", "bröd"]) == ["mer", "mjölk"]
-    assert key_words("Vi plockar blåbär", ["blåbär", "blå"]) == ["blåbär"]  # "blå" is not found inside "blåbär"
-
-
-def test_key_words_refuses_a_part_it_could_not_be_scored_from():
-    assert key_words("Jag drack mjölken", ["mjölk"]) is None  # inflected, so it would not be timed in the audio
-    assert key_words("Mer mjölk och mer bröd", ["mer", "bröd"]) is None  # twice, so which one is signed?
-    # at most three signs in one recording, however many words were offered
-    assert key_words("Mamma vill ha mer mjölk och bröd", ["mer", "mjölk", "bröd", "mamma"]) is None
-
 WORDS = ["mamma", "mjölk", "sova"]
 
 
-def test_story_parts_reads_off_each_part_which_words_it_signs():
-    parts = ["Mamma häller upp mjölk.", "Sedan ska du sova."]
-    assert story_parts(parts, WORDS, 2) == [
-        ("Mamma häller upp mjölk.", ["mamma", "mjölk"]),
-        ("Sedan ska du sova.", ["sova"]),
-    ]
+def test_signed_words_takes_the_forms_the_part_actually_says():
+    # the point of reporting rather than reading the words off the text: the form is inflected freely
+    assert signed_words(part("Mamma ger mjölken.", ("Mamma", "mamma"), ("mjölken", "mjölk")), WORDS)
+    assert signed_words(part("Barnet sov gott.", ("sov", "sova")), WORDS)
+    assert signed_words(part("Vi äter platta slag.", ("platta slag", "platta slag")), ["platta slag"])
 
 
-def test_story_parts_refuses_a_story_that_cannot_be_practised():
-    assert story_parts(["Mamma sover."], WORDS, 2) is None  # one part where two were asked for
-    assert story_parts(["Mamma häller upp mjölk.", "Sedan är det natt."], WORDS, 2) is None  # a part signs nothing
-    assert story_parts(["Mamma vill sova, mamma."], WORDS, 1) is None  # twice, so which one is signed?
-    # an inflected word is no word of the story's: here nothing is left to sign, so the part is refused
-    assert story_parts(["Hon drack mjölken."], WORDS, 1) is None
+def test_signed_words_refuses_what_it_can_check():
+    # a form the part does not say at all
+    assert signed_words(part("Mamma ger mjölk.", ("bilen", "bil")), [*WORDS, "bil"]) is None
+    # a word that was never offered
+    assert signed_words(part("Pappa ger mjölk.", ("Pappa", "pappa")), WORDS) is None
+    # signs out of the order they are spoken, which is the order the audio is cut in
+    assert signed_words(part("Mamma ger mjölk.", ("mjölk", "mjölk"), ("Mamma", "mamma")), WORDS) is None
+    # a part that signs nothing at all
+    assert signed_words(part("Det var en gång."), WORDS) is None
+    # more signs than one recording can carry
+    many = part("Mamma ger mjölk och vill sova.", ("Mamma", "mamma"), ("mjölk", "mjölk"), ("sova", "sova"))  # fmt: skip
+    assert signed_words(many, WORDS) is not None and signed_words(many, WORDS, most=2) is None
 
 
-def test_write_story_returns_the_parts_with_the_words_each_one_uses():
-    client = FakeClient(["Mamma har mjölk.", "Nu ska alla sova."])
-    assert write_story(client, WORDS, 2, model="test") == [
-        ("Mamma har mjölk.", ["mamma", "mjölk"]),
-        ("Nu ska alla sova.", ["sova"]),
-    ]
+def test_signed_words_finds_a_word_said_twice_twice():
+    """A word said twice is signed twice: alignment is positional, so two occurrences are two spans,
+    and the second `mjölk` is looked for after the first rather than on top of it."""
+    twice = part("Mamma ger mjölk, och sedan mer mjölk.", ("mjölk", "mjölk"), ("mjölk", "mjölk"))
+    assert signed_words(twice, WORDS) is not None
+    # said once, so the second sign has nothing left to be
+    assert signed_words(part("Mamma ger mjölk.", ("mjölk", "mjölk"), ("mjölk", "mjölk")), WORDS) is None
+
+
+def test_story_parts_accepts_a_story_that_is_not_the_length_it_was_asked_for():
+    """How many parts there are is what the story aims at, not a contract: one part fewer is a
+    shorter pass rather than a story to throw away."""
+    assert story_parts([part("Mamma ger mjölk.", ("Mamma", "mamma"))], WORDS) is not None
+    assert story_parts([], WORDS) is None
+    # but every part has to be one the learner can sign
+    assert story_parts([part("Mamma ger mjölk.", ("Mamma", "mamma")), part("Det var kväll.")], WORDS) is None  # fmt: skip
+
+
+def test_write_story_returns_the_parts_with_the_signs_each_one_is_practised_by():
+    told = [part("Mamma har mjölken.", ("Mamma", "mamma"), ("mjölken", "mjölk")), part("Nu ska alla sova.", ("sova", "sova"))]  # fmt: skip
+    client = FakeClient(told)
+    story = write_story(client, WORDS, 2, model="test")
+    assert story is not None
+    assert [(sign.said, sign.word) for sign in story[0].signs] == [("Mamma", "mamma"), ("mjölken", "mjölk")]  # fmt: skip
     assert "2 delar" in client.asked[0][0]["content"]
 
 
 def test_write_story_asks_again_when_a_part_cannot_be_scored():
-    client = FakeClient(["Hon drack mjölken.", "Alla sover."], ["Mamma har mjölk.", "Nu ska alla sova."])
+    # the reported form is not in the part at all, which is the half of the contract that is checked
+    refused = [part("Hon drack upp allt.", ("mjölken", "mjölk")), part("Alla sover.", ("sover", "sova"))]
+    written = [part("Mamma har mjölk.", ("mjölk", "mjölk")), part("Nu ska alla sova.", ("sova", "sova"))]
+    client = FakeClient(refused, written)
     assert write_story(client, WORDS, 2, model="test") is not None
-    # the second ask carries the first answer and what was wrong with it, as `write_sentence` does
+    # the second ask carries the first answer and what was wrong with it
     assert [message["role"] for message in client.asked[1]] == ["user", "assistant", "user"]
-    assert "mjölken" in client.asked[1][1]["content"]
+    assert "Hon drack upp allt." in client.asked[1][1]["content"]
 
 
 def test_write_story_asks_again_when_the_answer_was_cut_short():
-    client = FakeClient(None, ["Mamma har mjölk.", "Nu ska alla sova."])
-    assert write_story(client, WORDS, 2, model="test") is not None
+    written = [part("Mamma har mjölk.", ("mjölk", "mjölk"))]
+    assert write_story(FakeClient(None, written), WORDS, 2, model="test") is not None
     assert write_story(FakeClient(None), WORDS, 2, model="test", tries=1) is None
 
 
 def test_write_story_asks_again_when_the_api_could_not_answer():
     # an overloaded or rate limited API is a try that failed, not a 500 at the learner
     failed = anthropic.APIConnectionError(request=SimpleNamespace())
-    client = FakeClient(failed, ["Mamma har mjölk.", "Nu ska alla sova."])
-    assert write_story(client, WORDS, 2, model="test") is not None
+    written = [part("Mamma har mjölk.", ("mjölk", "mjölk"))]
+    assert write_story(FakeClient(failed, written), WORDS, 2, model="test") is not None
     assert write_story(FakeClient(failed), WORDS, 2, model="test", tries=1) is None
 
 
-def test_write_story_gives_up_rather_than_handing_back_a_story_it_cannot_time():
-    client = FakeClient(["Hon drack mjölken."], ["Mjölken var god."])
-    assert write_story(client, WORDS, 1, model="test") is None
+def test_write_story_gives_up_rather_than_handing_back_a_story_it_cannot_score():
+    refused = [part("Hon drack upp allt.", ("mjölken", "mjölk"))]
+    assert write_story(FakeClient(refused, refused), WORDS, 1, model="test") is None

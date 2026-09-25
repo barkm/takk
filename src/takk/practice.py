@@ -145,14 +145,15 @@ def create_app(
 
     @app.post("/api/story")
     def story(words: list[str] = Body(embed=True), parts: int = Body(embed=True)) -> dict:
-        """A Swedish story over `words` in `parts` parts, each part with the words it uses in the
-        order they are spoken (`story.py`). The parts are empty when there is no writer or it could
-        not write one, and the caller then has nothing to tell and says so.
+        """A Swedish story over `words` in about `parts` parts, each part with the signs it is
+        practised by: the form the part says (`said`) and the offered word that form signs (`word`),
+        in the order they are spoken (`story.py`). The parts are empty when there is no writer or it
+        could not write one, and the caller then has nothing to tell and says so.
 
         The words are the learner's own: what the cards say, not the names of the signs that score
         them."""
         told = write_story(writer, words, parts) if writer else None
-        return {"parts": [{"text": text, "words": used} for text, used in told or []]}
+        return {"parts": [part.model_dump() for part in told or []]}
 
     @app.get("/api/form/{entry_id}")
     def form(entry_id: str) -> dict:
