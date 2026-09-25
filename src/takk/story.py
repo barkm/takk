@@ -20,7 +20,7 @@ in its base form behind an article ("en hund").
 import re
 
 import anthropic
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 MODEL = "claude-sonnet-5"
 
@@ -88,10 +88,16 @@ def write_story(client: anthropic.Anthropic, words: list[str], parts: int, model
     asked = f"Jag övar på orden: {', '.join(words)}. Skriv en berättelse i {parts} delar."
     messages: list[anthropic.types.MessageParam] = [{"role": "user", "content": asked}]
     for _ in range(tries):
-        response = client.messages.parse(model=model, max_tokens=16000, system=SYSTEM, messages=messages, output_format=Told)  # fmt: skip
-        # No parsed answer means the response carries no text block at all - the model thinks before
-        # it writes, and a turn cut off by `max_tokens` (or declined) ends with the thinking alone.
-        # That is a try that failed like any other, not an error to raise at the learner.
+        # One rule for every way an ask can come to nothing: it is a try that failed, never an error
+        # raised at the learner. The API can refuse to answer at all (rate limited, overloaded, timed
+        # out) and an answer cut off by `max_tokens` can carry JSON the parse refuses; the response
+        # can also carry no text block at all, since the model thinks before it writes and a turn cut
+        # off in the thinking ends there, which is what `parsed_output` being None means.
+        try:
+            response = client.messages.parse(model=model, max_tokens=16000, system=SYSTEM, messages=messages, output_format=Told)  # fmt: skip
+        except (anthropic.APIError, ValidationError) as failed:
+            print(f"the story writer could not answer: {failed}")
+            continue
         if response.parsed_output is None:
             continue
         told = response.parsed_output.parts

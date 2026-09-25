@@ -1,5 +1,8 @@
 from types import SimpleNamespace
 
+import anthropic
+import pytest
+
 from takk.story import Told, key_words, story_parts, write_story
 
 
@@ -18,6 +21,8 @@ class FakeClient:
     def parse(self, model, max_tokens, system, messages, output_format):
         self.asked.append(messages)
         answer = self.answers.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
         return SimpleNamespace(parsed_output=Told(parts=answer) if answer is not None else None)
 
 
@@ -77,6 +82,14 @@ def test_write_story_asks_again_when_the_answer_was_cut_short():
     client = FakeClient(None, ["Mamma har mjölk.", "Nu ska alla sova."])
     assert write_story(client, WORDS, 2, model="test") is not None
     assert write_story(FakeClient(None), WORDS, 2, model="test", tries=1) is None
+
+
+def test_write_story_asks_again_when_the_api_could_not_answer():
+    # an overloaded or rate limited API is a try that failed, not a 500 at the learner
+    failed = anthropic.APIConnectionError(request=SimpleNamespace())
+    client = FakeClient(failed, ["Mamma har mjölk.", "Nu ska alla sova."])
+    assert write_story(client, WORDS, 2, model="test") is not None
+    assert write_story(FakeClient(failed), WORDS, 2, model="test", tries=1) is None
 
 
 def test_write_story_gives_up_rather_than_handing_back_a_story_it_cannot_time():
