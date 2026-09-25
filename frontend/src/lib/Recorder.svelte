@@ -132,6 +132,3 @@
      outline on the picture, so the phases are not written out beside it. Space starts a recording
      over, which is all the button that used to stand here did. -->
 {#if silent}<p class="dim">{NO_MICROPHONE}</p>{/if}
-{#if scoring}
-  <p class="dim">Bedömer...</p>
-{/if}
