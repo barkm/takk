@@ -26,10 +26,9 @@ import re
 import anthropic
 from pydantic import BaseModel, ValidationError
 
-MODEL = "claude-opus-5"
+MODEL = "claude-sonnet-5"
 
-# How deeply the model thinks before it writes. Low: measured over 10 word lists it writes a usable
-# story on the first ask 7 times in 10 against Sonnet 5's 2, in a median 5.4 s, and thinking longer
+# How deeply the model thinks before it writes. Low: measured over 10 word lists, thinking longer
 # bought nothing a story needs (see the findings in ROADMAP-takk.md).
 EFFORT = "low"
 
