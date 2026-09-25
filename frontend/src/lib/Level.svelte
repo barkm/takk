@@ -2,17 +2,21 @@
   import { useCamera } from "$lib/camera.svelte";
 
   // How loud the microphone has been over the last two seconds, as a strip of bars under the
-  // camera, so the learner can see they are being heard. It shows only while `Recorder` listens,
+  // camera, so the learner can see they are being heard. It moves only while `Recorder` listens,
   // dim while it waits for the voice and red, like the outline, once the voice is being recorded.
+  // Between listening, while an attempt is judged, it stands still on the take that was heard
+  // rather than disappearing (user, 2026-09-25).
   const TICK = 50; // ms per bar, the rate `Recorder` reads the level at
   const BARS = 40; // two seconds of them
 
   const camera = useCamera();
   let canvas = $state<HTMLCanvasElement>();
+  let heard = $state(false); // hidden until the first listening, since there is nothing to hold still
+  const levels: number[] = [];
 
   $effect(() => {
     if (!camera.listening || !canvas) return;
-    const levels: number[] = [];
+    heard = true;
     const ticking = setInterval(() => {
       levels.push(camera.tracker?.level ?? 0);
       if (levels.length > BARS) levels.shift();
@@ -37,8 +41,8 @@
   }
 </script>
 
-<!-- the space is held while nothing is heard, so the page does not move when the strip appears -->
-<canvas bind:this={canvas} class:on={camera.listening} class:recording={camera.recording}></canvas>
+<!-- the space is held before anything is heard, so the page does not move when the strip appears -->
+<canvas bind:this={canvas} class:on={heard} class:recording={camera.recording}></canvas>
 
 <style>
   canvas {
