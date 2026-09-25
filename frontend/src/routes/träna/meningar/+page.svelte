@@ -3,8 +3,6 @@
   import Recorder from "$lib/Recorder.svelte";
   import { useCamera } from "$lib/camera.svelte";
   import { fetchStory, word, type Attempt, type SignWord, type Sign, type StoryPart } from "$lib/api";
-  import Choice from "$lib/Choice.svelte";
-  import { load as loadOptions, save as saveOptions, DEFAULTS, LENGTHS, PARTS, type Options } from "$lib/options";
   import { known, load, record, save, type Progress } from "$lib/progress";
   import { pieces as cut } from "$lib/text";
 
@@ -18,14 +16,15 @@
   // A story is one text and it ends (user, 2026-09-24). Signing its last line puts the page back
   // where it started, and the next story is written when the learner asks for it: a story written
   // under the finished one would be a second story with its own beginning, which reads as a break in
-  // the text now that the whole of it stands on the page. How long it is is the learner's to set, on
-  // the start card before it is written, as a length and not as a number of lines (user, 2026-09-25).
+  // the text now that the whole of it stands on the page. It is always a long one, of about ten parts:
+  // the learner is not asked for a length (user, 2026-09-25).
   //
   // How long a line may be recorded for: it is read aloud, so its length is its text and not its
   // signs — a wordy line with one sign would be cut off by the one sign's worth of seconds a card
   // gets. Swedish read aloud runs at about two words a second; the slack is for reading it at all.
   const PER_WORD = 0.7;
   const SLACK = 4;
+  const PARTS = 10; // how many parts a story is asked for; the writer may answer with one more or fewer
   const SHOWN = 1800; // ms the coloured words stay up before the next line
 
   const camera = useCamera(); // the camera of the Träna layout, which both modes share
@@ -40,10 +39,9 @@
   let verdicts: Record<number, Record<number, boolean>> = $state({}); // per line, by sign of the line
   let waiting: ReturnType<typeof setTimeout> | null = null; // the pause the coloured words are read in
   let recorder: ReturnType<typeof Recorder> | undefined = $state();
-  let chosen: Options = $state(DEFAULTS);
 
   $effect(() => {
-    (progress = load()), (chosen = loadOptions());
+    progress = load();
   });
 
   const label = (each: SignWord) => each.word ?? word(each.sign);
@@ -52,12 +50,10 @@
   /** Write a story over the words this learner knows, weakest first. Twice as many words are
    * offered as there are lines, so the model has something to choose from in every one of them. */
   async function write() {
-    saveOptions(chosen); // what this story was asked for is what the next one starts with
-    const parts = PARTS[chosen.length];
-    const words = known(progress, parts * 2);
+    const words = known(progress, PARTS * 2);
     cards = Object.fromEntries(words.map((each) => [label(each), each]));
     writing = true;
-    const written = await fetchStory(words.map(label), parts).finally(() => (writing = false));
+    const written = await fetchStory(words.map(label), PARTS).finally(() => (writing = false));
     if (!written.length) return void (note = "Kunde inte skriva någon text. Försök igen.");
     (story = written), (note = ""), (at = 0), (verdicts = {}), (lines = []);
   }
@@ -130,7 +126,6 @@
   <section class="card">
     <h1>Meningar</h1>
     <p class="dim">En text över orden du redan kan, en rad i taget. Säg raden högt och teckna orden i den.</p>
-    <Choice label="Längd" values={LENGTHS} bind:value={chosen.length} />
     <div class="row">
       <button onclick={write} disabled={writing || pool.length < 2}>{writing ? "Skriver ..." : "Börja"}</button>
       {#if pool.length < 2}
