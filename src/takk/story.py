@@ -88,7 +88,12 @@ def write_story(client: anthropic.Anthropic, words: list[str], parts: int, model
     asked = f"Jag övar på orden: {', '.join(words)}. Skriv en berättelse i {parts} delar."
     messages: list[anthropic.types.MessageParam] = [{"role": "user", "content": asked}]
     for _ in range(tries):
-        response = client.messages.parse(model=model, max_tokens=2000, system=SYSTEM, messages=messages, output_format=Told)  # fmt: skip
+        response = client.messages.parse(model=model, max_tokens=16000, system=SYSTEM, messages=messages, output_format=Told)  # fmt: skip
+        # No parsed answer means the response carries no text block at all - the model thinks before
+        # it writes, and a turn cut off by `max_tokens` (or declined) ends with the thinking alone.
+        # That is a try that failed like any other, not an error to raise at the learner.
+        if response.parsed_output is None:
+            continue
         told = response.parsed_output.parts
         story = story_parts(told, words, parts)
         if story is not None:

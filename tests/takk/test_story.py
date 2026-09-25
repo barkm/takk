@@ -4,9 +4,10 @@ from takk.story import Told, key_words, story_parts, write_story
 
 
 class FakeClient:
-    """A stand-in for the Anthropic client: answers with each of `answers` (a story's parts) in turn."""
+    """A stand-in for the Anthropic client: answers with each of `answers` (a story's parts) in turn.
+    An answer of None is a response with nothing parsed, as a turn cut off by `max_tokens` is."""
 
-    def __init__(self, *answers: list[str]):
+    def __init__(self, *answers: list[str] | None):
         self.answers = list(answers)
         self.asked: list[list[dict]] = []
 
@@ -16,7 +17,8 @@ class FakeClient:
 
     def parse(self, model, max_tokens, system, messages, output_format):
         self.asked.append(messages)
-        return SimpleNamespace(parsed_output=Told(parts=self.answers.pop(0)))
+        answer = self.answers.pop(0)
+        return SimpleNamespace(parsed_output=Told(parts=answer) if answer is not None else None)
 
 
 def test_key_words_reads_off_the_part_which_offered_words_it_signs():
@@ -69,6 +71,12 @@ def test_write_story_asks_again_when_a_part_cannot_be_scored():
     # the second ask carries the first answer and what was wrong with it, as `write_sentence` does
     assert [message["role"] for message in client.asked[1]] == ["user", "assistant", "user"]
     assert "mjölken" in client.asked[1][1]["content"]
+
+
+def test_write_story_asks_again_when_the_answer_was_cut_short():
+    client = FakeClient(None, ["Mamma har mjölk.", "Nu ska alla sova."])
+    assert write_story(client, WORDS, 2, model="test") is not None
+    assert write_story(FakeClient(None), WORDS, 2, model="test", tries=1) is None
 
 
 def test_write_story_gives_up_rather_than_handing_back_a_story_it_cannot_time():
