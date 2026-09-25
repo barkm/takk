@@ -15,6 +15,8 @@ export class Camera {
   fit = $state("");
   /** Whether a recording is running, which the framing feedback also asks for the hands during. */
   recording = $state(false);
+  /** Whether a recorder is listening to the microphone, which the level strip under the camera shows. */
+  listening = $state(false);
 }
 
 const KEY = Symbol("camera");

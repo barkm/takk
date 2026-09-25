@@ -121,6 +121,7 @@
   // waiting for the learner to speak is not recording anything they would want back, and an outline
   // that is on throughout says nothing. Sök outlines it the same way while its own recording runs.
   $effect(() => void (camera.recording = phase === "speaking"));
+  $effect(() => void (camera.listening = phase !== "idle"));
 </script>
 
 <svelte:window {onkeydown} />

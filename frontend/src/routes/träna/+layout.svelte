@@ -3,6 +3,7 @@
 import { page } from "$app/state";
 
   import CameraView from "$lib/Camera.svelte";
+  import Level from "$lib/Level.svelte";
   import { useCamera } from "$lib/camera.svelte";
   import { hand, setHand, type Hand } from "$lib/hand";
 
@@ -48,7 +49,7 @@ import { page } from "$app/state";
 
   <div class="split">
     <div class="work">{@render children()}</div>
-    <aside class="camera"><CameraView {camera} /></aside>
+    <aside class="camera"><CameraView {camera} /><Level /></aside>
   </div>
 {/if}
 
