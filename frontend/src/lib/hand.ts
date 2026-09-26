@@ -1,6 +1,6 @@
 // Which hand the learner signs with, asked once and kept in the browser: it is what a recording is
-// mirrored by, so every attempt needs it and nothing else does. Asked on the menu the first time the
-// app is opened (step 8 of ROADMAP-takk.md), so no camera screen carries a switch for it.
+// mirrored by, so every attempt needs it and nothing else does. Asked on Om dig the first time the
+// app is opened (step 23 of ROADMAP-takk.md), so no camera screen carries a switch for it.
 export type Hand = "left" | "right";
 
 const KEY = "takk.handedness";

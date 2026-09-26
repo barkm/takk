@@ -2,7 +2,6 @@
   import { base } from "$app/paths";
   import { lexiconUrl } from "$lib/api";
   import { useCamera } from "$lib/camera.svelte";
-  import { hand, setHand } from "$lib/hand";
   import { boxes, DAYS, KEY, load, remove, save, type Progress } from "$lib/progress";
   import { curveStepAfter } from "d3-shape";
   import { AreaChart, BarChart } from "layerchart";
@@ -17,16 +16,10 @@
   // hovers than hand-made SVG did (user, 2026-09-26).
 
   let progress: Progress = $state({});
-  let signs = $state<"left" | "right">("right"); // the hand the learner signs with, asked under Träna
 
   $effect(() => {
-    (progress = load()), (signs = hand() ?? "right");
+    progress = load();
   });
-
-  function swap() {
-    signs = signs === "right" ? "left" : "right";
-    setHand(signs);
-  }
 
   const rows = $derived(boxes(progress));
   // one bar per state a sign can be in: picked but not taught, then a box per interval
@@ -189,8 +182,6 @@
 
   <!-- what is set rather than what is seen, as one quiet line at the foot of the page -->
   <footer class="settings dim">
-    Du tecknar med {signs === "right" ? "höger" : "vänster"} hand ·
-    <button class="link" onclick={swap}>Byt hand</button> ·
     <button class="link" onclick={reset}>Nollställ</button>
   </footer>
 {:else}
