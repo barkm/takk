@@ -3,15 +3,16 @@
   import { useCamera } from "$lib/camera.svelte";
   import { hand, setHand } from "$lib/hand";
   import { boxes, DAYS, KEY, load, remove, save, type Progress } from "$lib/progress";
+  import { BarChart, LineChart } from "layerchart";
+  import "layerchart/core.css";
 
   // Tecken (step 14 of ROADMAP-takk.md): the learner's own signs. The numbers first, then how the
   // vocabulary is spread over the repetition schedule and how many signs have been met over time,
   // then the signs themselves as a board: a card per word with its lexicon clip, grouped under the
   // step of the schedule it has reached (user, 2026-09-24). The board says what the bar chart says,
   // with the signs in it, which a list of words alone cannot show. Everything is read off the store,
-  // so no history is written for it. The charts are inline SVG: one bar series and one line are not
-  // worth a charting dependency.
-  const PLOT = { width: 320, height: 140, pad: 22 }; // the viewBox both charts are drawn in
+  // so no history is written for it. The charts are LayerChart's, which draws better axes and
+  // hovers than hand-made SVG did (user, 2026-09-26).
 
   let progress: Progress = $state({});
   let signs = $state<"left" | "right">("right"); // the hand the learner signs with, asked under Träna
@@ -51,34 +52,20 @@
   const overdue = (row: { box: number; due: number }) => row.box > 0 && row.due <= Date.now();
 
   /** The signs met over time, counted cumulatively: one point per sign, at the day it was first
-   * practised. A sign picked and not yet practised has no such day, so it has not been met. */
+   * practised, and a last one today so the axis runs to now. A sign picked and not yet practised has
+   * no such day, so it has not been met. */
   const met = $derived.by(() => {
     const days = rows
       .map((row) => row.first)
       .filter((first): first is number => !!first)
       .sort((a, b) => a - b);
-    return days.length ? [{ day: days[0], count: 0 }, ...days.map((day, index) => ({ day, count: index + 1 }))] : [];
+    if (!days.length) return [];
+    const points = [{ day: new Date(days[0]), count: 0 }, ...days.map((day, index) => ({ day: new Date(day), count: index + 1 }))];
+    return [...points, { day: new Date(), count: days.length }];
   });
 
-  /** The day the line starts on, written as the learner reads a date ("3 sep."). The axis runs from
-   * there to now, and without the two ends written out a week and a year look the same. */
-  const began = $derived(
-    met.length ? new Date(met[0].day).toLocaleDateString("sv-SE", { day: "numeric", month: "short" }) : "",
-  );
-
-  const line = $derived.by(() => {
-    if (met.length < 2) return "";
-    const first = met[0].day;
-    const span = Math.max(1, Date.now() - first);
-    const high = met.at(-1)!.count;
-    return met
-      .map(({ day, count }) => {
-        const x = PLOT.pad + ((day - first) / span) * (PLOT.width - PLOT.pad * 2);
-        const y = PLOT.height - PLOT.pad - (count / high) * (PLOT.height - PLOT.pad * 2);
-        return `${x.toFixed(1)},${y.toFixed(1)}`;
-      })
-      .join(" ");
-  });
+  /** A date as the learner reads it ("3 sep."). */
+  const date = (day: Date) => day.toLocaleDateString("sv-SE", { day: "numeric", month: "short" });
 
   // The list is where the vocabulary is pruned: a word is dropped here as it is unpicked in Sök, and
   // what was learned of it goes with it (user, 2026-09-24).
@@ -103,49 +90,31 @@
   <section class="charts">
     <figure class="card">
       <h2>Per repetitionsintervall</h2>
-      <svg viewBox="0 0 {PLOT.width} {PLOT.height}" role="img" aria-label="Tecken per repetitionsintervall">
-        {#each bars as bar, index (bar.label)}
-          {@const slot = (PLOT.width - PLOT.pad * 2) / bars.length}
-          {@const height = (bar.count / tallest) * (PLOT.height - PLOT.pad * 2)}
-          <rect
-            x={PLOT.pad + index * slot + 2}
-            y={PLOT.height - PLOT.pad - height}
-            width={slot - 4}
-            height={bar.count ? Math.max(height, 2) : 0}
-            rx="3"
-            fill="var(--accent)"
-          />
-          <text class="value" x={PLOT.pad + index * slot + slot / 2} y={PLOT.height - PLOT.pad - height - 5}>
-            {bar.count || ""}
-          </text>
-          <text class="tick" x={PLOT.pad + index * slot + slot / 2} y={PLOT.height - PLOT.pad + 12}>{bar.label}</text>
-        {/each}
-        <line
-          class="axis"
-          x1={PLOT.pad}
-          y1={PLOT.height - PLOT.pad}
-          x2={PLOT.width - PLOT.pad}
-          y2={PLOT.height - PLOT.pad}
+      <div class="plot">
+        <BarChart
+          data={bars}
+          x="label"
+          series={[{ key: "count", label: "tecken", color: "var(--accent)" }]}
+          axis="x"
+          grid={false}
+          labels={{ format: (count: number) => (count ? String(count) : "") }}
+          props={{ bars: { strokeWidth: 0, radius: 4 } }}
         />
-      </svg>
+      </div>
     </figure>
 
-    {#if line}
+    {#if met.length}
       <figure class="card">
         <h2>Tecken över tid</h2>
-        <svg viewBox="0 0 {PLOT.width} {PLOT.height}" role="img" aria-label="Tecken över tid">
-          <polyline class="over-time" points={line} />
-          <line
-            class="axis"
-            x1={PLOT.pad}
-            y1={PLOT.height - PLOT.pad}
-            x2={PLOT.width - PLOT.pad}
-            y2={PLOT.height - PLOT.pad}
+        <div class="plot">
+          <LineChart
+            data={met}
+            x="day"
+            series={[{ key: "count", label: "tecken", color: "var(--accent)" }]}
+            grid={false}
+            props={{ xAxis: { format: date }, spline: { strokeWidth: 2 }, tooltip: { header: { format: date } } }}
           />
-          <text class="value end" x={PLOT.width - PLOT.pad} y={PLOT.pad - 8}>{met.at(-1)?.count}</text>
-          <text class="tick start" x={PLOT.pad} y={PLOT.height - PLOT.pad + 12}>{began}</text>
-          <text class="tick end" x={PLOT.width - PLOT.pad} y={PLOT.height - PLOT.pad + 12}>idag</text>
-        </svg>
+        </div>
       </figure>
     {/if}
   </section>
@@ -238,41 +207,9 @@
     gap: 12px;
   }
 
-  svg {
-    display: block;
-    width: 100%;
-  }
-
-  .axis {
-    stroke: var(--line);
-    stroke-width: 1;
-  }
-
-  .over-time {
-    fill: none;
-    stroke: var(--accent);
-    stroke-width: 2;
-    stroke-linejoin: round;
-  }
-
-  .tick {
-    fill: var(--dim);
-    font-size: 8px;
-    text-anchor: middle;
-  }
-
-  .value {
-    fill: var(--text);
-    font-size: 9px;
-    text-anchor: middle;
-  }
-
-  .start {
-    text-anchor: start;
-  }
-
-  .end {
-    text-anchor: end;
+  /* LayerChart fills its container, so the container sets the height */
+  .plot {
+    height: 160px;
   }
 
   /* One heading per step of the schedule, written as the chart's own tick is written. */
