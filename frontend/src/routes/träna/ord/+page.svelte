@@ -4,16 +4,7 @@
   import Verdict from "$lib/Verdict.svelte";
   import { fetchForm, word, type Attempt, type SignWord, type Sign } from "$lib/api";
   import { useCamera } from "$lib/camera.svelte";
-  import Choice from "$lib/Choice.svelte";
-  import {
-    load as loadOptions,
-    pass,
-    save as saveOptions,
-    DEFAULTS,
-    REPEATS,
-    WORDS,
-    type Options,
-  } from "$lib/options";
+  import { pass, REPEATS, WORDS } from "$lib/options";
   import { load, record, save, toLearn, type Progress } from "$lib/progress";
 
   // Ord (steps 9, 12 and 16 of ROADMAP-takk.md): one sign at a time, with its clip and the lexicon's
@@ -22,8 +13,7 @@
   // Meningar never stops to show it. An accepted word goes into the first Leitner box, or keeps the
   // box it had when it was not due; a missed one is simply signed again, with the clip still there.
   //
-  // How many words a pass holds and how often each of them comes back are the learner's to set, on
-  // this card before the pass starts (user, 2026-09-24).
+  // A pass is five words, each signed twice (user, 2026-09-26); the start card asks nothing.
   // How long the verdict's mark stays on the word. A miss holds twice as long (user, 2026-09-24):
   // the word is about to be signed again, so it is worth reading, while an accepted word is on its
   // way out and only has to be seen.
@@ -33,7 +23,6 @@
   const camera = useCamera(); // the camera of the Träna layout, which both modes share
   const lexicon = $derived(camera.lexicon);
   let progress: Progress = $state({});
-  let chosen: Options = $state(DEFAULTS);
   let queue: SignWord[] = $state([]); // the words left, the current one first
   let started = $state(false);
   let taken = $state(0); // how many of this session's words are done
@@ -44,7 +33,7 @@
   let recorder: ReturnType<typeof Recorder> | undefined = $state();
 
   $effect(() => {
-    (progress = load()), (chosen = loadOptions());
+    progress = load();
   });
 
   /** The word on a card, which is not the name of the sign that scores it when several words share
@@ -54,8 +43,7 @@
   const waiting = $derived(toLearn(progress)); // missed first, then picked and never practised
 
   function start() {
-    saveOptions(chosen); // what was set for this pass is what the next one starts with
-    queue = pass(waiting.slice(0, chosen.words), chosen.repeats);
+    queue = pass(waiting.slice(0, WORDS), REPEATS);
     (taken = 0), (started = true), (attempt = null), (note = "");
   }
 
@@ -102,8 +90,6 @@
   <section class="card">
     <h1>Ord</h1>
     <p class="dim">Tecken du inte övat än, eller tecknade fel. Du ser klippet och tecknar efter det.</p>
-    <Choice label="Antal ord" values={WORDS} bind:value={chosen.words} />
-    <Choice label="Repetitioner per ord" values={REPEATS} bind:value={chosen.repeats} />
     <div class="row">
       <button onclick={start} disabled={!waiting.length}>Börja</button>
       {#if !waiting.length}
