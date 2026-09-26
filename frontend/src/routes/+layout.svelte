@@ -57,24 +57,29 @@
 
   // The first time the app is opened, whatever page it is opened on, it asks Om dig first (step 23):
   // the hand every recording needs, and who the learner is, which the chips on Sök are made from.
-  // No other page is shown until then, so none opens the camera under the question.
+  // No other page is shown until then, so none opens the camera under the question, and the menu is
+  // hidden too (user, 2026-09-26), so the form is the only way on.
+  let known = $state(false);
   let ready = $state(false);
 
   $effect(() => {
-    ready = !!about() || current === "om-dig";
+    known = !!about();
+    ready = known || current === "om-dig";
     if (!ready) void goto(`${base}/om-dig`, { replaceState: true });
   });
 
 </script>
 
 <div class="app">
-  <nav class="bar">
-    {#each sections as section (section.href)}
-      <a href="{base}{section.href}" class:on={current === section.name}>
-        {section.label}{#if current === section.name}<span class="line"></span>{/if}
-      </a>
-    {/each}
-  </nav>
+  {#if known}
+    <nav class="bar">
+      {#each sections as section (section.href)}
+        <a href="{base}{section.href}" class:on={current === section.name}>
+          {section.label}{#if current === section.name}<span class="line"></span>{/if}
+        </a>
+      {/each}
+    </nav>
+  {/if}
   <main>{#if ready}{@render children()}{/if}</main>
 </div>
 
