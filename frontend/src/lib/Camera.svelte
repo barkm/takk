@@ -94,11 +94,14 @@
     box-shadow: 0 0 0 1px var(--bad);
   }
 
+  /* cropped exactly as the video is: the canvas has the stream's own size, 16/9 from most webcams,
+     and stretching it into the 4/3 box would squeeze the landmarks towards the middle */
   canvas {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
+    object-fit: cover;
   }
 
   /* what stands in for the picture until it is there, unmirrored like the framing text below */
