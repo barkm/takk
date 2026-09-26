@@ -232,6 +232,11 @@
     background: var(--raised);
   }
 
+  /* a card does not sink when pressed (user, 2026-09-26) */
+  .tile:active {
+    transform: none;
+  }
+
   .tile.on {
     border-color: var(--accent);
   }
