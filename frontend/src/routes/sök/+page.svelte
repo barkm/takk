@@ -1,6 +1,7 @@
 <script lang="ts">
   import {
     fetchSearch,
+    lexiconUrl,
     searchBySign,
     word,
     type SignWord,
@@ -136,37 +137,33 @@
   <ul class="grid">
     {#each results as each (each.sign)}
       {@const clip = clips.get(each.sign)?.[0]}
-      <li>
+      <li class="tile" class:on={picked(each)}>
+        {#if clip}
+          <!-- svelte-ignore a11y_media_has_caption -->
+          <!-- Still until the tile is pointed at, with the fragment seeking 0.6 s in so the tile
+               shows the sign being made rather than the signer still at rest. Thirty clips playing
+               at once, beside the camera and the landmarker, is more video than a browser will
+               decode: the ones it gives up on stay black, and the camera can be the one it gives
+               up on. -->
+          <video src="{clip}#t=0.6" muted loop playsinline preload="metadata"></video>
+        {:else}
+          <span class="noclip dim">inget klipp</span>
+        {/if}
+        <span class="name">
+          <a class="word" href={lexiconUrl(each.id)} target="_blank" rel="noopener">{label(each)}</a>
+          <span class="mark" aria-hidden="true">{picked(each) ? "Vald" : "Lägg till"}</span>
+        </span>
+        <!-- The whole tile picks the word, except the word itself, which links to the lexicon as on
+             Tecken. A link cannot sit inside a button, so the button lies over the tile instead of
+             holding it, and it is the button the pointer is over that plays the clip. -->
         <button
-          class="tile"
-          class:on={picked(each)}
+          class="pick"
+          aria-label={label(each)}
           aria-pressed={picked(each)}
           onclick={() => pick(each)}
-        >
-          {#if clip}
-            <!-- svelte-ignore a11y_media_has_caption -->
-            <!-- Still until the tile is pointed at, with the fragment seeking 0.6 s in so the tile
-                 shows the sign being made rather than the signer still at rest. Thirty clips playing
-                 at once, beside the camera and the landmarker, is more video than a browser will
-                 decode: the ones it gives up on stay black, and the camera can be the one it gives
-                 up on. -->
-            <video
-              src="{clip}#t=0.6"
-              muted
-              loop
-              playsinline
-              preload="metadata"
-              onpointerenter={(event) => event.currentTarget.play()}
-              onpointerleave={(event) => event.currentTarget.pause()}
-            ></video>
-          {:else}
-            <span class="noclip dim">inget klipp</span>
-          {/if}
-          <span class="name">
-            {label(each)}
-            <span class="mark">{picked(each) ? "Vald" : "Lägg till"}</span>
-          </span>
-        </button>
+          onpointerenter={(event) => event.currentTarget.parentElement?.querySelector("video")?.play()}
+          onpointerleave={(event) => event.currentTarget.parentElement?.querySelector("video")?.pause()}
+        ></button>
       </li>
     {/each}
   </ul>
@@ -215,21 +212,36 @@
   }
 
   .tile {
-    display: block;
-    width: 100%;
-    padding: 0;
+    position: relative;
     overflow: hidden;
-    text-align: left;
     background: var(--surface);
     border: 1px solid transparent; /* grey like every tile; only a picked one is outlined */
     border-radius: var(--radius);
-    color: var(--text);
     font-weight: 500;
   }
 
   .tile:hover {
-    filter: none;
     background: var(--raised);
+  }
+
+  .pick {
+    position: absolute;
+    inset: 0;
+    padding: 0;
+    border: 0;
+    border-radius: inherit;
+    background: transparent;
+  }
+
+  .pick:hover:not(:disabled) {
+    filter: none;
+  }
+
+  /* above the button lying over the tile, so it is the one word that is not a pick */
+  .word {
+    position: relative;
+    z-index: 1;
+    color: inherit;
   }
 
   .tile.on {

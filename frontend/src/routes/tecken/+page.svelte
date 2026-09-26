@@ -1,5 +1,6 @@
 <script lang="ts">
   import { base } from "$app/paths";
+  import { lexiconUrl } from "$lib/api";
   import { useCamera } from "$lib/camera.svelte";
   import { hand, setHand } from "$lib/hand";
   import { boxes, DAYS, KEY, load, remove, save, type Progress } from "$lib/progress";
@@ -165,7 +166,7 @@
               onpointerleave={(event) => event.currentTarget.pause()}
             ></video>
           {/if}
-          <span class="word">{row.word}</span>
+          <a class="word" href={lexiconUrl(row.id)} target="_blank" rel="noopener">{row.word}</a>
           <span class="side">
             {#if overdue(row)}<span class="now">nu</span>{/if}
             <span class="dots" aria-hidden="true">
@@ -389,6 +390,7 @@
   .word {
     padding-left: 12px;
     font-weight: 500;
+    color: inherit; /* a word on the board, which also links to its lexicon entry */
   }
 
   .side {

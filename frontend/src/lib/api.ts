@@ -49,6 +49,10 @@ export async function fetchLexicon(): Promise<Lexicon> {
  * `sts:livsmedel-01265`). */
 export type SignWord = { sign: string; id: string; word?: string };
 
+/** The lexicon's own page for an entry, linked from Sök and Tecken but not from the practice pages,
+ * where it would show the answer. */
+export const lexiconUrl = (id: string) => `https://teckensprakslexikon.su.se/ord/${id}`;
+
 /** The signs a learner searching for `query` is offered, a word or a theme alike. This is the one way
  * vocabulary grows (step 9 of ROADMAP-takk.md): what is ticked here is what Ord teaches. */
 export async function fetchSearch(query: string): Promise<SignWord[]> {
