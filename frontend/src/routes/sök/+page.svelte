@@ -248,7 +248,6 @@
   .chips {
     display: flex;
     flex-wrap: wrap;
-    justify-content: center;
     gap: 8px;
     max-width: 440px;
     margin: 14px auto 0;
