@@ -267,11 +267,13 @@
     stroke: none;
   }
 
-  /* the counts over the bars and at the end of the line, which are what the charts are read for */
+  /* the counts over the bars and at the end of the line, which are what the charts are read for, and
+     without the halo for the same reason as the axis text */
   .plot :global(.lc-labels-text) {
     font-size: 13px;
     font-weight: 600;
     fill: var(--text);
+    stroke: none;
   }
 
   /* The charts grow in when the page opens (user, 2026-09-26): the bars rise from the baseline, the
