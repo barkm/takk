@@ -156,7 +156,7 @@ Steps 1 to 7 are built and in use. Steps 8 to 14 are the blueprint above and are
 
 20. **A plain, calm style** (user, 2026-09-26: the page "looks a bit sloppy and rough around the edges"; wanted "a quite plain relaxing style and layout", nothing fancy). Nothing the learner does changed, only how the pages sit. It is a branch of its own (`calm-style`) so it can be compared with main.
 
-    **One narrow column down the middle.** Every page and the section bar share one column of `--column` (760 px), centred in the window, where the pages used to fill a 1080 px area beside the rail and each lined its blocks up differently. On Sök the camera and the field under it are one width (440 px), so the two ways in read as one; Träna's camera column narrowed to 260–320 px to fit.
+    **One narrow column down the middle.** Every page and the section bar share one column of `--column` (760 px at first, widened to 960 px since it felt too narrow and centred, user 2026-09-26), centred in the window, where the pages used to fill a 1080 px area beside the rail and each lined its blocks up differently. On Sök the camera and the field under it are one width (440 px), so the two ways in read as one; Träna's camera column narrowed to 260–320 px to fit.
 
     **A line of sections above the page instead of the rail** (user, 2026-09-26), which replaces step 17's rail: Sök, Träna and Tecken centred above the column, the current one in the text colour with an accent underline, and no title beside them (user, 2026-09-26: "we don't need the TAKK title"). On a phone it is still the bar along the bottom.
 

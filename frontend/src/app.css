@@ -13,7 +13,7 @@
   --ok: #2f8a4a;
   --bad: #c2413b;
   --radius: 10px;
-  --column: 760px;
+  --column: 960px;
   /* LayerChart's theme, in the app's colours; on the root since its tooltips are portaled to body */
   --color-primary: var(--accent);
   --color-surface-content: var(--text);
