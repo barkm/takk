@@ -158,11 +158,6 @@ button:disabled {
   animation: none;
 }
 
-/* a pressed button sinks a pixel, so the flat square surfaces still feel pressed (user, 2026-09-26) */
-button:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
 /* The shape of what is coming, grey and breathing, where the wait is long enough to see and what
    arrives has a known shape: the page then does not jump when it does (user, 2026-09-26). */
 .skeleton {
