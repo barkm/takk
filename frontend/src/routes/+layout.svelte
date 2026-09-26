@@ -61,13 +61,13 @@ import { page } from "$app/state";
   .bar {
     display: flex;
     justify-content: center;
-    gap: 8px;
+    gap: 28px;
     padding: 28px 24px 0;
   }
 
   .bar a {
-    padding: 6px 16px;
-    border-radius: 999px;
+    padding: 4px 0;
+    border-bottom: 2px solid transparent;
     color: var(--dim);
     font-weight: 500;
   }
@@ -77,10 +77,11 @@ import { page } from "$app/state";
     text-decoration: none;
   }
 
-  /* the current section as a pill in the accent */
+  /* the current section underlined in the accent (user, 2026-09-26, after a filled pill): the menu
+     stays quiet, and the blue only marks where the learner is */
   .bar a.on {
-    background: var(--accent);
-    color: var(--on-accent);
+    border-bottom-color: var(--accent);
+    color: var(--text);
     font-weight: 600;
   }
 
