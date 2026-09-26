@@ -44,9 +44,13 @@ export function draw(canvas: HTMLCanvasElement, size: { width: number; height: n
   (canvas.width = size.width), (canvas.height = size.height);
   const context = canvas.getContext("2d");
   if (!context) return;
-  context.lineWidth = 3;
+  // The canvas has the stream's own size and is shown scaled down to cover the view, so widths are
+  // set in the pixels of the view: the same weight whichever box the picture sits in.
+  const scale = Math.max(canvas.clientWidth / canvas.width, canvas.clientHeight / canvas.height) || 0.25;
+  (context.lineCap = "round"), (context.lineJoin = "round");
   for (const [group, pairs] of Object.entries(edges)) {
-    context.strokeStyle = COLORS[group] ?? "#a0a6b2";
+    const style = STYLES[group] ?? STYLES.upper_body;
+    (context.strokeStyle = style.color), (context.lineWidth = style.width / scale);
     context.beginPath();
     for (const [a, b] of pairs) {
       if (Number.isNaN(landmarks[3 * a]) || Number.isNaN(landmarks[3 * b])) continue;
@@ -92,9 +96,11 @@ export class Smoother {
 
 export type Edges = Record<string, [number, number][]>;
 
-const COLORS: Record<string, string> = {
-  left_hand: "#60a5fa",
-  right_hand: "#f87171",
-  upper_body: "#a0a6b2",
-  lips: "#f472b6",
+// The hands are what a sign is made with, so they are drawn bright and heavy and the rest recedes
+// (user, 2026-09-26). No red: red means a miss and a recording running. Widths in pixels of the view.
+const STYLES: Record<string, { color: string; width: number }> = {
+  left_hand: { color: "#f2b660", width: 2.5 },
+  right_hand: { color: "#8cc4f0", width: 2.5 },
+  upper_body: { color: "rgba(255, 255, 255, 0.55)", width: 1.75 },
+  lips: { color: "rgba(255, 255, 255, 0.4)", width: 1 },
 };
