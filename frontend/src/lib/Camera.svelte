@@ -85,7 +85,6 @@
     width: 100%;
     aspect-ratio: 4 / 3;
     background: #000;
-    border: 1px solid var(--line);
     border-radius: var(--radius);
     overflow: hidden;
     transform: scaleX(-1); /* a mirror, which is how a signer expects to see themselves */
@@ -107,8 +106,7 @@
 
   /* a recording is marked on the picture itself, since that is where the learner is looking */
   .view.recording {
-    border-color: var(--bad);
-    box-shadow: 0 0 0 1px var(--bad);
+    box-shadow: 0 0 0 2px var(--bad);
   }
 
   /* cropped exactly as the video is: the canvas has the stream's own size, 16/9 from most webcams,
