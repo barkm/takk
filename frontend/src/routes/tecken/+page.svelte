@@ -100,8 +100,8 @@
   </section>
 
   <section class="charts">
-    <figure class="card">
-      <h2>Per repetitionsintervall</h2>
+    <figure class="tile">
+      <figcaption>Per repetitionsintervall</figcaption>
       <div class="plot">
         <BarChart
           data={bars}
@@ -109,7 +109,7 @@
           series={[{ key: "count", label: "tecken", color: "var(--accent)" }]}
           axis="x"
           grid={false}
-          bandPadding={0.6}
+          bandPadding={0.65}
           {padding}
           labels={{ format: (count: number) => (count ? String(count) : "") }}
           props={{ bars: { strokeWidth: 0, radius: 4 }, xAxis: { tickMarks: false } }}
@@ -118,9 +118,9 @@
     </figure>
 
     {#if met.length}
-      <figure class="card">
-        <h2>Tecken över tid</h2>
-        <div class="plot">
+      <figure class="tile">
+        <figcaption>Tecken över tid</figcaption>
+        <div class="plot line">
           <!-- A step, since the count only changes on the days signs are met, with a wash under it and
                the count of today written at its end in place of a count axis (user, 2026-09-26). -->
           <AreaChart
@@ -133,7 +133,7 @@
             points={{ data: met.slice(-1), r: 4 }}
             labels={{ data: met.slice(-1), placement: "outside", offset: 8, format: (count: number) => String(count) }}
             props={{
-              area: { curve: curveStepAfter, fillOpacity: 0.2, line: { strokeWidth: 2 } },
+              area: { curve: curveStepAfter, fillOpacity: 0.25, line: { strokeWidth: 2.5 } },
               xAxis: { format: date, ticks: ends, tickMarks: false },
               tooltip: { header: { format: date } },
             }}
@@ -205,7 +205,7 @@
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 16px;
-    margin-bottom: 32px;
+    margin-bottom: 16px; /* the gap between tiles, so numbers and charts read as one block */
   }
 
   .figure {
@@ -236,9 +236,22 @@
     gap: 16px;
   }
 
-  figure {
+  /* Each chart on a tile like the numbers above it (user, 2026-09-26), its title as small and dim as
+     theirs, so the data is the loud part. The grid shares its gap with the numbers', so the outer
+     edges line up. */
+  .tile {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     margin: 0;
-    gap: 12px;
+    padding: 20px 24px 12px;
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+
+  figcaption {
+    color: var(--dim);
+    font-size: 14px;
   }
 
   /* LayerChart fills its container, so the container sets the height. Its axis text recedes in the
@@ -250,6 +263,22 @@
   .plot :global(.lc-axis-tick-label) {
     font-size: 12px;
     fill: var(--dim);
+  }
+
+  /* the counts over the bars and at the end of the line, which are what the charts are read for */
+  .plot :global(.lc-labels-text) {
+    font-size: 13px;
+    font-weight: 600;
+    fill: var(--text);
+  }
+
+  /* the line's two dates sit under its two ends rather than hanging past them */
+  .line :global(.lc-axis-tick-group:first-child .lc-axis-tick-label) {
+    text-anchor: start;
+  }
+
+  .line :global(.lc-axis-tick-group:last-child:not(:first-child) .lc-axis-tick-label) {
+    text-anchor: end;
   }
 
   /* One heading per step of the schedule, written as the chart's own tick is written. */
