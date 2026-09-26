@@ -3,7 +3,8 @@
   import { useCamera } from "$lib/camera.svelte";
   import { hand, setHand } from "$lib/hand";
   import { boxes, DAYS, KEY, load, remove, save, type Progress } from "$lib/progress";
-  import { BarChart, LineChart } from "layerchart";
+  import { curveStepAfter } from "d3-shape";
+  import { AreaChart, BarChart } from "layerchart";
   import "layerchart/core.css";
 
   // Tecken (step 14 of ROADMAP-takk.md): the learner's own signs. The numbers first, then how the
@@ -64,8 +65,19 @@
     return [...points, { day: new Date(), count: days.length }];
   });
 
-  /** A date as the learner reads it ("3 sep."). */
-  const date = (day: Date) => day.toLocaleDateString("sv-SE", { day: "numeric", month: "short" });
+  // One padding for both charts, so their baselines sit on one line; the room on the right is for
+  // the count written at the end of the line.
+  const padding = { top: 16, right: 20, bottom: 24, left: 4 };
+
+  /** A date as the learner reads it ("3 sep.", or "idag"). */
+  const date = (day: Date) =>
+    day.toDateString() === new Date().toDateString() ? "idag" : day.toLocaleDateString("sv-SE", { day: "numeric", month: "short" });
+
+  // The axis is written at its two ends, or once when both fall on the same day: every sign met today
+  // would otherwise read "idag – idag".
+  const ends = $derived(
+    met.length && date(met[0].day) !== date(met[met.length - 1].day) ? [met[0].day, met[met.length - 1].day] : met.slice(-1).map((point) => point.day),
+  );
 
   // The list is where the vocabulary is pruned: a word is dropped here as it is unpicked in Sök, and
   // what was learned of it goes with it (user, 2026-09-24).
@@ -97,8 +109,10 @@
           series={[{ key: "count", label: "tecken", color: "var(--accent)" }]}
           axis="x"
           grid={false}
+          bandPadding={0.6}
+          {padding}
           labels={{ format: (count: number) => (count ? String(count) : "") }}
-          props={{ bars: { strokeWidth: 0, radius: 4 } }}
+          props={{ bars: { strokeWidth: 0, radius: 4 }, xAxis: { tickMarks: false } }}
         />
       </div>
     </figure>
@@ -107,12 +121,22 @@
       <figure class="card">
         <h2>Tecken över tid</h2>
         <div class="plot">
-          <LineChart
+          <!-- A step, since the count only changes on the days signs are met, with a wash under it and
+               the count of today written at its end in place of a count axis (user, 2026-09-26). -->
+          <AreaChart
             data={met}
             x="day"
             series={[{ key: "count", label: "tecken", color: "var(--accent)" }]}
+            axis="x"
             grid={false}
-            props={{ xAxis: { format: date }, spline: { strokeWidth: 2 }, tooltip: { header: { format: date } } }}
+            {padding}
+            points={{ data: met.slice(-1), r: 4 }}
+            labels={{ data: met.slice(-1), placement: "outside", offset: 8, format: (count: number) => String(count) }}
+            props={{
+              area: { curve: curveStepAfter, fillOpacity: 0.1, line: { strokeWidth: 2 } },
+              xAxis: { format: date, ticks: ends, tickMarks: false },
+              tooltip: { header: { format: date } },
+            }}
           />
         </div>
       </figure>
@@ -207,9 +231,15 @@
     gap: 12px;
   }
 
-  /* LayerChart fills its container, so the container sets the height */
+  /* LayerChart fills its container, so the container sets the height. Its axis text recedes in the
+     page's dim ink, so the marks are what is read. */
   .plot {
     height: 160px;
+  }
+
+  .plot :global(.lc-axis-tick-label) {
+    font-size: 12px;
+    fill: var(--dim);
   }
 
   /* One heading per step of the schedule, written as the chart's own tick is written. */
