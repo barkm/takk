@@ -34,6 +34,7 @@ from isolated_sign_validation.landmarks import N_LANDMARKS, SKELETON_EDGES, Vide
 from isolated_sign_validation.preparation import ONE_HANDED, PrepConfig, hand_presence, hide_low_hands, mirror, prepare_clip
 from takk.speech import MIN_WORD_SCORE, Aligner, decode_audio, split_speech
 from takk.story import write_story
+from takk.suggest import suggest
 from takk.vocabulary import Index, search, spoken_word
 
 # Everything the learner reads is Swedish (see ROADMAP-takk.md): the app is for practising TAKK.
@@ -154,6 +155,13 @@ def create_app(
         them, and `about` is how the learner describes themselves on Om dig."""
         told = write_story(writer, words, parts, about) if writer else None
         return {"parts": [part.model_dump() for part in told or []]}
+
+    @app.post("/api/suggest")
+    def suggested(level: str = Body(embed=True), about: str = Body("", embed=True), known: list[str] = Body([], embed=True)) -> dict:  # fmt: skip
+        """The chips Sök offers under its field (`suggest.py`): a few labelled sets of words fitted to
+        the learner's `level` and `about`, leaving out the words in `known`. Empty when there is no
+        writer or no vocabulary."""
+        return {"chips": suggest(writer, vocabulary, level, about, known) if writer and vocabulary else []}
 
     @app.get("/api/form/{entry_id}")
     def form(entry_id: str) -> dict:

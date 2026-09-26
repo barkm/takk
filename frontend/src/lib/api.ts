@@ -79,6 +79,21 @@ export async function fetchStory(words: string[], parts: number, about = ""): Pr
   return (await response.json()).parts;
 }
 
+/** A chip on Sök: a label and the words it fills the grid with (see `suggest.py`). */
+export type Chip = { label: string; words: SignWord[] };
+
+/** The chips fitted to what the learner said on Om dig, leaving out the words in `known`. Empty when
+ * the server could not suggest any. */
+export async function fetchChips(level: string, about: string, known: string[]): Promise<Chip[]> {
+  const response = await fetch(api("/api/suggest"), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ level, about, known }),
+  });
+  if (!response.ok) return [];
+  return (await response.json()).chips;
+}
+
 /** How the lexicon describes the form of an entry's sign, in Swedish. Empty when it describes none. */
 export async function fetchForm(entryId: string): Promise<string> {
   const response = await fetch(api(`/api/form/${encodeURIComponent(entryId)}`));

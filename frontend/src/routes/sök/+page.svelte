@@ -1,9 +1,12 @@
 <script lang="ts">
+  import { about } from "$lib/about";
   import {
+    fetchChips,
     fetchSearch,
     lexiconUrl,
     searchBySign,
     word,
+    type Chip,
     type SignWord,
   } from "$lib/api";
   import CameraView from "$lib/Camera.svelte";
@@ -37,12 +40,47 @@
     progress = load();
   });
 
+  // The chips under the field (step 23 of ROADMAP-takk.md): a few sets of words the model fitted to
+  // what the learner said on Om dig, each pressed to fill the grid as a search does. They are kept
+  // with what they were made for and asked for again only when that changes, since every ask is a
+  // call to the model.
+  // ponytail: not asked for again as the vocabulary grows; add a refresh when the chips run dry.
+  const CHIPS = "takk.chips";
+  let chips: Chip[] = $state([]);
+  let chip = $state(""); // the label of the chip whose words fill the grid
+  let suggesting = $state(false);
+
+  $effect(() => {
+    const said = about();
+    if (!said) return;
+    const made = JSON.stringify(said);
+    try {
+      const kept = JSON.parse(localStorage.getItem(CHIPS) ?? "null");
+      if (kept?.made === made) return void (chips = kept.chips);
+    } catch {
+      // an unreadable store asks the model again
+    }
+    suggesting = true;
+    fetchChips(said.level, said.context, Object.values(load()).map((each) => each.word))
+      .then((found) => {
+        chips = found;
+        if (found.length) localStorage.setItem(CHIPS, JSON.stringify({ made, chips: found }));
+      })
+      .catch(() => {})
+      .finally(() => (suggesting = false));
+  });
+
+  function press(pressed: Chip) {
+    clearTimeout(timer);
+    (chip = pressed.label), (results = pressed.words), (query = ""), (note = "");
+  }
+
   const clips = $derived(new Map(lexicon?.signs.map((each) => [each.sign, each.references]) ?? []));
   const label = (each: SignWord) => each.word ?? word(each.sign);
 
   function search(text: string) {
     clearTimeout(timer);
-    query = text;
+    (query = text), (chip = "");
     timer = setTimeout(async () => {
       finding = true;
       results = text.trim() ? await fetchSearch(text).finally(() => (finding = false)) : [];
@@ -91,7 +129,7 @@
     searching = true;
     try {
       const found = await searchBySign(taken.frames, hand() ?? "right", camera.video!, lexicon!.fps);
-      (results = found.words), (note = found.note), (query = "");
+      (results = found.words), (note = found.note), (query = ""), (chip = "");
     } catch {
       note = "Sökningen misslyckades. Teckna igen.";
     } finally {
@@ -125,7 +163,17 @@
   oninput={(event) => search(event.currentTarget.value)}
 />
 <!-- its space is held whether or not anything is being looked up, so nothing moves when it runs -->
-<div class="wait">{#if searching || finding}<Loading label="Söker" />{/if}</div>
+<div class="wait">{#if searching || finding || suggesting}<Loading label="Söker" />{/if}</div>
+
+{#if chips.length}
+  <div class="chips">
+    {#each chips as each (each.label)}
+      <button class:secondary={chip !== each.label} aria-pressed={chip === each.label} onclick={() => press(each)}>
+        {each.label}
+      </button>
+    {/each}
+  </div>
+{/if}
 
 {#if note}
   <p class="dim note">{note}</p>
@@ -195,6 +243,20 @@
 
   .note {
     margin-top: 16px;
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    max-width: 440px;
+    margin: 14px auto 0;
+  }
+
+  .chips button {
+    padding: 8px 14px;
+    font-size: 14px;
   }
 
   .found {

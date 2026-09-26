@@ -176,9 +176,11 @@ Steps 1 to 7 are built and in use. Steps 8 to 14 are the blueprint above and are
 
     **Om dig** (`frontend/src/routes/om-dig/+page.svelte`, `frontend/src/lib/about.ts`) is a fourth section and the page the app opens on the first time: the root layout shows no other page until it has been answered, so no camera opens under the question. Three questions — *Vilken hand tecknar du med?* (Höger / Vänster), *Har du tecknat förut?* (Nej / Lite / Ja, kept as `ny`, `lite`, `van`) and *Vem tecknar du med, och var?*, free text that may be left empty. The hand moved here from the gate in Träna's layout and the switch on Tecken, both removed; Nollställ stays on Tecken. A form rather than a chat was chosen (2026-09-26): three facts are one screen, a chat leaves a transcript rather than fields, and changing an answer later needs the form anyway. A follow-up question from the model when the text is vague was considered and left out (user, 2026-09-26). Spara is pressable only when an answer differs from what is saved, so a greyed button says the answers are saved (user, 2026-09-26).
 
+    **Chips on Sök** (`takk/suggest.py`, `POST /api/suggest`): the model answers the level, the text and the words already chosen with six chips, each a Swedish label and about ten words, and pressing one fills the grid as a search does. A chip carries its own words rather than being a query for `vocabulary.search`, because search matches only the start of a category name or a substring of a word, so a label the model writes ("Påklädning") would find nothing or compounds. Each word is looked up exactly among the words the lexicon has a sign for, most counted first; a word without a sign and a chip left empty are dropped, so there is nothing to validate and no second ask. A learner who has never signed gets "Första orden" first; with no text the same prompt gives general chips, one rule for both. The chips are kept in the browser with the answers they were made from and asked for again only when those change, so they do not follow the vocabulary as it grows.
+
     **The story** gets the text too: it is appended to the ask ("Om mig: …"), and the system prompt sets the story in that everyday life, falling back to a story for a small child when the text is empty.
 
-    — Om dig and the story are done, checked with `uv run pytest`, `npm run check` and in the browser with Playwright; the chips on Sök are next.
+    — done, checked with `uv run pytest` (`tests/takk/test_suggest.py`), `npm run check` and `npm test`. Not run against the model yet (no API key in the shell it was built in); offline, 41 of 43 typical beginner and preschool words resolve to a sign ("skor" as a plural, "hejdå" as spelled). Om dig, the first-visit gate and the chips' layout were checked in the browser with Playwright, the chips from a cache filled by hand.
 
 ## Decisions
 
@@ -190,6 +192,7 @@ Steps 1 to 7 are built and in use. Steps 8 to 14 are the blueprint above and are
 
 - **The learner chooses the vocabulary by searching the lexicon** (user, 2026-09-21). Ready-made lists — the starter packs and the lexicon's categories as a picker — are dropped in favour of search, by word or by theme or by signing. The categories remain underneath as what a theme search matches, which is what they were always good for: they are subject areas rather than a learning order (see findings), so they made a poor picker and make a reasonable search index.
 
+    **Generated chips are allowed beside the search** (user, 2026-09-26), which softens the above: a fixed list is still not offered, but a few sets of words the model fits to the learner (step 23) are, since search alone gives a complete beginner nowhere to start.
 
 - **The app is in Swedish, and keeps the learner's state in the browser until something needs more** (user, 2026-09-20). No accounts and no database for as long as this holds. The LLM steps are also the point of the exercise and not only a means, as the user wants the app to be an occasion to use LLM APIs.
 
