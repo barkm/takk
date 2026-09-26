@@ -218,6 +218,16 @@
     transition: color 0.25s ease; /* the verdict colours the word in rather than switching it */
   }
 
+  /* On a phone the camera stands above the text, so the first line starts at the top of the box
+     rather than in its middle (user, 2026-09-26): the padding that let it reach the middle was a
+     blank third of the screen. The lines scroll up to the middle once there are enough of them. */
+  @media (max-width: 860px) {
+    .story {
+      padding-top: 12px;
+      mask-image: linear-gradient(to bottom, transparent, #000 12px, #000 82%, transparent);
+    }
+  }
+
   @keyframes appear {
     from {
       opacity: 0;
