@@ -13,9 +13,9 @@ import { page } from "$app/state";
   // desktop window (user, 2026-09-26), the same three items as a bar along the bottom on a phone.
   // There is no menu page and no way back, since every page is reachable from every other one.
   const sections = [
-    { href: "/sök", label: "Sök", at: "/sök" },
-    { href: "/träna/ord", label: "Träna", at: "/träna" },
-    { href: "/tecken", label: "Tecken", at: "/tecken" },
+    { href: "/sök", label: "Sök", at: "/sök", name: "sök" },
+    { href: "/träna/ord", label: "Träna", at: "/träna", name: "träna" },
+    { href: "/tecken", label: "Tecken", at: "/tecken", name: "tecken" },
   ];
 
   // The camera itself is mounted by the pages that use it (user, 2026-09-23), so Sök's results and
@@ -36,12 +36,13 @@ import { page } from "$app/state";
 
   // The path carries the sections' Swedish names percent-encoded, which no link here is written in.
   const path = $derived(decodeURIComponent(page.url.pathname).slice(base.length));
+  const current = $derived(sections.find((section) => path.startsWith(section.at))?.name);
 </script>
 
-<div class="app">
+<div class="app" data-section={current}>
   <nav class="bar">
     {#each sections as section (section.href)}
-      <a href="{base}{section.href}" class:on={path.startsWith(section.at)}>{section.label}</a>
+      <a href="{base}{section.href}" data-section={section.name} class:on={current === section.name}>{section.label}</a>
     {/each}
   </nav>
   <main>{@render children()}</main>

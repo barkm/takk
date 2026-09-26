@@ -9,7 +9,7 @@
   --text: #2a2a2e;
   --dim: #6d6d70;
   --line: #e0ded8;
-  --accent: #557a68;
+  --accent: #4b5d99;
   --ok: #2f8a4a;
   --bad: #c2413b;
   --radius: 10px;
@@ -19,6 +19,21 @@
   --color-surface-content: var(--text);
   --color-surface-100: var(--bg);
   --color-surface-300: var(--line);
+}
+
+/* Each section has a colour of its own (user, 2026-09-26), which is the accent inside it and the
+   underline of its link in the menu. All three are muted to about one lightness; Sök's blue is the clips'
+   own hue, and Tecken's sage may sit near the verdicts' green since no verdict is shown there. */
+[data-section="sök"] {
+  --accent: #4b5d99;
+}
+
+[data-section="träna"] {
+  --accent: #a0691c;
+}
+
+[data-section="tecken"] {
+  --accent: #557a68;
 }
 
 * {
