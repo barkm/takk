@@ -38,17 +38,12 @@ import { page } from "$app/state";
   const path = $derived(decodeURIComponent(page.url.pathname).slice(base.length));
   const current = $derived(sections.find((section) => path.startsWith(section.at))?.name);
 
-  // The section's colour is set on the document itself rather than on the app, since the charts'
-  // tooltips are portaled to the body and would otherwise take the root accent.
-  $effect(() => {
-    if (current) document.documentElement.dataset.section = current;
-  });
 </script>
 
 <div class="app">
   <nav class="bar">
     {#each sections as section (section.href)}
-      <a href="{base}{section.href}" data-section={section.name} class:on={current === section.name}>{section.label}</a>
+      <a href="{base}{section.href}" class:on={current === section.name}>{section.label}</a>
     {/each}
   </nav>
   <main>{@render children()}</main>
@@ -66,13 +61,13 @@ import { page } from "$app/state";
   .bar {
     display: flex;
     justify-content: center;
-    gap: 28px;
+    gap: 8px;
     padding: 28px 24px 0;
   }
 
   .bar a {
-    padding: 4px 0;
-    border-bottom: 2px solid transparent;
+    padding: 6px 16px;
+    border-radius: 999px;
     color: var(--dim);
     font-weight: 500;
   }
@@ -82,9 +77,11 @@ import { page } from "$app/state";
     text-decoration: none;
   }
 
+  /* the current section as a pill in the accent */
   .bar a.on {
-    color: var(--text);
-    border-bottom-color: var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 600;
   }
 
   main {

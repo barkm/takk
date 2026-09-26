@@ -133,7 +133,7 @@
             points={{ data: met.slice(-1), r: 4 }}
             labels={{ data: met.slice(-1), placement: "outside", offset: 8, format: (count: number) => String(count) }}
             props={{
-              area: { curve: curveStepAfter, fillOpacity: 0.1, line: { strokeWidth: 2 } },
+              area: { curve: curveStepAfter, fillOpacity: 0.2, line: { strokeWidth: 2 } },
               xAxis: { format: date, ticks: ends, tickMarks: false },
               tooltip: { header: { format: date } },
             }}
@@ -327,7 +327,7 @@
     padding: 2px 8px;
     border-radius: 8px;
     background: var(--accent);
-    color: #fff;
+    color: var(--on-accent);
     font-size: 13px;
     font-weight: 600;
   }

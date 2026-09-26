@@ -99,8 +99,8 @@ export type Edges = Record<string, [number, number][]>;
 // The hands are what a sign is made with, so they are drawn bright and heavy and the rest recedes
 // (user, 2026-09-26). No red: red means a miss and a recording running. Widths in pixels of the view.
 const STYLES: Record<string, { color: string; width: number }> = {
-  left_hand: { color: "#f2b660", width: 2.5 },
-  right_hand: { color: "#8cc4f0", width: 2.5 },
+  left_hand: { color: "#ffb000", width: 2.5 },
+  right_hand: { color: "#4dabf7", width: 2.5 },
   upper_body: { color: "rgba(255, 255, 255, 0.55)", width: 1.75 },
   lips: { color: "rgba(255, 255, 255, 0.4)", width: 1 },
 };

@@ -1,17 +1,19 @@
-/* The app is light and calm (user, 2026-09-26, replacing the dark theme of 2026-09-23): a warm
-   off-white, soft text and a sage accent. One accent carries every interactive surface; green and
-   red are kept for verdicts alone. */
+/* The app is light, with colours that pop (user, 2026-09-26, after a calm palette and a colour per
+   section the same day, and the dark theme of 2026-09-23): a white page and one vivid blue, the
+   clips' own hue, on every interactive surface and every mark. Green and red are kept for verdicts
+   alone. */
 :root {
   color-scheme: light;
-  --bg: #faf9f7;
-  --surface: #f1f0ec;
-  --raised: #e6e4de;
-  --text: #2a2a2e;
-  --dim: #6d6d70;
-  --line: #e0ded8;
-  --accent: #4b5d99;
-  --ok: #2f8a4a;
-  --bad: #c2413b;
+  --bg: #ffffff;
+  --surface: #f3f4f6;
+  --raised: #e5e7eb;
+  --text: #1b1b1f;
+  --dim: #686a72;
+  --line: #e2e4e8;
+  --accent: #2b59ff;
+  --on-accent: #ffffff; /* text set on the accent */
+  --ok: #16a34a;
+  --bad: #dc2626;
   --radius: 10px;
   --column: 960px;
   /* LayerChart's theme, in the app's colours; on the root since its tooltips are portaled to body */
@@ -19,21 +21,6 @@
   --color-surface-content: var(--text);
   --color-surface-100: var(--bg);
   --color-surface-300: var(--line);
-}
-
-/* Each section has a colour of its own (user, 2026-09-26), which is the accent inside it and the
-   underline of its link in the menu. All three are muted to about one lightness; Sök's blue is the clips'
-   own hue, and Tecken's sage may sit near the verdicts' green since no verdict is shown there. */
-[data-section="sök"] {
-  --accent: #4b5d99;
-}
-
-[data-section="träna"] {
-  --accent: #a0691c;
-}
-
-[data-section="tecken"] {
-  --accent: #557a68;
 }
 
 * {
@@ -137,7 +124,7 @@ button {
   border-radius: var(--radius);
   border: 1px solid transparent;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font: inherit;
   font-weight: 600;
   cursor: pointer;

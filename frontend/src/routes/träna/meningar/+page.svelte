@@ -181,19 +181,12 @@
     opacity: 1;
   }
 
-  /* A word to sign is marked by a highlight rather than by its colour (user, 2026-09-26): the sage
-     accent as text was too faint to say "sign this" and too close to the green of a word signed
-     right. The verdict then takes the highlight away and colours the word itself. */
+  /* A word to sign is set in the accent (user, 2026-09-26): the vivid blue reads as text and is far
+     from the verdicts' green and red. A highlight behind the word was tried while the accent was a
+     faint sage, and dropped with it. */
   .key {
-    padding: 0 4px;
-    border-radius: 4px;
-    background: color-mix(in srgb, var(--accent) 20%, transparent);
+    color: var(--accent);
     font-weight: 600;
-  }
-
-  .key.ok,
-  .key.bad {
-    background: none;
   }
 
   .key.ok {
