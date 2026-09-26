@@ -37,9 +37,15 @@ import { page } from "$app/state";
   // The path carries the sections' Swedish names percent-encoded, which no link here is written in.
   const path = $derived(decodeURIComponent(page.url.pathname).slice(base.length));
   const current = $derived(sections.find((section) => path.startsWith(section.at))?.name);
+
+  // The section's colour is set on the document itself rather than on the app, since the charts'
+  // tooltips are portaled to the body and would otherwise take the root accent.
+  $effect(() => {
+    if (current) document.documentElement.dataset.section = current;
+  });
 </script>
 
-<div class="app" data-section={current}>
+<div class="app">
   <nav class="bar">
     {#each sections as section (section.href)}
       <a href="{base}{section.href}" data-section={section.name} class:on={current === section.name}>{section.label}</a>
