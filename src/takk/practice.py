@@ -12,7 +12,9 @@ the whole glossary with the highest score is reported too, so a wrong attempt sh
 An attempt can also be a sentence of several signs, as TAKK signs the key words of a spoken
 sentence. Every attempt is spoken, one sign or many: the signer says a whole Swedish sentence, its
 key words are timed in the audio, and each part of the recording is scored as an attempt of the sign
-at its place. The microphone is therefore always needed. Splitting at the rests between the signs
+at its place. The microphone is therefore needed, unless the learner signs in silence: the page then
+splits the recording itself, at the hands lowered between the signs, and sends where each one is.
+Splitting at the rests between the signs
 instead was removed (see ROADMAP-takk.md step 3): it could not tell a sign the signer skipped from a
 sign it had failed to find, so it voided the whole sentence and with it the verdicts on the signs
 that were right, while the speech split scores a skipped sign as a miss.
@@ -207,7 +209,7 @@ def create_app(
         return {"words": words, "note": note}
 
     @app.post("/api/attempt")
-    async def attempt(landmarks: UploadFile, sign: list[str] = Form(), handedness: str = Form(), width: int = Form(), height: int = Form(), spoken: list[str] = Form([]), audio: UploadFile | None = None, audio_offset: float = Form(0.0), unheard_is_miss: bool = Form(False)) -> dict:  # fmt: skip
+    async def attempt(landmarks: UploadFile, sign: list[str] = Form(), handedness: str = Form(), width: int = Form(), height: int = Form(), spoken: list[str] = Form([]), audio: UploadFile | None = None, audio_offset: float = Form(0.0), unheard_is_miss: bool = Form(False), cuts: list[float] = Form([])) -> dict:  # fmt: skip
         """Score an attempt of one sign or a sentence of several (`sign` repeated, in order): its
         landmarks as float32 (n_frames, N_LANDMARKS, 3), NaN where not detected, at the preparation's
         frame rate, from frames of `width` x `height` pixels.
@@ -224,7 +226,10 @@ def create_app(
         A word that was not heard refuses the whole attempt, since its span is then arbitrary and the
         signs around it are cut by it. `unheard_is_miss` scores it as a miss of that sign instead and
         keeps the rest of the verdicts, which is what a story needs: it never stops, and a word left
-        unsaid is a word left unsigned (step 12 of ROADMAP-takk.md)."""
+        unsaid is a word left unsigned (step 12 of ROADMAP-takk.md).
+
+        A learner who signs in silence sends `cuts` instead of `audio`: a start and an end per sign,
+        in seconds from the first frame, where the page saw the hands raised and lowered again."""
         if any(s not in index for s in sign):
             raise HTTPException(404, "unknown sign")
         values = np.frombuffer(await landmarks.read(), dtype=np.float32)
@@ -233,6 +238,11 @@ def create_app(
         values = values.reshape(-1, N_LANDMARKS, 3)
         if spoken and len(spoken) != len(sign):
             raise HTTPException(400, "a spoken word per sign, or none at all")
+        if cuts:
+            if len(cuts) != 2 * len(sign):
+                raise HTTPException(400, "a start and an end per sign")
+            edges = np.clip(np.round(np.array(cuts) * config.fps), 0, len(values)).astype(int)
+            return {"threshold": threshold, "note": "", "signs": [judge(values[a:b], s, handedness, width, height) for a, b, s in zip(edges[::2], edges[1::2], sign)]}  # fmt: skip
         if audio is None:
             return {"threshold": threshold, "note": NOTES["no_audio"], "signs": []}
         words = list(spoken) or [spoken_word(s) for s in sign]

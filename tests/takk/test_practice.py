@@ -73,7 +73,7 @@ def test_attempt_scores_against_the_chosen_sign():
     def send(landmarks: np.ndarray, *signs: str) -> dict:
         upload = UploadFile(io.BytesIO(landmarks.astype(np.float32).tobytes()))
         audio = UploadFile(io.BytesIO(wav(np.zeros(2 * SAMPLE_RATE, dtype=np.float32))))
-        return asyncio.run(attempt(upload, sign=list(signs), spoken=[], handedness="right", width=640, height=480, audio=audio, audio_offset=0.0))  # fmt: skip
+        return asyncio.run(attempt(upload, sign=list(signs), spoken=[], handedness="right", width=640, height=480, cuts=[], audio=audio, audio_offset=0.0))  # fmt: skip
 
     landmarks = attempt_landmarks(("right_hand",))
     closest = {"sign": "A", "score": pytest.approx(1.0)}
@@ -98,12 +98,12 @@ def test_attempt_listens_for_the_word_the_learner_practises_not_the_sign_name():
     upload = lambda: UploadFile(io.BytesIO(attempt_landmarks(("right_hand",)).astype(np.float32).tobytes()))  # noqa: E731
     audio = lambda: UploadFile(io.BytesIO(wav(np.zeros(2 * SAMPLE_RATE, dtype=np.float32))))  # noqa: E731
 
-    asyncio.run(attempt(upload(), sign=["sts:öga-2636"], spoken=["blå"], handedness="right", width=640, height=480, audio=audio(), audio_offset=0.0))  # fmt: skip
-    asyncio.run(attempt(upload(), sign=["sts:öga-2636"], spoken=[], handedness="right", width=640, height=480, audio=audio(), audio_offset=0.0))  # fmt: skip
+    asyncio.run(attempt(upload(), sign=["sts:öga-2636"], spoken=["blå"], handedness="right", width=640, height=480, cuts=[], audio=audio(), audio_offset=0.0))  # fmt: skip
+    asyncio.run(attempt(upload(), sign=["sts:öga-2636"], spoken=[], handedness="right", width=640, height=480, cuts=[], audio=audio(), audio_offset=0.0))  # fmt: skip
     assert heard == [["blå"], ["öga"]]  # without a spoken word the sign is listened for under its own name
 
     with pytest.raises(HTTPException):  # a word per sign or none at all, never some of them
-        asyncio.run(attempt(upload(), sign=["sts:öga-2636", "sts:öga-2636"], spoken=["blå"], handedness="right", width=640, height=480, audio=audio()))  # fmt: skip
+        asyncio.run(attempt(upload(), sign=["sts:öga-2636", "sts:öga-2636"], spoken=["blå"], handedness="right", width=640, height=480, cuts=[], audio=audio()))  # fmt: skip
 
 
 def test_spoken_word_is_the_sign_name_without_its_entry():
@@ -121,7 +121,7 @@ def test_attempt_splits_a_spoken_sentence_by_its_words():
     landmarks = np.concatenate([attempt_landmarks(("right_hand",))] * 2)  # 4 s, a sign in each half
     upload = UploadFile(io.BytesIO(landmarks.astype(np.float32).tobytes()))
     audio = UploadFile(io.BytesIO(wav(np.zeros(4 * SAMPLE_RATE, dtype=np.float32))))
-    result = asyncio.run(attempt(upload, sign=["A", "B"], spoken=[], handedness="right", width=640, height=480, audio=audio, audio_offset=0.1))  # fmt: skip
+    result = asyncio.run(attempt(upload, sign=["A", "B"], spoken=[], handedness="right", width=640, height=480, cuts=[], audio=audio, audio_offset=0.1))  # fmt: skip
     assert [s["sign"] for s in result["signs"]] == ["A", "B"] and [s["correct"] for s in result["signs"]] == [True, False]
 
 
@@ -135,7 +135,7 @@ def test_attempt_refuses_a_sentence_whose_words_were_not_spoken():
     landmarks = np.concatenate([attempt_landmarks(("right_hand",))] * 2)
     upload = UploadFile(io.BytesIO(landmarks.astype(np.float32).tobytes()))
     audio = UploadFile(io.BytesIO(wav(np.zeros(4 * SAMPLE_RATE, dtype=np.float32))))
-    result = asyncio.run(attempt(upload, sign=["A", "B"], spoken=[], handedness="right", width=640, height=480, audio=audio, audio_offset=0.0, unheard_is_miss=False))  # fmt: skip
+    result = asyncio.run(attempt(upload, sign=["A", "B"], spoken=[], handedness="right", width=640, height=480, cuts=[], audio=audio, audio_offset=0.0, unheard_is_miss=False))  # fmt: skip
     assert result["signs"] == [] and result["note"] == NOTES["not_heard"].format(words="A och B")
 
 
@@ -149,7 +149,7 @@ def test_attempt_scores_an_unheard_word_as_a_miss_when_the_caller_asks_for_it():
     landmarks = np.concatenate([attempt_landmarks(("right_hand",))] * 2)
     upload = UploadFile(io.BytesIO(landmarks.astype(np.float32).tobytes()))
     audio = UploadFile(io.BytesIO(wav(np.zeros(4 * SAMPLE_RATE, dtype=np.float32))))
-    result = asyncio.run(attempt(upload, sign=["A", "B"], spoken=[], handedness="right", width=640, height=480, audio=audio, audio_offset=0.0, unheard_is_miss=True))  # fmt: skip
+    result = asyncio.run(attempt(upload, sign=["A", "B"], spoken=[], handedness="right", width=640, height=480, cuts=[], audio=audio, audio_offset=0.0, unheard_is_miss=True))  # fmt: skip
     assert result["note"] == "" and len(result["signs"]) == 2
     assert result["signs"][1]["correct"] is False and result["signs"][1]["note"] == NOTES["not_heard"].format(words="B")
 
@@ -163,11 +163,25 @@ def test_attempt_needs_the_microphone_however_few_signs_it_has():
     landmarks = np.concatenate([attempt_landmarks(("right_hand",))] * 2)
     upload = lambda: UploadFile(io.BytesIO(landmarks.astype(np.float32).tobytes()))  # noqa: E731
 
-    sentence = asyncio.run(attempt(upload(), sign=["A", "A"], spoken=[], handedness="right", width=640, height=480))
+    sentence = asyncio.run(attempt(upload(), sign=["A", "A"], spoken=[], handedness="right", width=640, height=480, cuts=[]))
     assert sentence["signs"] == [] and sentence["note"] == NOTES["no_audio"]
 
-    alone = asyncio.run(attempt(upload(), sign=["A"], spoken=[], handedness="right", width=640, height=480))
+    alone = asyncio.run(attempt(upload(), sign=["A"], spoken=[], handedness="right", width=640, height=480, cuts=[]))
     assert alone["signs"] == [] and alone["note"] == NOTES["no_audio"]
+
+
+def test_attempt_signed_in_silence_is_split_where_the_page_cut_it():
+    """A learner who signs without speaking lowers the hands between the signs, and the page sends
+    where each sign starts and ends instead of the audio."""
+    app = create_app({"A": ["a1"], "B": ["b1"]}, np.array([[0.6, 0.8], [1.0, 0.0]]), Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [])  # fmt: skip
+    attempt = next(route for route in app.routes if getattr(route, "path", "") == "/api/attempt").endpoint
+    landmarks = np.concatenate([attempt_landmarks(("right_hand",))] * 2)  # a sign in each half, hands up 0.5-1.5 s and 2.5-3.5 s
+    upload = lambda: UploadFile(io.BytesIO(landmarks.astype(np.float32).tobytes()))  # noqa: E731
+
+    result = asyncio.run(attempt(upload(), sign=["A", "B"], spoken=[], handedness="right", width=640, height=480, cuts=[0.25, 1.75, 2.25, 3.75]))  # fmt: skip
+    assert result["note"] == "" and [s["correct"] for s in result["signs"]] == [True, False]
+    with pytest.raises(HTTPException):
+        asyncio.run(attempt(upload(), sign=["A", "B"], spoken=[], handedness="right", width=640, height=480, cuts=[0.25, 1.75]))  # fmt: skip
 
 
 def test_search_answers_from_the_vocabulary_it_was_given():
