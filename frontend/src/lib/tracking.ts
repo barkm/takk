@@ -3,7 +3,7 @@
 // extraction.py. Only the landmarks of a recording are sent to the server, never the video.
 import { FilesetResolver, HolisticLandmarker } from "@mediapipe/tasks-vision";
 
-import { draw, layout, type Edges, type Frame } from "$lib/landmarks";
+import { Smoother, draw, layout, type Edges, type Frame } from "$lib/landmarks";
 
 const WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm";
 // The landmarker is loaded from MediaPipe's own address, as the wasm beside it is, so neither the
@@ -33,6 +33,7 @@ export class Tracker {
   private context: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
   private samples = new Float32Array(0);
+  private smoother = new Smoother();
 
   private constructor(
     private video: HTMLVideoElement,
@@ -107,7 +108,8 @@ export class Tracker {
       last = Math.max(last + 1, Math.round(time)); // VIDEO mode needs increasing timestamps
       const landmarks = layout(this.landmarker.detectForVideo(this.video, last));
       this.latest = landmarks;
-      draw(this.canvas, { width: this.video.videoWidth, height: this.video.videoHeight }, landmarks, this.edges);
+      const size = { width: this.video.videoWidth, height: this.video.videoHeight };
+      draw(this.canvas, size, this.smoother.smooth(landmarks, last / 1000), this.edges);
       if (this.recorded) this.recorded.push({ time: time / 1000, landmarks });
       this.video.requestVideoFrameCallback(next);
     };

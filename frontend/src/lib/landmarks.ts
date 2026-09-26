@@ -57,6 +57,39 @@ export function draw(canvas: HTMLCanvasElement, size: { width: number; height: n
   }
 }
 
+/** A One Euro filter on every coordinate, for the drawn landmarks only: it smooths hard while a point
+ * is still, which takes out the tracker's jitter, and less the faster it moves, so a sign does not
+ * trail behind. What is recorded and scored stays raw, as extraction.py leaves it. A point that is
+ * lost starts afresh where it is found again. Coordinates are fractions of the picture per second. */
+export class Smoother {
+  private value = new Float32Array(N_LANDMARKS * 3).fill(NaN);
+  private speed = new Float32Array(N_LANDMARKS * 3);
+  private time = -Infinity;
+
+  constructor(
+    private minCutoff = 1, // Hz: how still a still point is held
+    private beta = 10, // how fast the cutoff rises with speed, i.e. how little a moving point lags
+  ) {}
+
+  /** A smoothed copy of one frame's landmarks, tracked at `time` seconds. */
+  smooth(landmarks: Float32Array, time: number): Float32Array {
+    const dt = time - this.time;
+    this.time = time;
+    const alpha = (cutoff: number) => 1 / (1 + 1 / (2 * Math.PI * cutoff * dt));
+    const alphaSpeed = alpha(1); // the speed itself is smoothed at a fixed 1 Hz
+    for (let i = 0; i < landmarks.length; i++) {
+      const x = landmarks[i];
+      if (Number.isNaN(x) || Number.isNaN(this.value[i]) || !(dt > 0)) {
+        (this.value[i] = x), (this.speed[i] = 0);
+        continue;
+      }
+      this.speed[i] += alphaSpeed * ((x - this.value[i]) / dt - this.speed[i]);
+      this.value[i] += alpha(this.minCutoff + this.beta * Math.abs(this.speed[i])) * (x - this.value[i]);
+    }
+    return this.value.slice();
+  }
+}
+
 export type Edges = Record<string, [number, number][]>;
 
 const COLORS: Record<string, string> = {
