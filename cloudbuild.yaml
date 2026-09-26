@@ -41,8 +41,8 @@ steps:
 
   # Every build starts on a fresh machine with no Docker cache, so the previous image is the cache:
   # without it each push reinstalls torch and downloads the speech model again. The first build has
-  # no :latest to pull, hence the || true. BUILDKIT_INLINE_CACHE writes the few kB of cache metadata
-  # BuildKit needs into the pushed image; the classic builder ignores it and uses the pulled layers.
+  # no :latest to pull, hence the || true. The builder is Docker's classic one, which takes its cache
+  # from the pulled layers themselves and needs no cache metadata in the image.
   - id: cache
     name: gcr.io/cloud-builders/docker
     entrypoint: bash
@@ -53,7 +53,6 @@ steps:
     args:
       - build
       - --cache-from=$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE:latest
-      - --build-arg=BUILDKIT_INLINE_CACHE=1
       - --build-arg=BUNDLE=bundle
       - --tag=$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE:$SHORT_SHA
       - --tag=$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE:latest
