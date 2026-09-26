@@ -17,7 +17,6 @@
 
   let video = $state<HTMLVideoElement>();
   let canvas = $state<HTMLCanvasElement>();
-  let starting: Promise<unknown> | null = null;
   // Whether a camera frame has been tracked yet: the tracker is ready before the first frame arrives,
   // and the picture stays black until it does (user, 2026-09-26).
   let live = $state(false);
@@ -25,12 +24,16 @@
   $effect(() => {
     if (!video || !canvas) return;
     camera.video = video;
-    starting ??= Tracker.start(video, canvas)
-      .then((started) => (camera.tracker = started))
-      .catch((error) => (camera.fit = `Ingen åtkomst till kameran: ${error.message}`));
+    // A page left while its camera starts closes the camera once it has started, or its stream
+    // would stay open beside the next page's.
+    let left = false;
+    Tracker.start(video, canvas)
+      .then((started) => (left ? started.stop() : (camera.tracker = started)))
+      .catch((error) => left || (camera.fit = `Ingen åtkomst till kameran: ${error.message}`));
     return () => {
+      left = true;
       camera.tracker?.stop();
-      (camera.tracker = null), (starting = null), (live = false);
+      (camera.tracker = null), (live = false);
     };
   });
 

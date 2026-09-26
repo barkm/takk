@@ -1,15 +1,24 @@
 // Landmarks are extracted here, live, while the camera runs: MediaPipe's HolisticLandmarker in VIDEO
 // mode on the GPU (the CPU if the GPU is unavailable), with the same version and model as
-// extraction.py. Only the landmarks of a recording are sent to the server, never the video.
-import { FilesetResolver, HolisticLandmarker } from "@mediapipe/tasks-vision";
+// extraction.py, in a worker of its own (`landmarker.worker.ts`). Only the landmarks of a recording
+// are sent to the server, never the video.
+import { Smoother, draw, type Edges, type Frame } from "$lib/landmarks";
 
-import { Smoother, draw, layout, type Edges, type Frame } from "$lib/landmarks";
+/** The landmarker, loaded once for the whole visit and shared by the pages' cameras, so moving
+ * between pages neither loads it again nor has two loading at once. */
+let loaded: Promise<Worker> | null = null;
+let last = -1; // the timestamp of the frame sent last, which VIDEO mode needs to increase across pages
 
-const WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm";
-// The landmarker is loaded from MediaPipe's own address, as the wasm beside it is, so neither the
-// API nor this site carries the 13.7 MB (see ROADMAP-takk.md). It is the model extraction.py
-// downloads, by the same URL.
-const MODEL = "https://storage.googleapis.com/mediapipe-models/holistic_landmarker/holistic_landmarker/float16/latest/holistic_landmarker.task";
+function load(): Promise<Worker> {
+  const landmarker = new Worker(new URL("./landmarker.worker.ts", import.meta.url), { type: "module" });
+  return new Promise((resolve, reject) => {
+    landmarker.onmessage = ({ data }) => (data.ready ? resolve(landmarker) : reject(new Error(data.error)));
+    landmarker.onerror = (event) => reject(new Error(event.message));
+  }).catch((error) => {
+    (loaded = null), landmarker.terminate(); // the next camera tries again
+    throw error;
+  }) as Promise<Worker>;
+}
 
 export type Recording = { frames: Frame[]; audio: Blob | null; audioStart: number };
 
@@ -34,11 +43,12 @@ export class Tracker {
   private analyser: AnalyserNode | null = null;
   private samples = new Float32Array(0);
   private smoother = new Smoother();
+  private listener = (_: MessageEvent) => {};
 
   private constructor(
     private video: HTMLVideoElement,
     private canvas: HTMLCanvasElement,
-    private landmarker: HolisticLandmarker,
+    private landmarker: Worker,
     hasAudio: boolean,
   ) {
     this.hasAudio = hasAudio;
@@ -53,16 +63,12 @@ export class Tracker {
       .getUserMedia({ video: constraints, audio: true })
       .catch(() => navigator.mediaDevices.getUserMedia({ video: constraints }));
     video.srcObject = stream;
-    const files = await FilesetResolver.forVisionTasks(WASM);
-    const create = (delegate: "GPU" | "CPU") =>
-      HolisticLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: MODEL, delegate }, runningMode: "VIDEO" });
-    let delegate: "GPU" | "CPU" = "GPU";
-    let landmarker: HolisticLandmarker;
+    let landmarker: Worker;
     try {
-      landmarker = await create(delegate);
-    } catch {
-      delegate = "CPU";
-      landmarker = await create(delegate);
+      landmarker = await (loaded ??= load());
+    } catch (error) {
+      stream.getTracks().forEach((track) => track.stop());
+      throw error;
     }
     const tracker = new Tracker(video, canvas, landmarker, stream.getAudioTracks().length > 0);
     tracker.listen(stream);
@@ -101,17 +107,27 @@ export class Tracker {
   /** Run the landmarker on every camera frame it can keep up with; frames that arrive while it is
    * busy are skipped. While recording, each result is kept with its frame's capture time. */
   private track(): void {
-    let last = -1;
-    const next = (now: number, metadata: VideoFrameCallbackMetadata) => {
+    let busy = false;
+    let time = 0; // the capture time of the frame the landmarker is working on
+    this.listener = ({ data: { landmarks } }: MessageEvent<{ landmarks: Float32Array }>) => {
+      busy = false;
       if (this.done) return;
-      const time = metadata.captureTime ?? now;
-      last = Math.max(last + 1, Math.round(time)); // VIDEO mode needs increasing timestamps
-      const landmarks = layout(this.landmarker.detectForVideo(this.video, last));
       this.latest = landmarks;
       const size = { width: this.video.videoWidth, height: this.video.videoHeight };
       draw(this.canvas, size, this.smoother.smooth(landmarks, last / 1000), this.edges);
       if (this.recorded) this.recorded.push({ time: time / 1000, landmarks });
+    };
+    this.landmarker.addEventListener("message", this.listener);
+    const next = async (now: number, metadata: VideoFrameCallbackMetadata) => {
+      if (this.done) return;
       this.video.requestVideoFrameCallback(next);
+      if (busy) return;
+      busy = true;
+      const captured = metadata.captureTime ?? now;
+      const frame = await createImageBitmap(this.video).catch(() => null); // none once the camera is closed
+      if (!frame || this.done) return void ((busy = false), frame?.close());
+      (time = captured), (last = Math.max(last + 1, Math.round(captured))); // VIDEO mode needs increasing timestamps
+      this.landmarker.postMessage({ frame, time: last }, [frame]);
     };
     this.video.requestVideoFrameCallback(next);
   }
@@ -128,7 +144,7 @@ export class Tracker {
     (this.video.srcObject as MediaStream | null)?.getTracks().forEach((track) => track.stop());
     this.video.srcObject = null;
     void this.context?.close().catch(() => {});
-    this.landmarker.close();
+    this.landmarker.removeEventListener("message", this.listener);
   }
 
   /** Start keeping the tracked frames, and the spoken sentence alongside them in whichever container
