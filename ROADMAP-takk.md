@@ -157,7 +157,7 @@ Steps 1 to 7 are built and in use. Steps 8 to 14 are the blueprint above and are
 
     **One narrow column down the middle.** Every page and the section bar share one column of `--column` (760 px), centred in the window, where the pages used to fill a 1080 px area beside the rail and each lined its blocks up differently. On Sök the camera and the field under it are one width (440 px), so the two ways in read as one; Träna's camera column narrowed to 260–320 px to fit.
 
-    **A line of sections above the page instead of the rail** (user, 2026-09-26), which replaces step 17's rail: "Takk" on the left and Sök, Träna and Tecken on the right, the current one in the text colour with an accent underline. On a phone it is still the bar along the bottom.
+    **A line of sections above the page instead of the rail** (user, 2026-09-26), which replaces step 17's rail: Sök, Träna and Tecken centred above the column, the current one in the text colour with an accent underline, and no title beside them (user, 2026-09-26: "we don't need the TAKK title"). On a phone it is still the bar along the bottom.
 
     **Warm and soft, with a sage accent** (user, 2026-09-26): an off-white page (`#faf9f7`), softer text, and a muted sage green (`#557a68`) as the one accent in place of the saturated blue; green and red stay for verdicts and are toned down with it. The ok green is kept more saturated than the sage so a word Meningar marks right is told apart from a key word still to sign.
 

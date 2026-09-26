@@ -40,7 +40,6 @@ import { page } from "$app/state";
 
 <div class="app">
   <nav class="bar">
-    <span class="brand">Takk</span>
     {#each sections as section (section.href)}
       <a href="{base}{section.href}" class:on={path.startsWith(section.at)}>{section.label}</a>
     {/each}
@@ -59,18 +58,9 @@ import { page } from "$app/state";
 
   .bar {
     display: flex;
-    align-items: baseline;
+    justify-content: center;
     gap: 28px;
     padding: 28px 24px 0;
-  }
-
-  .brand {
-    margin-right: auto;
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--dim);
   }
 
   .bar a {
@@ -106,10 +96,6 @@ import { page } from "$app/state";
       padding-bottom: max(10px, env(safe-area-inset-bottom));
       background: var(--bg);
       border-top: 1px solid var(--line);
-    }
-
-    .brand {
-      display: none;
     }
 
     main {
