@@ -253,9 +253,11 @@
     margin: 14px auto 0;
   }
 
+  /* one weight whether pressed or not, so a pressed chip is no wider and the row never rewraps */
   .chips button {
     padding: 8px 14px;
     font-size: 14px;
+    font-weight: 500;
   }
 
   .found {
