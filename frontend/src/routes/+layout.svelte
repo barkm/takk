@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { onNavigate } from "$app/navigation";
+  import { goto, onNavigate } from "$app/navigation";
   import { base } from "$app/paths";
   import { page } from "$app/state";
 
+  import { about } from "$lib/about";
   import { fetchLexicon } from "$lib/api";
   import { Camera, provideCamera } from "$lib/camera.svelte";
 
@@ -24,13 +25,14 @@
     });
   });
 
-  // The three sections are always one click away (user, 2026-09-23): a line above the page on a
+  // The sections are always one click away (user, 2026-09-23): a line above the page on a
   // desktop window (user, 2026-09-26), the same three items as a bar along the bottom on a phone.
   // There is no menu page and no way back, since every page is reachable from every other one.
   const sections = [
     { href: "/sök", label: "Sök", at: "/sök", name: "sök" },
     { href: "/träna", label: "Träna", at: "/träna", name: "träna" },
     { href: "/tecken", label: "Tecken", at: "/tecken", name: "tecken" },
+    { href: "/om-dig", label: "Om dig", at: "/om-dig", name: "om-dig" },
   ];
 
   // The camera itself is mounted by the pages that use it (user, 2026-09-23), so Sök's results and
@@ -53,6 +55,16 @@
   const path = $derived(decodeURIComponent(page.url.pathname).slice(base.length));
   const current = $derived(sections.find((section) => path.startsWith(section.at))?.name);
 
+  // The first time the app is opened, whatever page it is opened on, it asks Om dig first (step 23):
+  // the hand every recording needs, and who the learner is, which the chips on Sök are made from.
+  // No other page is shown until then, so none opens the camera under the question.
+  let ready = $state(false);
+
+  $effect(() => {
+    ready = !!about() || current === "om-dig";
+    if (!ready) void goto(`${base}/om-dig`, { replaceState: true });
+  });
+
 </script>
 
 <div class="app">
@@ -63,7 +75,7 @@
       </a>
     {/each}
   </nav>
-  <main>{@render children()}</main>
+  <main>{#if ready}{@render children()}{/if}</main>
 </div>
 
 <style>

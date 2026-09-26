@@ -94,7 +94,8 @@ a:hover {
   flex-wrap: wrap;
 }
 
-input[type="search"] {
+input[type="search"],
+textarea {
   width: 100%;
   padding: 14px 18px;
   border-radius: var(--radius);
@@ -104,11 +105,13 @@ input[type="search"] {
   font: inherit;
 }
 
-input[type="search"]::placeholder {
+input[type="search"]::placeholder,
+textarea::placeholder {
   color: var(--dim);
 }
 
-input[type="search"]:focus-visible {
+input[type="search"]:focus-visible,
+textarea:focus-visible {
   outline: none;
   border-color: var(--accent);
 }
