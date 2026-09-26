@@ -96,7 +96,7 @@
   <section class="numbers">
     <p class="figure"><span>{rows.length}</span> valda tecken</p>
     <p class="figure"><span>{practised}</span> övade</p>
-    <p class="figure"><span>{due}</span> att repetera nu</p>
+    <p class="figure" class:due={due > 0}><span>{due}</span> att repetera nu</p>
   </section>
 
   <section class="charts">
@@ -166,12 +166,14 @@
             ></video>
           {/if}
           <span class="word">{row.word}</span>
-          <span class="dots" aria-hidden="true">
-            {#each DAYS as _, step (step)}
-              <i class:on={step < row.box}></i>
-            {/each}
+          <span class="side">
+            {#if overdue(row)}<span class="now">nu</span>{/if}
+            <span class="dots" aria-hidden="true">
+              {#each DAYS as _, step (step)}
+                <i class:on={step < row.box}></i>
+              {/each}
+            </span>
           </span>
-          {#if overdue(row)}<span class="now">nu</span>{/if}
           <!-- the cross is drawn rather than written: a glyph sits on the font's own axis, which is
                not the middle of the button it is centred in -->
           <button class="drop" aria-label="Ta bort {row.word}" onclick={() => drop(row.sign)}>
@@ -184,13 +186,12 @@
     </ul>
   {/each}
 
-  <section class="settings">
-    <p class="dim">Du tecknar med {signs === "right" ? "höger" : "vänster"} hand.</p>
-    <div class="row">
-      <button class="secondary" onclick={swap}>Byt hand</button>
-      <button class="secondary" onclick={reset}>Nollställ</button>
-    </div>
-  </section>
+  <!-- what is set rather than what is seen, as one quiet line at the foot of the page -->
+  <footer class="settings dim">
+    Du tecknar med {signs === "right" ? "höger" : "vänster"} hand ·
+    <button class="link" onclick={swap}>Byt hand</button> ·
+    <button class="link" onclick={reset}>Nollställ</button>
+  </footer>
 {:else}
   <section class="card empty">
     <h1>Inga tecken än</h1>
@@ -199,16 +200,25 @@
 {/if}
 
 <style>
+  /* The three numbers as tiles, grey like the bars under Träna (user, 2026-09-26). */
   .numbers {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 32px;
-    margin-bottom: 28px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
   }
 
   .figure {
+    padding: 20px 24px;
+    border-radius: var(--radius);
+    background: var(--surface);
     color: var(--dim);
     font-size: 14px;
+  }
+
+  /* what is due is the one number that asks for something, so it is the one in the accent */
+  .figure.due span {
+    color: var(--accent);
   }
 
   .figure span {
@@ -301,11 +311,17 @@
     font-weight: 500;
   }
 
+  .side {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-right: 12px;
+  }
+
   /* how far up the schedule the word has come, one dot per box */
   .dots {
     display: flex;
     gap: 3px;
-    padding-right: 12px;
   }
 
   .dots i {
@@ -319,17 +335,15 @@
     background: var(--accent);
   }
 
-  /* on the clip, so a card that is due is no taller than one that is not */
+  /* beside the dots rather than on the clip, where it covered the word of a card without one */
   .now {
-    position: absolute;
-    top: 6px;
-    left: 6px;
-    padding: 2px 8px;
-    border-radius: 8px;
+    padding: 0 6px;
+    border-radius: 6px;
     background: var(--accent);
     color: var(--on-accent);
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
+    line-height: 18px;
   }
 
   /* over the clip, in the corner of the card: a square with the drawn cross centred in it */
@@ -371,10 +385,25 @@
   }
 
   .settings {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-top: 40px;
+    margin-top: 48px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+  }
+
+  /* the settings are links in the line, not buttons to press */
+  .link {
+    padding: 0;
+    background: none;
+    color: var(--text);
+    font-weight: 500;
+    text-decoration: underline;
+    text-decoration-color: var(--line);
+    text-underline-offset: 3px;
+  }
+
+  .link:hover:not(:disabled) {
+    filter: none;
+    text-decoration-color: var(--accent);
   }
 
   .empty {
