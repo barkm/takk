@@ -214,6 +214,7 @@
   .key {
     color: var(--accent);
     font-weight: 600;
+    transition: color 0.25s ease; /* the verdict colours the word in rather than switching it */
   }
 
   @keyframes appear {

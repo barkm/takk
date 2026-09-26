@@ -272,6 +272,53 @@
     fill: var(--text);
   }
 
+  /* The charts grow in when the page opens (user, 2026-09-26): the bars rise from the baseline, the
+     line is drawn from left to right under its wash, and the counts follow once the marks are there. */
+  .plot :global(.lc-bars-bar) {
+    transform-box: fill-box;
+    transform-origin: bottom;
+    animation: rise 0.5s ease-out;
+  }
+
+  .plot :global(.lc-area-line),
+  .plot :global(.lc-area-path) {
+    animation: reveal 0.7s ease-out;
+  }
+
+  .plot :global(.lc-labels-text),
+  .plot :global(.lc-point) {
+    animation: follow 0.7s ease-out;
+  }
+
+  @keyframes rise {
+    from {
+      transform: scaleY(0);
+    }
+  }
+
+  @keyframes reveal {
+    from {
+      clip-path: inset(0 100% 0 0);
+    }
+    to {
+      clip-path: inset(0 0 0 0);
+    }
+  }
+
+  /* hidden while the marks grow, then there */
+  @keyframes follow {
+    0%,
+    70% {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .plot :global(*) {
+      animation: none !important;
+    }
+  }
+
   /* the line's two dates sit under its two ends rather than hanging past them */
   .line :global(.lc-axis-tick-group:first-child .lc-axis-tick-label) {
     text-anchor: start;

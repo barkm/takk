@@ -1,6 +1,7 @@
 <script lang="ts">
+  import { onNavigate } from "$app/navigation";
   import { base } from "$app/paths";
-import { page } from "$app/state";
+  import { page } from "$app/state";
 
   import { fetchLexicon } from "$lib/api";
   import { Camera, provideCamera } from "$lib/camera.svelte";
@@ -8,6 +9,20 @@ import { page } from "$app/state";
   import "../app.css";
 
   let { children } = $props();
+
+  // Moving between sections slides the underline from one section to the next (user, 2026-09-26),
+  // with the browser's view transitions: the underline is one element with a name of its own, so the
+  // browser moves it, while the page itself switches at once (`app.css`). A browser without them, or
+  // one asked to keep motion down, simply switches.
+  onNavigate((navigation) => {
+    if (!document.startViewTransition || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    return new Promise((resolve) => {
+      document.startViewTransition(async () => {
+        resolve();
+        await navigation.complete;
+      });
+    });
+  });
 
   // The three sections are always one click away (user, 2026-09-23): a line above the page on a
   // desktop window (user, 2026-09-26), the same three items as a bar along the bottom on a phone.
@@ -43,7 +58,9 @@ import { page } from "$app/state";
 <div class="app">
   <nav class="bar">
     {#each sections as section (section.href)}
-      <a href="{base}{section.href}" class:on={current === section.name}>{section.label}</a>
+      <a href="{base}{section.href}" class:on={current === section.name}>
+        {section.label}{#if current === section.name}<span class="line"></span>{/if}
+      </a>
     {/each}
   </nav>
   <main>{@render children()}</main>
@@ -66,8 +83,8 @@ import { page } from "$app/state";
   }
 
   .bar a {
-    padding: 4px 0;
-    border-bottom: 2px solid transparent;
+    position: relative;
+    padding: 4px 0 6px;
     color: var(--dim);
     font-weight: 500;
   }
@@ -80,9 +97,16 @@ import { page } from "$app/state";
   /* the current section underlined in the accent (user, 2026-09-26, after a filled pill): the menu
      stays quiet, and the blue only marks where the learner is */
   .bar a.on {
-    border-bottom-color: var(--accent);
     color: var(--text);
     font-weight: 600;
+  }
+
+  .line {
+    position: absolute;
+    inset: auto 0 0;
+    height: 2px;
+    background: var(--accent);
+    view-transition-name: section-line;
   }
 
   main {
