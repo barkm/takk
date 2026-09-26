@@ -23,11 +23,11 @@ export const OFF_CENTRE = 0.18;
 
 export const FRAMING = {
   none: "Ingen syns i bild.",
-  shoulders: "Sätt dig så att båda axlarna syns.",
+  shoulders: "Båda axlarna behöver synas.",
   near: "Sätt dig närmare kameran.",
   far: "Sätt dig längre från kameran.",
-  headroom: "Rikta kameran lägre — det behövs plats ovanför huvudet.",
-  low: "Rikta kameran högre — mer av överkroppen behöver synas.",
+  headroom: "Det behövs plats ovanför huvudet.",
+  low: "Mer av överkroppen behöver synas.",
   centre: "Flytta dig mot mitten av bilden.",
 };
 
