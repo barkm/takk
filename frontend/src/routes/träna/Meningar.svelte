@@ -1,6 +1,7 @@
 <script lang="ts">
   import Recorder from "$lib/Recorder.svelte";
   import { useCamera } from "$lib/camera.svelte";
+  import { about } from "$lib/about";
   import { fetchStory, word, type Attempt, type SignWord, type Sign, type StoryPart } from "$lib/api";
   import { known, load, record, save, type Progress } from "$lib/progress";
   import { pieces as cut } from "$lib/text";
@@ -60,7 +61,7 @@
   async function write() {
     const words = known(progress, PARTS * 2);
     cards = Object.fromEntries(words.map((each) => [label(each), each]));
-    const written = await fetchStory(words.map(label), PARTS).finally(() => (writing = false));
+    const written = await fetchStory(words.map(label), PARTS, about()?.context).finally(() => (writing = false));
     if (!written.length) return void ondone("Kunde inte skriva någon text. Försök igen.");
     story = written;
   }

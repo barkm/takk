@@ -44,7 +44,7 @@ Write in natural, everyday Swedish and inflect the user's words as the sentence 
 
 `said` must be a form of `word` and nothing else. A compound that merely contains the word is a different sign, so "blåbär" is never the word "blå".
 
-Write the rest freely: concrete, easy to say aloud, the kind of story told to a small child. Each part is spoken while its words are signed, so keep a part to what can be said in one breath.""".format(most=MOST_WORDS)
+Write the rest freely: concrete and easy to say aloud. When the user says who they sign with and where, set the story in that everyday life and write it for those people; otherwise write the kind of story told to a small child. Each part is spoken while its words are signed, so keep a part to what can be said in one breath.""".format(most=MOST_WORDS)
 
 
 class Signed(BaseModel):
@@ -99,11 +99,13 @@ def story_parts(parts: list[Part], offered: list[str]) -> list[Part] | None:
     return parts
 
 
-def write_story(client: anthropic.Anthropic, words: list[str], parts: int, model: str = MODEL, tries: int = 2) -> list[Part] | None:  # fmt: skip
+def write_story(client: anthropic.Anthropic, words: list[str], parts: int, about: str = "", model: str = MODEL, tries: int = 2) -> list[Part] | None:  # fmt: skip
     """A Swedish story of about `parts` parts over `words`, each part with the signs it is practised
-    by. None when the model does not manage it within `tries`, which leaves the caller with nothing
-    to tell."""
+    by, set in the everyday life of a learner who describes themselves as `about` (step 23). None
+    when the model does not manage it within `tries`, which leaves the caller with nothing to tell."""
     asked = f"Jag övar på orden: {', '.join(words)}. Skriv en berättelse i {parts} delar."
+    if about.strip():
+        asked += f" Om mig: {about.strip()}."
     messages: list[anthropic.types.MessageParam] = [{"role": "user", "content": asked}]
     for _ in range(tries):
         # One rule for every way an ask can come to nothing: it is a try that failed, never an error

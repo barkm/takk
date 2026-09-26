@@ -144,15 +144,15 @@ def create_app(
         return {"words": search(vocabulary, q) if vocabulary else []}
 
     @app.post("/api/story")
-    def story(words: list[str] = Body(embed=True), parts: int = Body(embed=True)) -> dict:
+    def story(words: list[str] = Body(embed=True), parts: int = Body(embed=True), about: str = Body("", embed=True)) -> dict:  # fmt: skip
         """A Swedish story over `words` in about `parts` parts, each part with the signs it is
         practised by: the form the part says (`said`) and the offered word that form signs (`word`),
         in the order they are spoken (`story.py`). The parts are empty when there is no writer or it
         could not write one, and the caller then has nothing to tell and says so.
 
         The words are the learner's own: what the cards say, not the names of the signs that score
-        them."""
-        told = write_story(writer, words, parts) if writer else None
+        them, and `about` is how the learner describes themselves on Om dig."""
+        told = write_story(writer, words, parts, about) if writer else None
         return {"parts": [part.model_dump() for part in told or []]}
 
     @app.get("/api/form/{entry_id}")

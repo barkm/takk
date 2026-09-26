@@ -66,13 +66,14 @@ export async function fetchSearch(query: string): Promise<SignWord[]> {
  * the learner's own list that the form signs, which is what names the sign and moves its box. */
 export type StoryPart = { text: string; signs: { said: string; word: string }[] };
 
-/** A Swedish story over `words` in `parts` parts, one recording each (see `story.py`). Empty when the
- * server could not write one. The words are the learner's own, as in `fetchSentence`. */
-export async function fetchStory(words: string[], parts: number): Promise<StoryPart[]> {
+/** A Swedish story over `words` in `parts` parts, one recording each (see `story.py`), set in the
+ * everyday life the learner described on Om dig (`about`). Empty when the server could not write
+ * one. The words are the learner's own, as in `fetchSentence`. */
+export async function fetchStory(words: string[], parts: number, about = ""): Promise<StoryPart[]> {
   const response = await fetch(api("/api/story"), {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ words, parts }),
+    body: JSON.stringify({ words, parts, about }),
   });
   if (!response.ok) return [];
   return (await response.json()).parts;
