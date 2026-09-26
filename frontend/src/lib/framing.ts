@@ -17,7 +17,7 @@ export const WIDE = 0.55;
 /** How much of the frame height has to be left above the head, for the signs made up there. */
 export const HEADROOM = 0.08;
 /** How far down the frame the shoulders may sit, so the upper body below them is in view. */
-export const LOW = 0.5;
+export const LOW = 0.6;
 /** How far the shoulders' middle may sit from the middle of the frame. */
 export const OFF_CENTRE = 0.18;
 
