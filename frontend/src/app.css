@@ -151,6 +151,25 @@ button:disabled {
   cursor: default;
 }
 
+/* The shape of what is coming, grey and breathing, where the wait is long enough to see and what
+   arrives has a known shape: the page then does not jump when it does (user, 2026-09-26). */
+.skeleton {
+  background: var(--surface);
+  animation: breathe 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes breathe {
+  to {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Loading from "$lib/Loading.svelte";
   import { framing } from "$lib/framing";
   import { Tracker } from "$lib/tracking";
   import type { Camera } from "$lib/camera.svelte";
@@ -17,6 +18,9 @@
   let video = $state<HTMLVideoElement>();
   let canvas = $state<HTMLCanvasElement>();
   let starting: Promise<unknown> | null = null;
+  // Whether a camera frame has been tracked yet: the tracker is ready before the first frame arrives,
+  // and the picture stays black until it does (user, 2026-09-26).
+  let live = $state(false);
 
   $effect(() => {
     if (!video || !canvas) return;
@@ -26,7 +30,7 @@
       .catch((error) => (camera.fit = `Ingen åtkomst till kameran: ${error.message}`));
     return () => {
       camera.tracker?.stop();
-      (camera.tracker = null), (starting = null);
+      (camera.tracker = null), (starting = null), (live = false);
     };
   });
 
@@ -42,21 +46,31 @@
     if (!camera.tracker) return;
     const looking = setInterval(() => {
       const latest = camera.tracker?.latest;
+      live ||= !!latest;
       camera.fit = latest ? framing(latest) : "";
     }, LOOK);
     return () => clearInterval(looking);
   });
 </script>
 
-<div class="view" class:recording={camera.recording} class:ready={camera.tracker}>
+<div class="view" class:recording={camera.recording} class:ready={live}>
   <!-- svelte-ignore a11y_media_has_caption -->
   <video bind:this={video} autoplay muted playsinline></video>
   <canvas bind:this={canvas}></canvas>
   {#if camera.tracker}
     {#if camera.fit}<p class="fit">{camera.fit}</p>{/if}
+    <!-- The loader runs until the picture and its skeleton are both there (user, 2026-09-26): the
+         tracker is ready before its first frame, and the lines between the landmarks come with the
+         lexicon, which may arrive after both. -->
+    {#if !live || !camera.lexicon}<div class="edge"><Loading label="Startar kameran" /></div>{/if}
   {:else}
-    <!-- the space is reserved above, so only what fills it changes when the camera is ready -->
-    <p class="starting">{camera.fit || "Startar kameran …"}</p>
+    <!-- the space is reserved above, so only what fills it changes when the camera is ready; while
+         it starts the loader runs along its bottom edge, and only a camera that failed says why -->
+    {#if camera.fit}
+      <p class="starting">{camera.fit}</p>
+    {:else}
+      <div class="edge"><Loading label="Startar kameran" /></div>
+    {/if}
   {/if}
 </div>
 
@@ -117,6 +131,13 @@
     text-align: center;
     color: var(--dim);
     font-size: 14px;
+  }
+
+  /* along the bottom of the picture, unmirrored so it slides the way every other loader does */
+  .edge {
+    position: absolute;
+    inset: auto 0 0;
+    transform: scaleX(-1);
   }
 
   /* over the picture it is about, and unmirrored: the view itself is flipped like a mirror */

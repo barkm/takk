@@ -25,7 +25,18 @@
   const PER_WORD = 0.7;
   const SLACK = 4;
   const PARTS = 10; // how many parts a story is asked for; the writer may answer with one more or fewer
-  const SHOWN = 1800; // ms the coloured words stay up before the next line
+  const SHOWN = 1800;
+  // the placeholder lines: the width of the words before a word to sign, of that word, and after it
+  const SHAPES = [
+    [30, 14, 38],
+    [22, 16, 30],
+    [36, 12, 26],
+    [18, 14, 40],
+    [26, 12, 34],
+    [40, 16, 18],
+    [20, 14, 36],
+    [32, 12, 28],
+  ]; // ms the coloured words stay up before the next line
 
   let { ondone }: { ondone: (note?: string) => void } = $props();
 
@@ -119,7 +130,19 @@
 </script>
 
 {#if writing}
-  <p class="dim">Skriver ...</p>
+  <!-- The lines' shape while the story is written, which takes seconds, standing where the text will
+       (user, 2026-09-26): in the same scrolling box, the first line solid and the rest faded as the
+       lines around the one to sign are. Each line has a stretch of the accent in it, where a word to
+       sign will be. -->
+  <div class="story" aria-label="Skriver" aria-busy="true">
+    {#each SHAPES as shape, index (index)}
+      <p class:now={index === 0} class="shape">
+        <span class="skeleton" style="width: {shape[0]}%"></span>
+        <span class="skeleton key" style="width: {shape[1]}%"></span>
+        <span class="skeleton" style="width: {shape[2]}%"></span>
+      </p>
+    {/each}
+  </div>
 {:else}
   <div class="story">
     {#each shown as { index, pieces } (index)}
@@ -144,7 +167,25 @@
      whole story scrolls inside this box, which the line being signed is kept in the middle of; the
      padding is what lets the first and the last line reach that middle, and the mask fades the text
      out at both ends rather than cutting it off at an edge. */
+  .shape {
+    display: flex;
+    gap: 10px;
+  }
+
+  /* darker than a skeleton tile, since these stand faded like the lines around the one to sign */
+  .shape span {
+    display: block;
+    height: 0.9em;
+    margin: 0.28em 0;
+    background: #d9dce2;
+  }
+
+  .shape .key {
+    background: var(--accent);
+  }
+
   .story {
+    animation: appear 0.3s ease;
     max-height: 60vh;
     overflow-y: auto;
     padding: 28vh 0;
@@ -173,6 +214,12 @@
   .key {
     color: var(--accent);
     font-weight: 600;
+  }
+
+  @keyframes appear {
+    from {
+      opacity: 0;
+    }
   }
 
   .key.ok {

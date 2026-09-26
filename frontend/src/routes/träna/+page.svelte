@@ -26,7 +26,11 @@
 </script>
 
 {#if !camera.lexicon}
-  <p class="dim">Laddar lexikonet ...</p>
+  <!-- the two bars' shape while the lexicon loads, so the page does not jump when it arrives -->
+  <div class="modes" aria-label="Laddar" aria-busy="true">
+    <div class="mode skeleton"></div>
+    <div class="mode skeleton"></div>
+  </div>
 {:else if mode === "ord"}
   <Ord ondone={done} />
 {:else if mode === "meningar"}

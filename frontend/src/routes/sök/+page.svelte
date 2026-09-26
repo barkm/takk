@@ -6,6 +6,7 @@
     type SignWord,
   } from "$lib/api";
   import CameraView from "$lib/Camera.svelte";
+  import Loading from "$lib/Loading.svelte";
   import { useCamera } from "$lib/camera.svelte";
   import { hand } from "$lib/hand";
   import { hands, see, watching } from "$lib/hands";
@@ -28,7 +29,8 @@
   // and so nothing to switch between — the learner types a word or signs one.
   const camera = useCamera();
   const lexicon = $derived(camera.lexicon);
-  let searching = $state(false);
+  let searching = $state(false); // a sign is being looked up
+  let finding = $state(false); // a word is being looked up
 
   $effect(() => {
     progress = load();
@@ -41,7 +43,9 @@
     clearTimeout(timer);
     query = text;
     timer = setTimeout(async () => {
-      results = text.trim() ? await fetchSearch(text) : [];
+      finding = true;
+      results = text.trim() ? await fetchSearch(text).finally(() => (finding = false)) : [];
+      finding = false;
     }, WAIT);
   }
 
@@ -107,7 +111,8 @@
 <!-- The picture first and the field under it (user, 2026-09-24): the two ways in read as one, and
      the field's placeholder is where both are said, so the page needs no line of instructions. -->
 <!-- nothing is written about the picture: not what it is doing, and not that a sign is being looked
-     up — the results arriving is what says the lookup is done -->
+     up — the loader under the field runs while it is (user, 2026-09-26), and the results arriving
+     say it is done -->
 <section class="signing">
   <CameraView {camera} />
 </section>
@@ -118,6 +123,8 @@
   value={query}
   oninput={(event) => search(event.currentTarget.value)}
 />
+<!-- its space is held whether or not anything is being looked up, so nothing moves when it runs -->
+<div class="wait">{#if searching || finding}<Loading label="Söker" />{/if}</div>
 
 {#if note}
   <p class="dim note">{note}</p>
@@ -182,6 +189,11 @@
     display: block;
     max-width: 440px;
     margin: 0 auto;
+  }
+
+  .wait {
+    height: 2px;
+    margin-top: 6px;
   }
 
   .note {
