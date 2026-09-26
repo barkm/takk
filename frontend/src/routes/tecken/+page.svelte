@@ -255,7 +255,8 @@
   }
 
   /* LayerChart fills its container, so the container sets the height. Its axis text recedes in the
-     page's dim ink, so the marks are what is read. */
+     page's dim ink, so the marks are what is read, and without LayerChart's halo, which is drawn in
+     the page's colour and so rings the text on a tile. */
   .plot {
     height: 160px;
   }
@@ -263,6 +264,7 @@
   .plot :global(.lc-axis-tick-label) {
     font-size: 12px;
     fill: var(--dim);
+    stroke: none;
   }
 
   /* the counts over the bars and at the end of the line, which are what the charts are read for */
