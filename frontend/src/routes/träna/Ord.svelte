@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { base } from "$app/paths";
   import Recorder from "$lib/Recorder.svelte";
   import Verdict from "$lib/Verdict.svelte";
   import { fetchForm, word, type Attempt, type SignWord, type Sign } from "$lib/api";
@@ -13,18 +12,21 @@
   // Meningar never stops to show it. An accepted word goes into the first Leitner box, or keeps the
   // box it had when it was not due; a missed one is simply signed again, with the clip still there.
   //
-  // A pass is five words, each signed twice (user, 2026-09-26); the start card asks nothing.
+  // A pass is five words, each signed twice (user, 2026-09-26). It starts the moment the component is
+  // shown — the Träna page is its start card — and tells the page when its last word is done.
   // How long the verdict's mark stays on the word. A miss holds twice as long (user, 2026-09-24):
   // the word is about to be signed again, so it is worth reading, while an accepted word is on its
   // way out and only has to be seen.
   const MARKED = 700;
   const MISSED = 2 * MARKED;
 
+  let { ondone }: { ondone: () => void } = $props();
+
   const camera = useCamera(); // the camera of the Träna layout, which both modes share
   const lexicon = $derived(camera.lexicon);
-  let progress: Progress = $state({});
-  let queue: SignWord[] = $state([]); // the words left, the current one first
-  let started = $state(false);
+  let progress: Progress = $state(load());
+  // the words left, the current one first: missed words first, then picked and never practised
+  let queue: SignWord[] = $state(pass(toLearn(load()).slice(0, WORDS), REPEATS));
   let taken = $state(0); // how many of this session's words are done
   let attempt: Attempt | null = $state(null);
   let note = $state("");
@@ -32,22 +34,14 @@
   let mark = $state<"ok" | "bad" | null>(null); // the verdict on the word, while the card holds it
   let recorder: ReturnType<typeof Recorder> | undefined = $state();
 
-  $effect(() => {
-    progress = load();
-  });
-
   /** The word on a card, which is not the name of the sign that scores it when several words share
    * one sign form: "blå" is scored by `sts:öga-02636`, the lowest entry of that form. */
   const label = (each: SignWord) => each.word ?? word(each.sign);
 
-  const waiting = $derived(toLearn(progress)); // missed first, then picked and never practised
-
-  function start() {
-    queue = pass(waiting.slice(0, WORDS), REPEATS);
-    (taken = 0), (started = true), (attempt = null), (note = "");
-  }
-
   const current = $derived(queue[0]);
+  $effect(() => {
+    if (!current) ondone(); // the pass is over, and the page is its start card again
+  });
   const shown = $derived(current ? label(current) : "");
   const references = $derived(lexicon?.signs.find((each) => each.sign === current?.sign)?.references ?? []);
   const sentence: Sign[] = $derived(current ? [{ sign: current.sign, references, spoken: shown }] : []);
@@ -84,20 +78,7 @@
   }
 </script>
 
-{#if !lexicon}
-  <p class="dim">{note || "Laddar lexikonet ..."}</p>
-{:else if !started}
-  <section class="card">
-    <h1>Ord</h1>
-    <p class="dim">Tecken du inte övat än, eller tecknade fel. Du ser klippet och tecknar efter det.</p>
-    <div class="row">
-      <button onclick={start} disabled={!waiting.length}>Börja</button>
-      {#if !waiting.length}
-        <span class="dim">Inga tecken att öva. Välj några under <a href="{base}/sök">Sök</a>.</span>
-      {/if}
-    </div>
-  </section>
-{:else if current}
+{#if current}
   <header class="head">
     <div class="meter" style="--done: {taken / (taken + queue.length)}"></div>
     <p class="dim">{taken} av {taken + queue.length} klara. Säg ordet högt medan du tecknar det.</p>
@@ -128,14 +109,6 @@
   {#if form}<p class="form dim">{form}</p>{/if}
   <Recorder bind:this={recorder} {sentence} onattempt={scored} />
   <Verdict {attempt} {note} />
-{:else}
-  <section class="card">
-    <h1>Klart!</h1>
-    <p class="dim">{taken} tecken klara. Teckna dem i <a href="{base}/träna/meningar">Meningar</a> när du vill.</p>
-    <div class="row">
-      <button onclick={start} disabled={!waiting.length}>Fler ord</button>
-    </div>
-  </section>
 {/if}
 
 <style>

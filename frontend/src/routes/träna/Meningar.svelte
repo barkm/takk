@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { base } from "$app/paths";
   import Recorder from "$lib/Recorder.svelte";
   import { useCamera } from "$lib/camera.svelte";
   import { fetchStory, word, type Attempt, type SignWord, type Sign, type StoryPart } from "$lib/api";
@@ -13,8 +12,9 @@
   // repeated, so the page names it nothing and explains nothing.
   // Only words already practised are used, drawn towards the low boxes, so it leans on the weak ones.
   //
-  // A story is one text and it ends (user, 2026-09-24). Signing its last line puts the page back
-  // where it started, and the next story is written when the learner asks for it: a story written
+  // A story is one text and it ends (user, 2026-09-24). It is written the moment the component is
+  // shown — the Träna page is its start card — and signing its last line hands the page back to that
+  // card, where the next story is asked for: a story written
   // under the finished one would be a second story with its own beginning, which reads as a break in
   // the text now that the whole of it stands on the page. It is always a long one, of about ten parts:
   // the learner is not asked for a length (user, 2026-09-25).
@@ -27,36 +27,34 @@
   const PARTS = 10; // how many parts a story is asked for; the writer may answer with one more or fewer
   const SHOWN = 1800; // ms the coloured words stay up before the next line
 
+  let { ondone }: { ondone: (note?: string) => void } = $props();
+
   const camera = useCamera(); // the camera of the Träna layout, which both modes share
   const lexicon = $derived(camera.lexicon);
-  let progress: Progress = $state({});
+  let progress: Progress = $state(load());
   let story: StoryPart[] = $state([]);
   let cards: Record<string, SignWord> = $state({}); // the card behind each word of the story, by word
   let at = $state(0); // the line being signed
-  let writing = $state(false);
+  let writing = $state(true);
   let attempt: Attempt | null = $state(null);
   let note = $state("");
   let verdicts: Record<number, Record<number, boolean>> = $state({}); // per line, by sign of the line
   let waiting: ReturnType<typeof setTimeout> | null = null; // the pause the coloured words are read in
   let recorder: ReturnType<typeof Recorder> | undefined = $state();
 
-  $effect(() => {
-    progress = load();
-  });
-
   const label = (each: SignWord) => each.word ?? word(each.sign);
-  const pool = $derived(known(progress, Infinity, () => 0)); // everything practised, for the count
 
   /** Write a story over the words this learner knows, weakest first. Twice as many words are
    * offered as there are lines, so the model has something to choose from in every one of them. */
   async function write() {
     const words = known(progress, PARTS * 2);
     cards = Object.fromEntries(words.map((each) => [label(each), each]));
-    writing = true;
     const written = await fetchStory(words.map(label), PARTS).finally(() => (writing = false));
-    if (!written.length) return void (note = "Kunde inte skriva någon text. Försök igen.");
-    (story = written), (note = ""), (at = 0), (verdicts = {}), (lines = []);
+    if (!written.length) return void ondone("Kunde inte skriva någon text. Försök igen.");
+    story = written;
   }
+
+  write();
 
   const line = $derived(story[at]);
   const limit = $derived(line ? line.text.split(/\s+/).length * PER_WORD + SLACK : 0);
@@ -116,24 +114,12 @@
     (attempt = null), (note = "");
     // The last line signed ends the story, and the page is the start card again.
     if (at + 1 < story.length) return void (at += 1);
-    (story = []), (cards = {}), (at = 0), (verdicts = {}), (lines = []);
+    ondone();
   }
 </script>
 
-{#if !lexicon}
-  <p class="dim">{note || "Laddar lexikonet ..."}</p>
-{:else if !story.length}
-  <section class="card">
-    <h1>Meningar</h1>
-    <p class="dim">En text över orden du redan kan, en rad i taget. Säg raden högt och teckna orden i den.</p>
-    <div class="row">
-      <button onclick={write} disabled={writing || pool.length < 2}>{writing ? "Skriver ..." : "Börja"}</button>
-      {#if pool.length < 2}
-        <span class="dim">Öva några <a href="{base}/träna/ord">ord</a> först.</span>
-      {/if}
-    </div>
-    {#if note}<p class="dim">{note}</p>{/if}
-  </section>
+{#if writing}
+  <p class="dim">Skriver ...</p>
 {:else}
   <div class="story">
     {#each shown as { index, pieces } (index)}

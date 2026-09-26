@@ -4,5 +4,5 @@
 
   // There is no menu any more (user, 2026-09-23): the bar is the menu, and the app opens on the
   // practice it was opened to do. The hand is asked for under Träna, where the first recording is.
-  $effect(() => void goto(`${base}/träna/ord`, { replaceState: true }));
+  $effect(() => void goto(`${base}/träna`, { replaceState: true }));
 </script>

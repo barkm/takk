@@ -14,7 +14,7 @@ import { page } from "$app/state";
   // There is no menu page and no way back, since every page is reachable from every other one.
   const sections = [
     { href: "/sök", label: "Sök", at: "/sök", name: "sök" },
-    { href: "/träna/ord", label: "Träna", at: "/träna", name: "träna" },
+    { href: "/träna", label: "Träna", at: "/träna", name: "träna" },
     { href: "/tecken", label: "Tecken", at: "/tecken", name: "tecken" },
   ];
 
