@@ -112,7 +112,7 @@
           bandPadding={0.65}
           {padding}
           labels={{ format: (count: number) => (count ? String(count) : "") }}
-          props={{ bars: { strokeWidth: 0, radius: 4 }, xAxis: { tickMarks: false } }}
+          props={{ bars: { strokeWidth: 0, radius: 0 }, xAxis: { tickMarks: false } }}
         />
       </div>
     </figure>
@@ -356,7 +356,7 @@
   .dots i {
     width: 6px;
     height: 6px;
-    border-radius: 50%;
+    border-radius: 0;
     background: var(--line);
   }
 
@@ -367,7 +367,7 @@
   /* beside the dots rather than on the clip, where it covered the word of a card without one */
   .now {
     padding: 0 6px;
-    border-radius: 6px;
+    border-radius: 0;
     background: var(--accent);
     color: var(--on-accent);
     font-size: 12px;
@@ -386,7 +386,7 @@
     height: 26px;
     padding: 0;
     background: #000000a6;
-    border-radius: 8px;
+    border-radius: 0;
     color: #fff;
   }
 

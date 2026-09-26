@@ -14,7 +14,7 @@
   --on-accent: #ffffff; /* text set on the accent */
   --ok: #16a34a;
   --bad: #dc2626;
-  --radius: 10px;
+  --radius: 0;
   --column: 960px;
   /* LayerChart's theme, in the app's colours; on the root since its tooltips are portaled to body */
   --color-primary: var(--accent);

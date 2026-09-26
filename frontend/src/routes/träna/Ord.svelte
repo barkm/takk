@@ -121,7 +121,7 @@
   /* How far this session has come, as the one piece of chrome the card carries. */
   .meter {
     height: 3px;
-    border-radius: 3px;
+    border-radius: 0;
     background: var(--line);
   }
 
@@ -130,7 +130,7 @@
     display: block;
     height: 100%;
     width: calc(var(--done) * 100%);
-    border-radius: 3px;
+    border-radius: 0;
     background: var(--accent);
     transition: width 0.3s ease;
   }

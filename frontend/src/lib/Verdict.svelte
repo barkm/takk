@@ -27,7 +27,7 @@
   .verdict {
     padding: 12px 16px;
     border-left: 3px solid var(--line);
-    border-radius: 0 8px 8px 0;
+    border-radius: 0;
     background: var(--surface);
     font-size: 17px;
     font-weight: 500;
