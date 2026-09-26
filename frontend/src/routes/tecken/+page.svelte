@@ -288,7 +288,7 @@
     padding-bottom: 10px;
     overflow: hidden;
     background: var(--surface);
-    border: 1px solid var(--line);
+    border: 1px solid transparent; /* grey like every tile; only a card that is due is outlined */
     border-radius: var(--radius);
   }
 

@@ -209,7 +209,7 @@
     overflow: hidden;
     text-align: left;
     background: var(--surface);
-    border: 1px solid var(--line);
+    border: 1px solid transparent; /* grey like every tile; only a picked one is outlined */
     border-radius: var(--radius);
     color: var(--text);
     font-weight: 500;
@@ -217,7 +217,7 @@
 
   .tile:hover {
     filter: none;
-    border-color: var(--dim);
+    background: var(--raised);
   }
 
   .tile.on {
