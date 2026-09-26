@@ -7,6 +7,8 @@
     %sveltekit.head%
   </head>
   <body>
-    <div>%sveltekit.body%</div>
+    <!-- SvelteKit's hydration wrapper takes part in no layout of its own. Inline rather than a
+         `body > div` rule, which would also catch the chart tooltips portaled to the body. -->
+    <div style="display: contents">%sveltekit.body%</div>
   </body>
 </html>
