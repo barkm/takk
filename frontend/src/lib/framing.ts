@@ -16,6 +16,8 @@ export const NARROW = 0.16;
 export const WIDE = 0.55;
 /** How much of the frame height has to be left above the head, for the signs made up there. */
 export const HEADROOM = 0.08;
+/** How far down the frame the shoulders may sit, so the upper body below them is in view. */
+export const LOW = 0.5;
 /** How far the shoulders' middle may sit from the middle of the frame. */
 export const OFF_CENTRE = 0.18;
 
@@ -25,6 +27,7 @@ export const FRAMING = {
   near: "Sätt dig närmare kameran.",
   far: "Sätt dig längre från kameran.",
   headroom: "Rikta kameran lägre — det behövs plats ovanför huvudet.",
+  low: "Rikta kameran högre — mer av överkroppen behöver synas.",
   centre: "Flytta dig mot mitten av bilden.",
 };
 
@@ -47,6 +50,7 @@ export function framing(landmarks: Float32Array): string {
   if (Math.abs((x(left) + x(right)) / 2 - 0.5) > OFF_CENTRE) return FRAMING.centre;
   // the nose stands in for the head, since the face is tracked as a whole or not at all
   if (Number.isNaN(y(NOSE)) || y(NOSE) < HEADROOM) return FRAMING.headroom;
+  if ((y(left) + y(right)) / 2 > LOW) return FRAMING.low;
   return "";
 }
 
