@@ -70,12 +70,12 @@ import { page } from "$app/state";
     margin-bottom: 24px;
     background: var(--surface);
     border: 1px solid var(--line);
-    border-radius: 12px;
+    border-radius: var(--radius);
   }
 
   .modes a {
     padding: 8px 22px;
-    border-radius: 9px;
+    border-radius: 7px;
     color: var(--dim);
     font-weight: 500;
     text-decoration: none;
@@ -89,7 +89,7 @@ import { page } from "$app/state";
   /* What is signed on the left, what it looks like on the right, side by side on a desktop window. */
   .split {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
     gap: 28px;
     align-items: start;
   }

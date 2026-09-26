@@ -1,18 +1,19 @@
-/* The app is light (user, 2026-09-26, replacing the dark theme of 2026-09-23). One accent carries
-   every interactive surface; green and red are kept for verdicts alone. */
+/* The app is light and calm (user, 2026-09-26, replacing the dark theme of 2026-09-23): a warm
+   off-white, soft text and a sage accent. One accent carries every interactive surface; green and
+   red are kept for verdicts alone. */
 :root {
   color-scheme: light;
-  --bg: #ffffff;
-  --surface: #f4f4f6;
-  --raised: #e8e8ec;
-  --text: #16171b;
-  --dim: #6b6c75;
-  --line: #d9d9df;
-  --accent: #2563eb;
-  --ok: #16a34a;
-  --bad: #dc2626;
-  --radius: 14px;
-  --rail: 200px;
+  --bg: #faf9f7;
+  --surface: #f1f0ec;
+  --raised: #e6e4de;
+  --text: #2a2a2e;
+  --dim: #6d6d70;
+  --line: #e0ded8;
+  --accent: #557a68;
+  --ok: #2f8a4a;
+  --bad: #c2413b;
+  --radius: 10px;
+  --column: 760px;
   /* LayerChart's theme, in the app's colours; on the root since its tooltips are portaled to body */
   --color-primary: var(--accent);
   --color-surface-content: var(--text);
@@ -39,8 +40,8 @@ body {
 }
 
 h1 {
-  font-size: 34px;
-  font-weight: 650;
+  font-size: 28px;
+  font-weight: 600;
   letter-spacing: -0.02em;
   margin: 0;
 }
@@ -57,6 +58,11 @@ p {
 
 a {
   color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
 }
 
 .dim {
@@ -72,15 +78,11 @@ a {
   color: var(--bad);
 }
 
-/* A panel: everything that is one block of the page sits on one of these. */
+/* One block of the page. It sits straight on the page, set apart by space rather than a box. */
 .card {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 24px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
 }
 
 .row {
@@ -117,7 +119,7 @@ input[type="checkbox"] {
 
 button {
   padding: 12px 22px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   border: 1px solid transparent;
   background: var(--accent);
   color: #fff;

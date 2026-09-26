@@ -153,6 +153,16 @@ Steps 1 to 7 are built and in use. Steps 8 to 14 are the blueprint above and are
 
     **The story is asked for by length, not by a number of lines** (user, 2026-09-25: "let's not have the granular number of parts control in the frontend"). The start card offered kort (3 parts) and lång (10); later the same day the choice was removed and a story is always lång, 10 parts (user, 2026-09-25: "let's remove the kort/lång option for the story and always go for lång"). A number of lines is an internal unit the learner has no way to reason about, and with the count now loose it promised a precision the system does not keep. "Antal ord" and "Repetitioner" on Ord are untouched for now. — done, checked with `uv run pytest`, `npm run check`, `npm test` and `npm run build`. Not practised through in a browser yet, which is the next thing: the contract, the marking and the box all changed on a path that only a real recording exercises.
 
+20. **A plain, calm style** (user, 2026-09-26: the page "looks a bit sloppy and rough around the edges"; wanted "a quite plain relaxing style and layout", nothing fancy). Nothing the learner does changed, only how the pages sit. It is a branch of its own (`calm-style`) so it can be compared with main.
+
+    **One narrow column down the middle.** Every page and the section bar share one column of `--column` (760 px), centred in the window, where the pages used to fill a 1080 px area beside the rail and each lined its blocks up differently. On Sök the camera and the field under it are one width (440 px), so the two ways in read as one; Träna's camera column narrowed to 260–320 px to fit.
+
+    **A line of sections above the page instead of the rail** (user, 2026-09-26), which replaces step 17's rail: "Takk" on the left and Sök, Träna and Tecken on the right, the current one in the text colour with an accent underline. On a phone it is still the bar along the bottom.
+
+    **Warm and soft, with a sage accent** (user, 2026-09-26): an off-white page (`#faf9f7`), softer text, and a muted sage green (`#557a68`) as the one accent in place of the saturated blue; green and red stay for verdicts and are toned down with it. The ok green is kept more saturated than the sage so a word Meningar marks right is told apart from a key word still to sign.
+
+    **No boxes around blocks.** `.card` is now only a column of spaced items and draws no panel: the start cards, the charts and the empty states sit straight on the page. Borders are left where they mean something — the camera, the field and the clip tiles. One corner radius (10 px) everywhere, headings at 28 px and weight 600, links in the accent without an underline until hovered. — done on the branch, checked with `npm run check`, `npm test` and headless screenshots of Sök, Träna and Tecken on a desktop and a phone width. Not seen with the API running, so the Ord and Meningar cards with a lexicon loaded were not looked at.
+
 ## Decisions
 
 - **The camera says how the signer sits, not how fast it runs** (user, 2026-09-21). The page carries the framing feedback of step 11 and nothing about frames per second.

@@ -9,9 +9,9 @@ import { page } from "$app/state";
 
   let { children } = $props();
 
-  // The three sections are always one click away (user, 2026-09-23): a rail beside the page on a
-  // desktop window, the same three items as a bar along the bottom on a phone. There is no menu page
-  // and no way back, since every page is reachable from every other one.
+  // The three sections are always one click away (user, 2026-09-23): a line above the page on a
+  // desktop window (user, 2026-09-26), the same three items as a bar along the bottom on a phone.
+  // There is no menu page and no way back, since every page is reachable from every other one.
   const sections = [
     { href: "/sök", label: "Sök", at: "/sök" },
     { href: "/träna/ord", label: "Träna", at: "/träna" },
@@ -39,7 +39,7 @@ import { page } from "$app/state";
 </script>
 
 <div class="app">
-  <nav class="rail">
+  <nav class="bar">
     <span class="brand">Takk</span>
     {#each sections as section (section.href)}
       <a href="{base}{section.href}" class:on={path.startsWith(section.at)}>{section.label}</a>
@@ -49,28 +49,23 @@ import { page } from "$app/state";
 </div>
 
 <style>
-  .app {
-    display: grid;
-    grid-template-columns: var(--rail) 1fr;
-    min-height: 100dvh;
+  /* The bar and the page share one narrow column down the middle of the window. */
+  .bar,
+  main {
+    width: 100%;
+    max-width: var(--column);
+    margin: 0 auto;
   }
 
-  .rail {
-    position: sticky;
-    top: 0;
-    align-self: start;
-    height: 100dvh;
+  .bar {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 24px 12px;
-    background: var(--surface);
-    border-right: 1px solid var(--line);
+    align-items: baseline;
+    gap: 28px;
+    padding: 28px 24px 0;
   }
 
   .brand {
-    margin: 4px 0 20px;
-    padding: 0 12px;
+    margin-right: auto;
     font-size: 13px;
     font-weight: 600;
     letter-spacing: 0.18em;
@@ -78,46 +73,38 @@ import { page } from "$app/state";
     color: var(--dim);
   }
 
-  .rail a {
-    padding: 10px 12px;
-    border-radius: 10px;
+  .bar a {
+    padding: 4px 0;
+    border-bottom: 2px solid transparent;
     color: var(--dim);
     font-weight: 500;
+  }
+
+  .bar a:hover {
+    color: var(--text);
     text-decoration: none;
   }
 
-  .rail a:hover {
+  .bar a.on {
     color: var(--text);
-  }
-
-  .rail a.on {
-    color: var(--text);
-    background: var(--raised);
+    border-bottom-color: var(--accent);
   }
 
   main {
-    width: 100%;
-    max-width: 1080px;
-    margin: 0 auto;
-    padding: 40px 32px 64px;
+    padding: 40px 24px 64px;
   }
 
-  /* On a phone the rail becomes the bar along the bottom, where a thumb reaches it. */
+  /* On a phone the bar moves along the bottom, where a thumb reaches it. */
   @media (max-width: 720px) {
-    .app {
-      grid-template-columns: 1fr;
-    }
-
-    .rail {
+    .bar {
       position: fixed;
       inset: auto 0 0;
-      height: auto;
       z-index: 2;
-      flex-direction: row;
+      max-width: none;
       justify-content: space-around;
-      padding: 6px;
-      padding-bottom: max(6px, env(safe-area-inset-bottom));
-      border-right: none;
+      padding: 10px 6px;
+      padding-bottom: max(10px, env(safe-area-inset-bottom));
+      background: var(--bg);
       border-top: 1px solid var(--line);
     }
 

@@ -190,8 +190,8 @@
   .figure span {
     display: block;
     color: var(--text);
-    font-size: 40px;
-    font-weight: 650;
+    font-size: 32px;
+    font-weight: 600;
     letter-spacing: -0.02em;
     line-height: 1.1;
   }
@@ -344,6 +344,7 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
+    margin-top: 40px;
   }
 
   .empty {

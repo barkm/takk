@@ -172,9 +172,16 @@
     flex-direction: column;
     gap: 12px;
     width: 100%;
-    max-width: 360px;
+    max-width: 440px;
     margin: 0 auto 16px;
     text-align: center;
+  }
+
+  /* as wide as the picture above it, so the two ways in read as one */
+  input[type="search"] {
+    display: block;
+    max-width: 440px;
+    margin: 0 auto;
   }
 
   .note {
