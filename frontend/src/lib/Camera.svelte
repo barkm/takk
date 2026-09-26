@@ -128,6 +128,7 @@
     transform: scaleX(-1);
     text-align: center;
     font-size: 14px;
+    color: #fff;
     background: #000000b3;
   }
 </style>

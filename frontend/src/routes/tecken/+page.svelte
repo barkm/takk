@@ -360,7 +360,7 @@
     padding: 2px 8px;
     border-radius: 8px;
     background: var(--accent);
-    color: #0b0b0d;
+    color: #fff;
     font-size: 13px;
     font-weight: 600;
   }
@@ -377,7 +377,7 @@
     padding: 0;
     background: #000000a6;
     border-radius: 8px;
-    color: var(--text);
+    color: #fff;
   }
 
   .drop svg {

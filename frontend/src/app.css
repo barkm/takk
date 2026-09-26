@@ -1,17 +1,16 @@
-/* The app is dark (user, 2026-09-23): the camera picture and the lexicon clips are what the learner
-   looks at, and a near-black surface lets them be the only bright thing on the screen. One accent
-   carries every interactive surface; green and red are kept for verdicts alone. */
+/* The app is light (user, 2026-09-26, replacing the dark theme of 2026-09-23). One accent carries
+   every interactive surface; green and red are kept for verdicts alone. */
 :root {
-  color-scheme: dark;
-  --bg: #0b0b0d;
-  --surface: #131418;
-  --raised: #1d1e24;
-  --text: #f2f2f4;
-  --dim: #8a8b93;
-  --line: #2a2b31;
-  --accent: #6ea8fe;
-  --ok: #4ade80;
-  --bad: #f87171;
+  color-scheme: light;
+  --bg: #ffffff;
+  --surface: #f4f4f6;
+  --raised: #e8e8ec;
+  --text: #16171b;
+  --dim: #6b6c75;
+  --line: #d9d9df;
+  --accent: #2563eb;
+  --ok: #16a34a;
+  --bad: #dc2626;
   --radius: 14px;
   --rail: 200px;
 }
@@ -121,7 +120,7 @@ button {
   border-radius: 10px;
   border: 1px solid transparent;
   background: var(--accent);
-  color: #0b0b0d;
+  color: #fff;
   font: inherit;
   font-weight: 600;
   cursor: pointer;
