@@ -12,15 +12,21 @@
   let level = $state<Level | null>(null);
   let context = $state("");
   let first = $state(false); // nothing was said yet, so saving goes on to Sök
+  let saved = $state(""); // the answers as last saved, so Spara is pressable only when they differ
+
+  const answers = $derived(JSON.stringify([signs, level, context.trim()]));
 
   $effect(() => {
     const said = about();
-    (signs = hand()), (level = said?.level ?? null), (context = said?.context ?? ""), (first = !said);
+    const kept = { signs: hand(), level: said?.level ?? null, context: said?.context ?? "" };
+    (signs = kept.signs), (level = kept.level), (context = kept.context), (first = !said);
+    saved = JSON.stringify([kept.signs, kept.level, kept.context]); // not read back, so the effect runs once
   });
 
   function save() {
     setHand(signs!);
     setAbout({ level: level!, context: context.trim() });
+    saved = answers;
     if (first) goto(`${base}/sök`);
   }
 
@@ -54,7 +60,7 @@
   <textarea rows="3" placeholder="Till exempel: förskollärare, barn 3–5 år" bind:value={context}></textarea>
 
   <div class="row">
-    <button disabled={!signs || !level} onclick={save}>{first ? "Börja" : "Spara"}</button>
+    <button disabled={!signs || !level || answers === saved} onclick={save}>{first ? "Börja" : "Spara"}</button>
   </div>
 </section>
 
