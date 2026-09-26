@@ -161,7 +161,7 @@ Steps 1 to 7 are built and in use. Steps 8 to 14 are the blueprint above and are
 
     **Warm and soft, with a sage accent** (user, 2026-09-26): an off-white page (`#faf9f7`), softer text, and a muted sage green (`#557a68`) as the one accent in place of the saturated blue; green and red stay for verdicts and are toned down with it. The ok green is kept more saturated than the sage so a word Meningar marks right is told apart from a key word still to sign.
 
-    **No boxes around blocks.** `.card` is now only a column of spaced items and draws no panel: the start cards, the charts and the empty states sit straight on the page. Borders are left where they mean something — the camera, the field and the clip tiles. One corner radius (10 px) everywhere, headings at 28 px and weight 600, links in the accent without an underline until hovered. — done on the branch, checked with `npm run check`, `npm test` and headless screenshots of Sök, Träna and Tecken on a desktop and a phone width. Not seen with the API running, so the Ord and Meningar cards with a lexicon loaded were not looked at.
+    **No boxes around blocks.** `.card` is now only a column of spaced items and draws no panel: the start cards, the charts and the empty states sit straight on the page. Borders are left where they mean something — the camera, the field and the clip tiles. One corner radius (10 px) everywhere, headings at 28 px and weight 600, links in the accent without an underline until hovered. — done on the branch, checked with `npm run check`, `npm test` and headless screenshots with the API running — Sök with results, the Ord and Meningar start cards, and Tecken — on a desktop and a phone width. Not practised through with a live camera.
 
 ## Decisions
 
