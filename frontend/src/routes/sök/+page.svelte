@@ -53,7 +53,7 @@
   $effect(() => {
     const said = about();
     if (!said) return;
-    const made = JSON.stringify(said);
+    const made = JSON.stringify([said.level, said.context]); // what the chips are fitted to, not `speaks`
     try {
       const kept = JSON.parse(localStorage.getItem(CHIPS) ?? "null");
       if (kept?.made === made) return void (chips = kept.chips);

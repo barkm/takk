@@ -1,6 +1,7 @@
 <script lang="ts">
   import Recorder from "$lib/Recorder.svelte";
   import Verdict from "$lib/Verdict.svelte";
+  import { about } from "$lib/about";
   import { fetchForm, word, type Attempt, type SignWord, type Sign } from "$lib/api";
   import { useCamera } from "$lib/camera.svelte";
   import { pass, REPEATS, WORDS } from "$lib/options";
@@ -81,7 +82,7 @@
 {#if current}
   <header class="head">
     <div class="meter" style="--done: {taken / (taken + queue.length)}"></div>
-    <p class="dim">{taken} av {taken + queue.length} klara. Säg ordet högt medan du tecknar det.</p>
+    <p class="dim">{taken} av {taken + queue.length} klara.{about()?.speaks === false ? "" : " Säg ordet högt medan du tecknar det."}</p>
   </header>
   <!-- The slot keeps its place whether or not there is a mark in it, so the word does not move when
        one lands; the mark itself is only there while it is shown, since a mark on its way out would

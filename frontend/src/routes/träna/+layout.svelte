@@ -1,6 +1,7 @@
 <script lang="ts">
   import CameraView from "$lib/Camera.svelte";
   import Level from "$lib/Level.svelte";
+  import { about } from "$lib/about";
   import { useCamera } from "$lib/camera.svelte";
 
   // Träna is the two modes and the camera they share (user, 2026-09-23). The camera is mounted here
@@ -9,11 +10,12 @@
   let { children } = $props();
 
   const camera = useCamera();
+  const speaks = about()?.speaks ?? true; // the microphone's strip is only for a learner who speaks
 </script>
 
 <div class="split">
   <div class="work">{@render children()}</div>
-  <aside class="camera"><CameraView {camera} /><Level /></aside>
+  <aside class="camera"><CameraView {camera} />{#if speaks}<Level />{/if}</aside>
 </div>
 
 <style>

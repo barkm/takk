@@ -100,8 +100,9 @@ export async function fetchForm(entryId: string): Promise<string> {
   return (await response.json()).form;
 }
 
-/** Score a recording as an attempt of `signs`, in order. Every attempt is spoken and its signs are
- * located by the words said over it, so it needs the microphone. Throws when the server refuses it.
+/** Score a recording as an attempt of `signs`, in order. Its signs are located by the words said
+ * over it, so it needs the microphone, unless the learner signs in silence and `cuts` gives where
+ * each sign starts and ends, in seconds from the first frame. Throws when the server refuses it.
  *
  * `unheardIsMiss` scores a word that was not said as a miss of its sign instead of refusing the whole
  * recording, which is what a story does: it never stops, and a word left unsaid is a word unsigned. */
@@ -114,11 +115,13 @@ export async function scoreAttempt(
   video: HTMLVideoElement,
   fps: number,
   unheardIsMiss = false,
+  cuts?: number[],
 ): Promise<Attempt> {
   const body = new FormData();
   const landmarks = resample(frames, fps);
   body.append("landmarks", new Blob([landmarks.buffer as ArrayBuffer]), "landmarks.f32");
-  if (audio) {
+  if (cuts) for (const cut of cuts) body.append("cuts", String(cut));
+  else if (audio) {
     body.append("audio", audio, "audio");
     body.append("audio_offset", String(frames[0].time - audioStart));
   }

@@ -1,9 +1,11 @@
 <script lang="ts">
   import { untrack } from "svelte";
 
+  import { about } from "$lib/about";
   import { scoreAttempt, type Attempt, type Sign } from "$lib/api";
   import { useCamera } from "$lib/camera.svelte";
   import { hand } from "$lib/hand";
+  import { follow, following, hands } from "$lib/hands";
   import { hear, listening, type Phase } from "$lib/voice";
 
   let {
@@ -25,6 +27,8 @@
 
   const TICK = 50; // ms between readings of the microphone; each covers the newest 21 ms of sound
   const IDLE = 10; // seconds armed without a word before the recording is thrown away and started over
+  const PAD = 0.25; // seconds kept around each silent sign, under the 0.7 s the hands are down between two
+  const APART = "Sänk händerna mellan tecknen.";
 
   // The camera, the landmarker and the framing feedback belong to the Träna layout, which keeps them
   // up while the modes come and go (step 12 of ROADMAP-takk.md); this component only records.
@@ -38,9 +42,16 @@
   let ears = listening();
   let since = 0; // when the current phase began, to arm afresh and to time the attempt
 
+  // A learner who signs in silence (Om dig) has no words to locate the signs by, so the hands do it
+  // instead: each sign is made with the hands raised and ends with them lowered out of the picture,
+  // and the recording ends with the sentence's last sign. The phases are the voice's all the same,
+  // "speaking" being from the first sign raised to the end.
+  const speaks = about()?.speaks ?? true;
+  let signs = following();
+
   // Every attempt is located by the words the signer says, so without the microphone there is
   // nothing to locate it with. Refusing here says so before a recording is made and thrown away.
-  const silent = $derived(tracker?.hasAudio === false);
+  const silent = $derived(speaks && tracker?.hasAudio === false);
 
   // A new sentence arms itself, so the learner signs it when they are ready rather than after
   // pressing anything. The camera has to be up first, which it may not be when the card appears.
@@ -63,9 +74,9 @@
     phase = "idle"; // the readings stand still while a recording already running is closed and dropped
     if (again) await tracker.stopRecording();
     tracker.startRecording();
-    (ears = listening()), (seconds = 0);
-    (phase = ears.phase), (since = Date.now());
-    if (!ticker) ticker = setInterval(listen, TICK);
+    (ears = listening()), (signs = following()), (seconds = 0);
+    (phase = speaks ? ears.phase : "armed"), (since = Date.now());
+    if (!ticker) ticker = setInterval(speaks ? listen : look, TICK);
   }
 
   /** One reading of the microphone, every TICK ms. `hear` decides what it means; the clock is this
@@ -82,6 +93,29 @@
     if (seconds > (limit ?? lexicon.maxSeconds * sentence.length)) stop();
   }
 
+  /** One reading of the hands, every TICK ms, for a learner who signs in silence. */
+  function look() {
+    if (!tracker || phase === "idle") return;
+    signs = follow(signs, hands(tracker.latest), performance.now() / 1000, TICK / 1000);
+    if (signs.cuts.length === 2 * sentence.length) return void stop();
+    if (!signs.cuts.length) {
+      if (Date.now() - since > IDLE * 1000) arm();
+      return;
+    }
+    if (phase === "armed") (phase = "speaking"), (since = Date.now());
+    seconds = (Date.now() - since) / 1000;
+    if (seconds > (limit ?? lexicon.maxSeconds * sentence.length)) stop();
+  }
+
+  /** Where each sign of a silent recording starts and ends, in seconds from its first frame, or null
+   * when the hands did not come down between as many signs as the sentence has. A sign still being
+   * made when the time ran out ends where the recording does. */
+  function cutsOf(start: number): number[] | null {
+    const cuts = signs.cuts.length % 2 ? [...signs.cuts, performance.now() / 1000] : signs.cuts;
+    if (cuts.length !== 2 * sentence.length) return null;
+    return cuts.map((time, i) => Math.max(time - start + (i % 2 ? PAD : -PAD), 0));
+  }
+
   async function stop() {
     if (!tracker || phase === "idle") return; // the silence, the time limit and arming again all stop one
     phase = "idle";
@@ -89,6 +123,8 @@
     const taken = await tracker.stopRecording();
     if (!taken) return;
     if (taken.frames.length < 2) return onattempt(null, "Inspelningen är tom.");
+    const cuts = speaks ? undefined : cutsOf(taken.frames[0].time);
+    if (cuts === null) return onattempt(null, APART);
     scoring = true;
     try {
       const attempt = await scoreAttempt(
@@ -100,6 +136,7 @@
         camera.video!,
         lexicon.fps,
         unheardIsMiss,
+        cuts,
       );
       onattempt(attempt, "");
     } catch {
@@ -121,7 +158,7 @@
   // waiting for the learner to speak is not recording anything they would want back, and an outline
   // that is on throughout says nothing. Sök outlines it the same way while its own recording runs.
   $effect(() => void (camera.recording = phase === "speaking"));
-  $effect(() => void (camera.listening = phase !== "idle"));
+  $effect(() => void (camera.listening = speaks && phase !== "idle"));
 </script>
 
 <svelte:window {onkeydown} />

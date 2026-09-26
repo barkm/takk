@@ -43,3 +43,19 @@ export function see(eyes: Eyes, present: boolean, settings = SETTINGS): Eyes {
   }
   return eyes; // done is the caller's to act on and clear
 }
+
+/** The signs of one recording made in silence (`speaks` in `about.ts`), each marked by the hands
+ * going up and coming down again: `cuts` holds a start and an end per sign, in seconds on the clock
+ * of `now`, at the first and the last reading that had hands. */
+export type Signs = { eyes: Eyes; cuts: number[] };
+
+export const following = (): Signs => ({ eyes: watching(), cuts: [] });
+
+/** One more reading, taken at `now`, `tick` seconds after the one before it. */
+export function follow(signs: Signs, present: boolean, now: number, tick: number, settings = SETTINGS): Signs {
+  const eyes = see(signs.eyes, present, settings);
+  if (signs.eyes.phase === "away" && eyes.phase === "signing")
+    return { eyes, cuts: [...signs.cuts, now - (settings.seen - 1) * tick] };
+  if (eyes.phase === "done") return { eyes: watching(), cuts: [...signs.cuts, now - settings.gone * tick] };
+  return { eyes, cuts: signs.cuts };
+}
