@@ -5,12 +5,18 @@ All video datasets go through this one setup, so their landmarks are consistent 
 
 import os
 import urllib.request
+from collections.abc import Iterator, Sequence
 from pathlib import Path
 
 import numpy as np
+import polars as pl
+from tqdm import tqdm
 
-from isolated_sign_validation.landmarks import LANDMARK_SLICES, N_LANDMARKS, VideoInfo
+from isolated_sign_validation.landmarks import LANDMARK_SLICES, N_LANDMARKS, VideoInfo, write_store_resumable
+from isolated_sign_validation.parallel import parallel_map
 
+# Holistic extraction uses ~1.7 cores per process; more workers than this are slower (see ROADMAP.md).
+MAX_WORKERS = 8
 MODEL_URL = "https://storage.googleapis.com/mediapipe-models/holistic_landmarker/holistic_landmarker/float16/latest/holistic_landmarker.task"
 MODEL_PATH = Path("data/models/holistic_landmarker.task")
 
@@ -86,3 +92,30 @@ def extract_landmarks(video: Path, model_path: Path = MODEL_PATH) -> tuple[np.nd
     capture.release()
     landmarks = np.stack(frames) if frames else np.empty((0, N_LANDMARKS, 3), dtype=np.float32)
     return landmarks, VideoInfo(fps, width, height)
+
+
+def extract_clips(dataset: str, videos: Sequence[dict]) -> Iterator[tuple[dict, np.ndarray]]:
+    """Extract (metadata, landmarks) for `videos` (rows with clip_id, sign, path and, if the dataset
+    has signer ids, signer), in order."""
+    results = parallel_map(extract_landmarks, [Path(video["path"]) for video in videos], max_workers=MAX_WORKERS, initializer=silence_native_logs)  # fmt: skip
+    for video, (landmarks, info) in zip(videos, results):
+        metadata = {
+            "dataset": dataset,
+            "clip_id": video["clip_id"],
+            "sign": video["sign"],
+            "signer": video.get("signer"),
+            "fps": info.fps,
+            "width": info.width,
+            "height": info.height,
+        }
+        yield metadata, landmarks
+
+
+def extract_store(dataset: str, videos: pl.DataFrame, store_dir: Path) -> None:
+    """Extract landmarks for `videos` (see extract_clips) into a landmark store, resuming an interrupted run."""
+    download_model()
+    write_store_resumable(
+        store_dir,
+        videos.to_dicts(),
+        lambda batch: tqdm(extract_clips(dataset, batch), total=len(batch), desc=dataset, unit="clip"),
+    )

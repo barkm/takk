@@ -12,22 +12,16 @@ run again. Run from the repo root:
 
 import argparse
 import json
-from collections.abc import Iterator, Sequence
+from collections.abc import Sequence
 from pathlib import Path
 
-import numpy as np
 import polars as pl
-from tqdm import tqdm
 
-from isolated_sign_validation.extraction import download_model, extract_landmarks, silence_native_logs
-from isolated_sign_validation.landmarks import write_store_resumable
-from isolated_sign_validation.parallel import parallel_map
+from isolated_sign_validation.extraction import extract_store
 
 DATASET = "mm_wlauslan"
 RAW_DIR = Path("data/raw/mm-wlauslan")
 STORE_DIR = Path("data/processed") / DATASET
-# Holistic extraction uses ~1.7 cores per process; more workers than this are slower (see ROADMAP.md).
-MAX_WORKERS = 8
 CAMERA, CAMERA_CODE = "Kinect_F", "kf"
 # Subsets (named as their label files) with intact signing: the studio recordings, and test sets with
 # replaced backgrounds; not Test_TED, which removes frames and changes the speed.
@@ -53,32 +47,6 @@ def sign_words(raw_dir: Path) -> dict[str, list[str]]:
     return {sign: [sign, *entry["Keywords"].split(",")] for sign, entry in dictionary.items()}
 
 
-def extract_clips(videos: Sequence[dict]) -> Iterator[tuple[dict, np.ndarray]]:
-    """Extract (metadata, landmarks) for `videos` (rows of read_videos), in order."""
-    results = parallel_map(extract_landmarks, [Path(video["path"]) for video in videos], max_workers=MAX_WORKERS, initializer=silence_native_logs)  # fmt: skip
-    for video, (landmarks, info) in zip(videos, results):
-        metadata = {
-            "dataset": DATASET,
-            "clip_id": video["clip_id"],
-            "sign": video["sign"],
-            "signer": None,
-            "fps": info.fps,
-            "width": info.width,
-            "height": info.height,
-        }
-        yield metadata, landmarks
-
-
-def convert(videos: pl.DataFrame, store_dir: Path) -> None:
-    """Extract landmarks for `videos` into a landmark store, resuming an interrupted run."""
-    download_model()
-    write_store_resumable(
-        store_dir,
-        videos.to_dicts(),
-        lambda batch: tqdm(extract_clips(batch), total=len(batch), desc=DATASET, unit="clip"),
-    )
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--subsets", nargs="+", choices=SUBSETS, default=list(SUBSETS), help="only these subsets")
@@ -96,7 +64,7 @@ def main() -> None:
     if missing:
         raise FileNotFoundError(f"{len(missing)} videos missing, e.g. {missing[0]}; download and unzip them first")
     print(f"{videos.height} videos -> {store_dir}")
-    convert(videos, store_dir)
+    extract_store(DATASET, videos, store_dir)
 
 
 if __name__ == "__main__":
