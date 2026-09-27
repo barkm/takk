@@ -80,10 +80,6 @@ def test_an_entry_in_several_categories_is_in_each_of_them(tmp_path):
         "Djur": [{"sign": "sts:abborre-01811", "id": "01811"}],
         "Mat och dryck": [{"sign": "sts:abborre-01811", "id": "01811"}],
     }
-    assert category_words(CLIPS, raw_dir, deep=True) == {
-        "Djur > fisk": [{"sign": "sts:abborre-01811", "id": "01811"}],
-        "Mat och dryck > fisk": [{"sign": "sts:abborre-01811", "id": "01811"}],
-    }
 
 
 def test_the_form_of_each_entry_is_the_lexicon_s_own_words(tmp_path):

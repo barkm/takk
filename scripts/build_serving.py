@@ -25,7 +25,6 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
-import polars as pl
 
 from isolated_sign_validation.dataset import SignDataset
 from isolated_sign_validation.datasets.sts_lexikon import video_urls

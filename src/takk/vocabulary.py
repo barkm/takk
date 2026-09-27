@@ -113,8 +113,8 @@ def _matches(word: dict, wanted: str, starts: bool) -> bool:
     return text.lower().startswith(wanted) if starts else wanted in text.lower()
 
 
-def category_words(clips: pl.DataFrame, raw_dir: Path = RAW_DIR, deep: bool = False) -> dict[str, list[dict]]:
-    """The words of each category, the ones the lexicon counts most often first.
+def category_words(clips: pl.DataFrame, raw_dir: Path = RAW_DIR) -> dict[str, list[dict]]:
+    """The words of each top-level category, the ones the lexicon counts most often first.
 
     A word is the heading of an entry in the category, not the name of the sign that scores it: signs
     of one form are one class labelled by its lowest entry, and that entry often belongs to another
@@ -138,7 +138,7 @@ def category_words(clips: pl.DataFrame, raw_dir: Path = RAW_DIR, deep: bool = Fa
         word = (row["word"] or spoken_word(sign)).split(",")[0].strip()
         found = Entry(row["lexicon_hits"] or 0, row["corpus_hits"] or 0, word, row["id"], sign)
         for category in row["categories"]:
-            name = category["path"] if deep else category["path"].split(">")[0].strip()
+            name = category["path"].split(">")[0].strip()
             categories.setdefault(name, []).append(found)
     return {name: _best(found) for name, found in categories.items()}
 

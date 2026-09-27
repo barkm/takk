@@ -1,8 +1,6 @@
 import asyncio
 import io
 
-from types import SimpleNamespace
-
 import numpy as np
 import pytest
 import torch

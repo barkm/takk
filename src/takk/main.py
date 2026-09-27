@@ -61,10 +61,9 @@ def main() -> None:
     served = bundle.load(args.bundle, args.threshold)
     print(f"{args.bundle}: {served.meta['n_signs']} signs of {served.meta['glossary']}, embedded by {served.meta['run']}, threshold {served.threshold}")  # fmt: skip
     model = served.model.to(args.device)
-    references = {sign: served.clips[sign] for sign in served.signs}  # in the order of the rows of the means
     print(f"loading the Swedish speech model {SPEECH_MODEL} that times a spoken sentence's words (about 1.2 GB, downloaded once)")
     aligner = load_aligner(args.device)  # a sentence is split by its spoken words, so this is not optional
-    app = create_app(references, served.means, model, served.config, served.threshold, args.device, aligner, served.vocabulary, served.forms, story_writer(args.story_model))  # fmt: skip
+    app = create_app(served.clips, served.means, model, served.config, served.threshold, args.device, aligner, served.vocabulary, served.forms, story_writer(args.story_model))  # fmt: skip
     uvicorn.run(app, host=args.host, port=args.port)
 
 

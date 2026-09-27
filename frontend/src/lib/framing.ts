@@ -15,9 +15,9 @@ const SHOULDERS = [POSE + 11, POSE + 12];
 export const NARROW = 0.16;
 export const WIDE = 0.55;
 /** How much of the frame height has to be left above the head, for the signs made up there. */
-export const HEADROOM = 0.08;
+const HEADROOM = 0.08;
 /** How far the shoulders' middle may sit from the middle of the frame. */
-export const OFF_CENTRE = 0.18;
+const OFF_CENTRE = 0.18;
 
 export const FRAMING = {
   none: "Ingen syns i bild.",
