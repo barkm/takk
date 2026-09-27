@@ -171,13 +171,25 @@ def create_app(
         besides the clip, so it is fetched per sign rather than sent with the whole glossary."""
         return {"form": (forms or {}).get(entry_id, "")}
 
-    def judge(values: np.ndarray, sign: str, handedness: str, width: int, height: int) -> dict:
-        """Score the landmarks of one sign as an attempt of `sign`."""
+    def decode(landmarks: bytes, handedness: str, width: int, height: int) -> np.ndarray:
+        """An uploaded recording's landmarks, shape (n_frames, N_LANDMARKS, 3)."""
+        values = np.frombuffer(landmarks, dtype=np.float32)
+        if handedness not in ("left", "right") or width <= 0 or height <= 0 or values.size % (N_LANDMARKS * 3):
+            raise HTTPException(400, "malformed recording")
+        return values.reshape(-1, N_LANDMARKS, 3)
+
+    def scores_of(values: np.ndarray, handedness: str, width: int, height: int) -> tuple[np.ndarray | None, str]:
+        """The recording of one sign scored against every sign of the glossary, or None when it cannot
+        be used, and the check's note on it."""
         usable, note, _ = check_clip(values, VideoInfo(config.fps, width, height), config, notes=NOTES)
         frames = prepare_attempt(values, config.fps, width / height, handedness, config) if usable else None
-        if frames is None:
+        return (None if frames is None else means @ embed_clip(model, frames, config, device)), note
+
+    def judge(values: np.ndarray, sign: str, handedness: str, width: int, height: int) -> dict:
+        """Score the landmarks of one sign as an attempt of `sign`."""
+        scores, note = scores_of(values, handedness, width, height)
+        if scores is None:
             return {"sign": sign, "usable": False, "note": note}
-        scores = means @ embed_clip(model, frames, config, device)
         score, closest = float(scores[index[sign]]), int(np.argmax(scores))
         return {
             "sign": sign, "usable": True, "note": note, "score": score, "correct": score >= threshold,
@@ -193,15 +205,9 @@ def create_app(
         threshold; the recording is checked and prepared exactly as an attempt is, and the ranking is
         the one `judge` already computes over the whole glossary.
         """
-        values = np.frombuffer(await landmarks.read(), dtype=np.float32)
-        if handedness not in ("left", "right") or width <= 0 or height <= 0 or values.size % (N_LANDMARKS * 3):
-            raise HTTPException(400, "malformed recording")
-        values = values.reshape(-1, N_LANDMARKS, 3)
-        usable, note, _ = check_clip(values, VideoInfo(config.fps, width, height), config, notes=NOTES)
-        frames = prepare_attempt(values, config.fps, width / height, handedness, config) if usable else None
-        if frames is None:
+        scores, note = scores_of(decode(await landmarks.read(), handedness, width, height), handedness, width, height)
+        if scores is None:
             return {"words": [], "note": note}
-        scores = means @ embed_clip(model, frames, config, device)
         closest = np.argsort(scores)[::-1][:CLOSEST]
         # a word per sign, as the text search answers with, so both fill the same list of rows
         words = [vocabulary.by_sign[names[at]] for at in closest if vocabulary and names[at] in vocabulary.by_sign]
@@ -231,10 +237,7 @@ def create_app(
         in seconds from the first frame, where the page saw the hands raised and lowered again."""
         if any(s not in index for s in sign):
             raise HTTPException(404, "unknown sign")
-        values = np.frombuffer(await landmarks.read(), dtype=np.float32)
-        if handedness not in ("left", "right") or width <= 0 or height <= 0 or values.size % (N_LANDMARKS * 3):
-            raise HTTPException(400, "malformed attempt")
-        values = values.reshape(-1, N_LANDMARKS, 3)
+        values = decode(await landmarks.read(), handedness, width, height)
         if spoken and len(spoken) != len(sign):
             raise HTTPException(400, "a spoken word per sign, or none at all")
         if cuts:
