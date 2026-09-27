@@ -57,3 +57,14 @@ def test_train_runs_and_writes_the_validation(tmp_path, settings):
     config = TrainConfig(hidden=16, embedding_dim=8, epochs=2, batch_size=8, num_workers=1, eval_every=1, **settings)
     train(config, tiny_prepared(tmp_path / "prepared"), tmp_path / "run", device="cuda")
     assert (tmp_path / "run" / "best.pt").exists() and (tmp_path / "run" / "val_summary.parquet").exists()
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="training autocasts to bfloat16 on CUDA")
+def test_train_runs_with_twin_signs(tmp_path):
+    """Twin pairs among the training signs are masked in the loss, those among the validation signs in
+    the evaluation."""
+    tiny_prepared(tmp_path / "prepared")
+    (tmp_path / "prepared" / "twins.csv").write_text("sign_a,sign_b\nS0,S1\nV0,V1\n")
+    config = TrainConfig(hidden=16, embedding_dim=8, epochs=2, batch_size=8, num_workers=1, eval_every=1)
+    train(config, PreparedData(tmp_path / "prepared"), tmp_path / "run", device="cuda")
+    assert (tmp_path / "run" / "val_summary.parquet").exists()
