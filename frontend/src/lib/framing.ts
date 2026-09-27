@@ -1,7 +1,7 @@
-// How the signer sits in front of the camera, judged on the frame being tracked right now (step 11
-// of ROADMAP-takk.md). The server runs `checks.py` on a finished recording and says why it could not
-// be used; this says the same kind of thing before a recording is spent, so the framing is fixed
-// first. It is deliberately the cheap half: one frame, a handful of distances, no history.
+// How the signer sits in front of the camera, judged on the frame being tracked right now. The
+// server runs `checks.py` on a finished recording and says why it could not be used; this says the
+// same kind of thing before a recording is spent, so the framing is fixed first. It is deliberately
+// the cheap half: one frame, a handful of distances, no history.
 //
 // The numbers are all knobs and none is measured. They are read off the lexicon's own framing, where
 // the signer sits with head and upper body in view and room above the head for the signs made there.
@@ -30,11 +30,11 @@ export const FRAMING = {
 
 /** What to fix about the framing, in Swedish, one thing at a time and the most basic first, and the
  * empty string when there is nothing to fix: a framing that is already right is not worth a line of
- * its own (user, 2026-09-21), and what is wrong is shown over the picture it is about.
+ * its own, and what is wrong is shown over the picture it is about.
  *
  * Only the framing, never the signing: the hands are out of view between signs and a camera that
- * asked for them was complaining about the pause (user, 2026-09-22). The server still refuses a
- * recording with no hands in it, which is where that belongs. */
+ * asked for them would complain about the pause. The server still refuses a recording with no hands
+ * in it, which is where that belongs. */
 export function framing(landmarks: Float32Array): string {
   if (landmarks.length !== N_LANDMARKS * 3) return FRAMING.none;
   const x = (point: number) => landmarks[3 * point];

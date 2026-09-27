@@ -5,9 +5,9 @@
   import type { Camera } from "$lib/camera.svelte";
 
   // The camera picture with the tracked landmarks drawn over it, and what is wrong with the framing
-  // written over the bottom of it. The root layout mounts it above every page (step 12 of
-  // ROADMAP-takk.md), so the app looks the same throughout and the moving skeleton invites signing
-  // even on the menu, where nothing reads it.
+  // written over the bottom of it. The root layout mounts it above every page, so the app looks the
+  // same throughout and the moving skeleton invites signing even on the menu, where nothing reads
+  // it.
   //
   // The camera closes when this component goes away, which is when the app is left. Nothing else
   // stops the stream, so it would otherwise leave the camera light on.
@@ -18,7 +18,7 @@
   let video = $state<HTMLVideoElement>();
   let canvas = $state<HTMLCanvasElement>();
   // Whether a camera frame has been tracked yet: the tracker is ready before the first frame arrives,
-  // and the picture stays black until it does (user, 2026-09-26).
+  // and the picture stays black until it does.
   let live = $state(false);
 
   $effect(() => {
@@ -62,9 +62,9 @@
   <canvas bind:this={canvas}></canvas>
   {#if camera.tracker}
     {#if camera.fit}<p class="fit">{camera.fit}</p>{/if}
-    <!-- The loader runs until the picture and its skeleton are both there (user, 2026-09-26): the
-         tracker is ready before its first frame, and the lines between the landmarks come with the
-         lexicon, which may arrive after both. -->
+    <!-- The loader runs until the picture and its skeleton are both there: the tracker is ready
+         before its first frame, and the lines between the landmarks come with the lexicon, which
+         may arrive after both. -->
     {#if !live || !camera.lexicon}<div class="edge"><Loading label="Startar kameran" /></div>{/if}
   {:else}
     <!-- the space is reserved above, so only what fills it changes when the camera is ready; while

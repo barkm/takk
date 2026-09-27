@@ -11,10 +11,10 @@
 
   let { children } = $props();
 
-  // Moving between sections slides the underline from one section to the next (user, 2026-09-26),
-  // with the browser's view transitions: the underline is one element with a name of its own, so the
-  // browser moves it, while the page itself switches at once (`app.css`). A browser without them, or
-  // one asked to keep motion down, simply switches.
+  // Moving between sections slides the underline from one section to the next, with the browser's
+  // view transitions: the underline is one element with a name of its own, so the browser moves it,
+  // while the page itself switches at once (`app.css`). A browser without them, or one asked to
+  // keep motion down, simply switches.
   onNavigate((navigation) => {
     if (!document.startViewTransition || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     return new Promise((resolve) => {
@@ -25,9 +25,9 @@
     });
   });
 
-  // The sections are always one click away (user, 2026-09-23): a line above the page on a
-  // desktop window (user, 2026-09-26), the same three items as a bar along the bottom on a phone.
-  // There is no menu page and no way back, since every page is reachable from every other one.
+  // The sections are always one click away: a line above the page on a desktop window, the same
+  // three items as a bar along the bottom on a phone. There is no menu page and no way back, since
+  // every page is reachable from every other one.
   const sections = [
     { href: "/sök", label: "Sök", at: "/sök", name: "sök" },
     { href: "/träna", label: "Träna", at: "/träna", name: "träna" },
@@ -35,9 +35,9 @@
     { href: "/om-dig", label: "Om dig", at: "/om-dig", name: "om-dig" },
   ];
 
-  // The camera itself is mounted by the pages that use it (user, 2026-09-23), so Sök's results and
-  // Tecken cost nothing; what the app owns is the lexicon and the handle the pages reach it through,
-  // which is this context.
+  // The camera itself is mounted by the pages that use it, so Sök's results and Tecken cost
+  // nothing; what the app owns is the lexicon and the handle the pages reach it through, which is
+  // this context.
   const camera = new Camera();
   provideCamera(camera);
 
@@ -47,7 +47,7 @@
         camera.lexicon = loaded; // in a block: a `$state` object reads back as its proxy, not as the value assigned
       })
       // The page is deployed apart from the API and reaches a learner who cannot start it, so this
-      // says what is wrong and nothing about how to fix it (see step 18 of ROADMAP-takk.md).
+      // says what is wrong and nothing about how to fix it.
       .catch(() => (camera.fit = "Servern svarar inte just nu."));
   });
 
@@ -55,10 +55,10 @@
   const path = $derived(decodeURIComponent(page.url.pathname).slice(base.length));
   const current = $derived(sections.find((section) => path.startsWith(section.at))?.name);
 
-  // The first time the app is opened, whatever page it is opened on, it asks Om dig first (step 23):
-  // the hand every recording needs, and who the learner is, which the chips on Sök are made from.
-  // No other page is shown until then, so none opens the camera under the question, and the menu is
-  // hidden too (user, 2026-09-26), so the form is the only way on.
+  // The first time the app is opened, whatever page it is opened on, it asks Om dig first: the hand
+  // every recording needs, and who the learner is, which the chips on Sök are made from. No other
+  // page is shown until then, so none opens the camera under the question, and the menu is hidden
+  // too, so the form is the only way on.
   let known = $state(false);
   let ready = $state(false);
 
@@ -111,8 +111,8 @@
     text-decoration: none;
   }
 
-  /* the current section underlined in the accent (user, 2026-09-26, after a filled pill): the menu
-     stays quiet, and the blue only marks where the learner is */
+  /* the current section underlined in the accent: the menu stays quiet, and the blue only marks
+     where the learner is */
   .bar a.on {
     color: var(--text);
     font-weight: 600;

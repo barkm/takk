@@ -5,7 +5,7 @@
   // camera, so the learner can see they are being heard. It moves only while `Recorder` listens,
   // dim while it waits for the voice and red, like the outline, once the voice is being recorded.
   // Between listening, while an attempt is judged, it stands still on the take that was heard
-  // rather than disappearing (user, 2026-09-25).
+  // rather than disappearing.
   const TICK = 50; // ms per bar, the rate `Recorder` reads the level at
   const BARS = 40; // two seconds of them
 

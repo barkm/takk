@@ -7,13 +7,12 @@
   import { AreaChart, BarChart } from "layerchart";
   import "layerchart/core.css";
 
-  // Tecken (step 14 of ROADMAP-takk.md): the learner's own signs. The numbers first, then how the
-  // vocabulary is spread over the repetition schedule and how many signs have been met over time,
-  // then the signs themselves as a board: a card per word with its lexicon clip, grouped under the
-  // step of the schedule it has reached (user, 2026-09-24). The board says what the bar chart says,
-  // with the signs in it, which a list of words alone cannot show. Everything is read off the store,
-  // so no history is written for it. The charts are LayerChart's, which draws better axes and
-  // hovers than hand-made SVG did (user, 2026-09-26).
+  // Tecken: the learner's own signs. The numbers first, then how the vocabulary is spread over the
+  // repetition schedule and how many signs have been met over time, then the signs themselves as a
+  // board: a card per word with its lexicon clip, grouped under the step of the schedule it has
+  // reached. The board says what the bar chart says, with the signs in it, which a list of words
+  // alone cannot show. Everything is read off the store, so no history is written for it. The
+  // charts are LayerChart's, which draws better axes and hovers than hand-made SVG would.
 
   let progress: Progress = $state({});
 
@@ -73,8 +72,8 @@
     met.length && date(met[0].day) !== date(met[met.length - 1].day) ? [met[0].day, met[met.length - 1].day] : met.slice(-1).map((point) => point.day),
   );
 
-  // The list is where the vocabulary is pruned: a word is dropped here as it is unpicked in Sök, and
-  // what was learned of it goes with it (user, 2026-09-24).
+  // The list is where the vocabulary is pruned: a word is dropped here as it is unpicked in Sök,
+  // and what was learned of it goes with it.
   function drop(sign: string) {
     progress = remove(progress, sign);
     save(progress);
@@ -116,7 +115,7 @@
         <figcaption>Tecken över tid</figcaption>
         <div class="plot line">
           <!-- A step, since the count only changes on the days signs are met, with a wash under it and
-               the count of today written at its end in place of a count axis (user, 2026-09-26). -->
+               the count of today written at its end in place of a count axis. -->
           <AreaChart
             data={met}
             x="day"
@@ -192,7 +191,7 @@
 {/if}
 
 <style>
-  /* The three numbers as tiles, grey like the bars under Träna (user, 2026-09-26). */
+  /* The three numbers as tiles, grey like the bars under Träna. */
   .numbers {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -228,9 +227,9 @@
     gap: 16px;
   }
 
-  /* Each chart on a tile like the numbers above it (user, 2026-09-26), its title as small and dim as
-     theirs, so the data is the loud part. The grid shares its gap with the numbers', so the outer
-     edges line up. */
+  /* Each chart on a tile like the numbers above it, its title as small and dim as theirs, so the
+     data is the loud part. The grid shares its gap with the numbers', so the outer edges line up.
+     */
   .tile {
     display: flex;
     flex-direction: column;
@@ -268,8 +267,8 @@
     stroke: none;
   }
 
-  /* The charts grow in when the page opens (user, 2026-09-26): the bars rise from the baseline, the
-     line is drawn from left to right under its wash, and the counts follow once the marks are there. */
+  /* The charts grow in when the page opens: the bars rise from the baseline, the line is drawn from
+     left to right under its wash, and the counts follow once the marks are there. */
   .plot :global(.lc-bars-bar) {
     transform-box: fill-box;
     transform-origin: bottom;

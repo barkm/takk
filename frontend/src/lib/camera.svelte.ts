@@ -1,7 +1,7 @@
 // The camera of the whole app, which the root layout owns and every page reaches through this
-// context (step 12 of ROADMAP-takk.md). A SvelteKit layout stays mounted while the pages under it
-// come and go, so the camera opens once for the session, the element the tracker draws on is never
-// taken out from under it, and no page pays for starting it.
+// context. A SvelteKit layout stays mounted while the pages under it come and go, so the camera
+// opens once for the session, the element the tracker draws on is never taken out from under it,
+// and no page pays for starting it.
 import { getContext, setContext } from "svelte";
 
 import type { Lexicon } from "$lib/api";

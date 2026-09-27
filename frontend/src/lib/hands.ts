@@ -1,6 +1,6 @@
 // Seeing when a sign begins and ends, from whether the hands are tracked at all. A search by signing
 // has no spoken words to key on the way an attempt does (`voice.ts`), so the hands are what starts
-// and ends it: nothing is pressed here either (user, 2026-09-24).
+// and ends it: nothing is pressed here either.
 //
 // A reading is one tracked frame. The hands are there when either hand's landmarks were detected,
 // which the tracker writes as NaN when they were not — no distances and no thresholds, because a

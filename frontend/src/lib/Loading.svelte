@@ -1,7 +1,7 @@
 <script lang="ts">
-  // The one loader of the app (user, 2026-09-26): a thin line in the accent with a stretch of it
-  // sliding across, square like everything else. It stands wherever something is being waited for —
-  // the camera starting, a search, the lexicon — in place of a line of text saying so.
+  // The one loader of the app: a thin line in the accent with a stretch of it sliding across,
+  // square like everything else. It stands wherever something is being waited for — the camera
+  // starting, a search, the lexicon — in place of a line of text saying so.
   let { label = "Laddar" }: { label?: string } = $props();
 </script>
 

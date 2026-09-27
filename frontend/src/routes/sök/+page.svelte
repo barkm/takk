@@ -16,8 +16,8 @@
   import { hands, see, watching } from "$lib/hands";
   import { add, load, remove, save, type Progress } from "$lib/progress";
 
-  // Sök (steps 9 and 10 of ROADMAP-takk.md): the one way vocabulary grows. A word, a theme or a
-  // sign shown to the camera lists signs to pick, and what is picked is what Ord teaches.
+  // Sök: the one way vocabulary grows. A word, a theme or a sign shown to the camera lists signs to
+  // pick, and what is picked is what Ord teaches.
   const WAIT = 200; // milliseconds after the last keystroke, so a word is searched once and not per letter
   const LOOK = 50; // ms between readings of whether the hands are up, as the voice is read in Träna
 
@@ -28,9 +28,9 @@
   let timer: ReturnType<typeof setTimeout>;
 
   // Searching by signing: the recording fills the same grid the field does. Nothing is spoken and
-  // nothing is scored — this is a lookup, not an attempt. The camera is simply there the whole time
-  // (user, 2026-09-24): now that the hands start a search by themselves there is no way to be in,
-  // and so nothing to switch between — the learner types a word or signs one.
+  // nothing is scored — this is a lookup, not an attempt. The camera is simply there the whole
+  // time: the hands start a search by themselves, so there is no mode to be in, and so nothing to
+  // switch between — the learner types a word or signs one.
   const camera = useCamera();
   const lexicon = $derived(camera.lexicon);
   let searching = $state(false); // a sign is being looked up
@@ -40,10 +40,9 @@
     progress = load();
   });
 
-  // The chips under the field (step 23 of ROADMAP-takk.md): a few sets of words the model fitted to
-  // what the learner said on Om dig, each pressed to fill the grid as a search does. They are kept
-  // with what they were made for and asked for again only when that changes, since every ask is a
-  // call to the model.
+  // The chips under the field: a few sets of words the model fitted to what the learner said on Om
+  // dig, each pressed to fill the grid as a search does. They are kept with what they were made for
+  // and asked for again only when that changes, since every ask is a call to the model.
   // ponytail: not asked for again as the vocabulary grows; add a refresh when the chips run dry.
   const CHIPS = "takk.chips";
   let chips: Chip[] = $state([]);
@@ -88,10 +87,10 @@
     }, WAIT);
   }
 
-  // The hands start and end the recording, as the voice does in Träna (user, 2026-09-24): raising
-  // them to sign records, lowering them searches. Nothing is pressed here either, and a learner
-  // reading their results never has a recording started under them, because the hands have to leave
-  // the picture before the next one can begin.
+  // The hands start and end the recording, as the voice does in Träna: raising them to sign
+  // records, lowering them searches. Nothing is pressed here either, and a learner reading their
+  // results never has a recording started under them, because the hands have to leave the picture
+  // before the next one can begin.
   let eyes = $state(watching());
 
   $effect(() => {
@@ -138,8 +137,8 @@
   }
 
   function pick(each: SignWord) {
-    // A picked sign can always be unpicked (user, 2026-09-24), practised or not: the tile is the one
-    // switch for whether the word is in the vocabulary, and unpicking drops what was learned of it.
+    // A picked sign can always be unpicked, practised or not: the tile is the one switch for
+    // whether the word is in the vocabulary, and unpicking drops what was learned of it.
     progress = picked(each) ? remove(progress, each.sign) : add(progress, [each]);
     save(progress);
   }
@@ -147,11 +146,10 @@
   const picked = (each: SignWord) => !!progress[each.sign];
 </script>
 
-<!-- The picture first and the field under it (user, 2026-09-24): the two ways in read as one, and
-     the field's placeholder is where both are said, so the page needs no line of instructions. -->
+<!-- The picture first and the field under it: the two ways in read as one, and the field's
+     placeholder is where both are said, so the page needs no line of instructions. -->
 <!-- nothing is written about the picture: not what it is doing, and not that a sign is being looked
-     up — the loader under the field runs while it is (user, 2026-09-26), and the results arriving
-     say it is done -->
+     up — the loader under the field runs while it is, and the results arriving say it is done -->
 <section class="signing">
   <CameraView {camera} />
 </section>

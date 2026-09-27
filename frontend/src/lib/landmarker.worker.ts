@@ -1,15 +1,14 @@
 // The landmarker runs in this worker rather than on the page: setting it up compiles its model for
-// about as long as the camera takes to start, and on the page's own thread that froze the whole app
-// for those seconds, so not even the sections could be switched (user, 2026-09-26). The page sends
-// camera frames as they come and gets each frame's landmarks back in the common layout.
+// about as long as the camera takes to start, and on the page's own thread it would freeze the
+// whole app for those seconds, so not even the sections could be switched. The page sends camera
+// frames as they come and gets each frame's landmarks back in the common layout.
 import { FilesetResolver, HolisticLandmarker } from "@mediapipe/tasks-vision";
 
 import { layout } from "$lib/landmarks";
 
 const WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm";
 // The landmarker is loaded from MediaPipe's own address, as the wasm beside it is, so neither the
-// API nor this site carries the 13.7 MB (see ROADMAP-takk.md). It is the model extraction.py
-// downloads, by the same URL.
+// API nor this site carries the 13.7 MB. It is the model extraction.py downloads, by the same URL.
 const MODEL = "https://storage.googleapis.com/mediapipe-models/holistic_landmarker/holistic_landmarker/float16/latest/holistic_landmarker.task";
 
 // MediaPipe's wasm loader is a classic script that sets a global, which a module worker can neither

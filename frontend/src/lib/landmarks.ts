@@ -96,8 +96,8 @@ export class Smoother {
 
 export type Edges = Record<string, [number, number][]>;
 
-// The hands are what a sign is made with, so they are drawn bright and heavy and the rest recedes
-// (user, 2026-09-26). No red: red means a miss and a recording running. Widths in pixels of the view.
+// The hands are what a sign is made with, so they are drawn bright and heavy and the rest recedes.
+// No red: red means a miss and a recording running. Widths in pixels of the view.
 const STYLES: Record<string, { color: string; width: number }> = {
   left_hand: { color: "#ffb000", width: 2.5 },
   right_hand: { color: "#4dabf7", width: 2.5 },

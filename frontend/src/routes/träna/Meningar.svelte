@@ -6,19 +6,18 @@
   import { known, load, record, save, type Progress } from "$lib/progress";
   import { pieces as cut } from "$lib/text";
 
-  // Meningar (step 13 of ROADMAP-takk.md): a connected Swedish text over the words the learner
-  // already knows, read line by line. The text scrolls (user, 2026-09-24): the line to sign now is
-  // solid and held in the middle, the lines before and after it grey, and it goes on whatever the
-  // verdict was — nothing is pressed between the lines. To the learner this is simply how words are
-  // repeated, so the page names it nothing and explains nothing.
-  // Only words already practised are used, drawn towards the low boxes, so it leans on the weak ones.
+  // Meningar: a connected Swedish text over the words the learner already knows, read line by line.
+  // The text scrolls: the line to sign now is solid and held in the middle, the lines before and
+  // after it grey, and it goes on whatever the verdict was — nothing is pressed between the lines.
+  // To the learner this is simply how words are repeated, so the page names it nothing and explains
+  // nothing. Only words already practised are used, drawn towards the low boxes, so it leans on the
+  // weak ones.
   //
-  // A story is one text and it ends (user, 2026-09-24). It is written the moment the component is
-  // shown — the Träna page is its start card — and signing its last line hands the page back to that
-  // card, where the next story is asked for: a story written
-  // under the finished one would be a second story with its own beginning, which reads as a break in
-  // the text now that the whole of it stands on the page. It is always a long one, of about ten parts:
-  // the learner is not asked for a length (user, 2026-09-25).
+  // A story is one text and it ends. It is written the moment the component is shown — the Träna
+  // page is its start card — and signing its last line hands the page back to that card, where the
+  // next story is asked for: a story written under the finished one would be a second story with
+  // its own beginning, which reads as a break in the text, since the whole of it stands on the
+  // page. It is always a long one, of about ten parts: the learner is not asked for a length.
   //
   // How long a line may be recorded for: it is read aloud, so its length is its text and not its
   // signs — a wordy line with one sign would be cut off by the one sign's worth of seconds a card
@@ -84,8 +83,8 @@
   );
 
   /** The whole story so far, each line cut into what is signed and what is only spoken. It is read
-   * as one text that scrolls (user, 2026-09-24): the lines already signed stay above with the
-   * colours they were given, and the line being signed is scrolled to the middle as it comes up. */
+   * as one text that scrolls: the lines already signed stay above with the colours they were given,
+   * and the line being signed is scrolled to the middle as it comes up. */
   const shown = $derived(
     story.map((each, index) => ({ index, pieces: cut(each.text, each.signs.map((sign) => sign.said)) })),
   );
@@ -131,10 +130,10 @@
 </script>
 
 {#if writing}
-  <!-- The lines' shape while the story is written, which takes seconds, standing where the text will
-       (user, 2026-09-26): in the same scrolling box, the first line solid and the rest faded as the
-       lines around the one to sign are. Each line has a stretch of the accent in it, where a word to
-       sign will be. -->
+  <!-- The lines' shape while the story is written, which takes seconds, standing where the text
+       will: in the same scrolling box, the first line solid and the rest faded as the lines around
+       the one to sign are. Each line has a stretch of the accent in it, where a word to sign will
+       be. -->
   <div class="story" aria-label="Skriver" aria-busy="true">
     {#each SHAPES as shape, index (index)}
       <p class:now={index === 0} class="shape">
@@ -209,9 +208,8 @@
     opacity: 1;
   }
 
-  /* A word to sign is set in the accent (user, 2026-09-26): the vivid blue reads as text and is far
-     from the verdicts' green and red. A highlight behind the word was tried while the accent was a
-     faint sage, and dropped with it. */
+  /* A word to sign is set in the accent: the vivid blue reads as text and is far from the verdicts'
+     green and red. */
   .key {
     color: var(--accent);
     font-weight: 600;
@@ -219,8 +217,8 @@
   }
 
   /* On a phone the camera stands above the text, so the first line starts at the top of the box
-     rather than in its middle (user, 2026-09-26): the padding that let it reach the middle was a
-     blank third of the screen. The lines scroll up to the middle once there are enough of them. */
+     rather than in its middle: padding that let it reach the middle would be a blank third of the
+     screen. The lines scroll up to the middle once there are enough of them. */
   @media (max-width: 860px) {
     .story {
       padding-top: 12px;

@@ -1,5 +1,5 @@
-// The API is a separate deployment (see ROADMAP-takk.md), so its origin is configurable. Empty in
-// development and in `npm run preview`, where Vite proxies /api to the local server.
+// The API is a separate deployment, so its origin is configurable. Empty in development and in
+// `npm run preview`, where Vite proxies /api to the local server.
 import { resample, type Edges, type Frame } from "$lib/landmarks";
 
 const BASE = import.meta.env.VITE_API_BASE ?? "";
@@ -54,7 +54,7 @@ export type SignWord = { sign: string; id: string; word?: string };
 export const lexiconUrl = (id: string) => `https://teckensprakslexikon.su.se/ord/${id}`;
 
 /** The signs a learner searching for `query` is offered, a word or a theme alike. This is the one way
- * vocabulary grows (step 9 of ROADMAP-takk.md): what is ticked here is what Ord teaches. */
+ * vocabulary grows: what is ticked here is what Ord teaches. */
 export async function fetchSearch(query: string): Promise<SignWord[]> {
   const response = await fetch(api(`/api/search?q=${encodeURIComponent(query)}`));
   if (!response.ok) return [];
@@ -140,9 +140,9 @@ export async function scoreAttempt(
 /** The Swedish word a lexicon sign is signed for ("sts:platta slag-25563" -> "platta slag"). */
 export const word = (sign: string) => sign.replace(/^sts:/, "").replace(/-\d+$/, "");
 
-/** The lexicon signs closest to a recording of one sign, the nearest first (step 10 of
- * ROADMAP-takk.md). A lookup and not an attempt: nothing is spoken and nothing is scored, so the
- * answer is the same list of words a text search gives, with a note when the recording was unusable. */
+/** The lexicon signs closest to a recording of one sign, the nearest first. A lookup and not an
+ * attempt: nothing is spoken and nothing is scored, so the answer is the same list of words a text
+ * search gives, with a note when the recording was unusable. */
 export async function searchBySign(
   frames: Frame[],
   handedness: "left" | "right",

@@ -30,8 +30,8 @@
   const PAD = 0.25; // seconds kept around each silent sign, under the 0.7 s the hands are down between two
   const APART = "Sänk händerna mellan tecknen.";
 
-  // The camera, the landmarker and the framing feedback belong to the Träna layout, which keeps them
-  // up while the modes come and go (step 12 of ROADMAP-takk.md); this component only records.
+  // The camera, the landmarker and the framing feedback belong to the Träna layout, which keeps
+  // them up while the modes come and go; this component only records.
   const camera = useCamera();
   const tracker = $derived(camera.tracker);
   const lexicon = $derived(camera.lexicon!); // a mode is only shown once the layout has the lexicon
@@ -154,18 +154,17 @@
     if (!event.repeat && tracker && !scoring) arm();
   }
 
-  // The picture is outlined while the voice is being recorded and not before (user, 2026-09-24):
-  // waiting for the learner to speak is not recording anything they would want back, and an outline
-  // that is on throughout says nothing. Sök outlines it the same way while its own recording runs.
+  // The picture is outlined while the voice is being recorded and not before: waiting for the
+  // learner to speak is not recording anything they would want back, and an outline that is on
+  // throughout says nothing. Sök outlines it the same way while its own recording runs.
   $effect(() => void (camera.recording = phase === "speaking"));
   $effect(() => void (camera.listening = speaks && phase !== "idle"));
 </script>
 
 <svelte:window {onkeydown} />
 
-<!-- Nothing is pressed to record and nothing is written about it (user, 2026-09-24): the recorder
-     arms itself when a card appears, starts on the voice, ends on the silence after it and arms
-     again when a wait runs long, and the pages arm it again after a verdict. What it is doing is the
-     outline on the picture, so the phases are not written out beside it. Space starts a recording
-     over, which is all the button that used to stand here did. -->
+<!-- Nothing is pressed to record and nothing is written about it: the recorder arms itself when a
+     card appears, starts on the voice, ends on the silence after it and arms again when a wait runs
+     long, and the pages arm it again after a verdict. What it is doing is the outline on the
+     picture, so the phases are not written out beside it. Space starts a recording over. -->
 {#if silent}<p class="dim">{NO_MICROPHONE}</p>{/if}

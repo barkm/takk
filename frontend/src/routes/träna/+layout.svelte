@@ -4,9 +4,9 @@
   import { about } from "$lib/about";
   import { useCamera } from "$lib/camera.svelte";
 
-  // Träna is the two modes and the camera they share (user, 2026-09-23). The camera is mounted here
-  // rather than in the root layout, so it runs only where something is signed, and it stays open
-  // while the page moves between its start card and a mode.
+  // Träna is the two modes and the camera they share. The camera is mounted here rather than in the
+  // root layout, so it runs only where something is signed, and it stays open while the page moves
+  // between its start card and a mode.
   let { children } = $props();
 
   const camera = useCamera();

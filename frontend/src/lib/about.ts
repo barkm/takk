@@ -1,7 +1,7 @@
-// Who the learner is, asked on Om dig the first time the app is opened and kept in the browser
-// (step 23 of ROADMAP-takk.md): whether they have signed before, and in their own words who they
-// sign with and where, and whether they speak while signing. The model reads it for the chips on Sök and the text under Meningar; the
-// hand is kept apart in `hand.ts`, since a recording needs it and nothing else does.
+// Who the learner is, asked on Om dig the first time the app is opened and kept in the browser:
+// whether they have signed before, and in their own words who they sign with and where, and whether
+// they speak while signing. The model reads it for the chips on Sök and the text under Meningar;
+// the hand is kept apart in `hand.ts`, since a recording needs it and nothing else does.
 export type Level = "ny" | "lite" | "van";
 /** `speaks` is false for a learner who signs in silence: their signs are then told apart by the
  * hands being lowered between them rather than by the words said over them (`Recorder.svelte`). */

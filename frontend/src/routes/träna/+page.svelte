@@ -5,11 +5,11 @@
   import Meningar from "./Meningar.svelte";
   import Ord from "./Ord.svelte";
 
-  // Träna is one page (user, 2026-09-26): the start card of both modes, a button for each, and the
-  // mode itself once one is pressed. With nothing left to choose before a pass, the two start cards
-  // were a heading, a line and "Börja" each, behind a switch of their own. A mode that ends hands the
-  // page back to the start card, and so does pressing "Träna" in the menu while one is running — the
-  // way out of a pass, since there is no switch to leave it by any more.
+  // Träna is one page: the start card of both modes, a button for each, and the mode itself once
+  // one is pressed. With nothing to choose before a pass, a start card per mode would hold only a
+  // heading, a line and "Börja", behind a switch of its own. A mode that ends hands the page back
+  // to the start card, and so does pressing "Träna" in the menu while one is running — the way out
+  // of a pass, since there is no switch to leave it by.
   const camera = useCamera();
   let mode = $state<"ord" | "meningar" | null>(null);
   let note = $state(""); // why Meningar could not start, under its button
@@ -36,7 +36,7 @@
 {:else if mode === "meningar"}
   <Meningar ondone={done} />
 {:else}
-  <!-- The two modes as two large tiles side by side (user, 2026-09-26), the whole tile the button. -->
+  <!-- The two modes as two large tiles side by side, the whole tile the button. -->
   <div class="modes">
     <button class="mode" onclick={() => (mode = "ord")} disabled={!waiting.length}>
       <span class="text">
@@ -80,8 +80,8 @@
     color: var(--text);
   }
 
-  /* Grey bars with the accent only in the arrow (user, 2026-09-26): solid blue made them the loudest
-     thing in the app. The arrow says a bar can be pressed; a bar that cannot shows why instead. */
+  /* Grey bars with the accent only in the arrow: solid blue would make them the loudest thing in
+     the app. The arrow says a bar can be pressed; a bar that cannot shows why instead. */
   .mode:hover:not(:disabled) {
     background: var(--raised);
     filter: none;

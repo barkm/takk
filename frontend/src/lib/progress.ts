@@ -1,13 +1,12 @@
-// What the learner has picked and practised, kept in the browser (step 8 of ROADMAP-takk.md): no
-// accounts and no state on the server for as long as that holds. A sign enters the store in box 0
-// when it is ticked in Tecken, moves into the first box when Ord teaches it, up a box when a due
-// sign is signed right, and back to the first box the moment it is missed. The story is where a
-// learned sign is repeated (see steps 9 and 13 of ROADMAP-takk.md).
+// What the learner has picked and practised, kept in the browser: no accounts and no state on the
+// server for as long as that holds. A sign enters the store in box 0 when it is picked in Sök,
+// moves into the first box when Ord teaches it, up a box when a due sign is signed right, and back
+// to the first box the moment it is missed. The story is where a learned sign is repeated.
 import { word as signWord, type SignWord } from "$lib/api";
 
 export const KEY = "takk.progress";
 const DAY = 24 * 60 * 60 * 1000;
-/** Days until a sign in each box is due again, and how many boxes there are (user, 2026-09-21).
+/** Days until a sign in each box is due again, and how many boxes there are.
  * Changing this array is the whole schedule, and `Math.min` in `record` keeps a word in the last box:
  * a box beyond the array, left in a store by a longer schedule, is clamped by the next answer. */
 export const DAYS = [1, 3, 7, 21];
@@ -23,12 +22,12 @@ export const DAYS = [1, 3, 7, 21];
  *
  * `missed` is when the sign was last signed wrong, and is cleared the next time it is signed right:
  * it is what puts a word back among the ones Ord teaches, since a missed word and a word that has
- * been learned and fallen due both sit in the first box (step 16 of ROADMAP-takk.md).
+ * been learned and fallen due both sit in the first box.
  *
- * Box 0 is a sign picked in Tecken and not practised yet, which is where every sign enters the store
- * (step 9 of ROADMAP-takk.md); it has no `due`, since nothing about it is scheduled until it is
- * answered, and no `seen` or `first`, which an answer writes. `first` is when the sign was met, the
- * only way to tell a new word from a missed old one once both sit in the first box. */
+ * Box 0 is a sign picked in Sök and not practised yet, which is where every sign enters the store;
+ * it has no `due`, since nothing about it is scheduled until it is answered, and no `seen` or
+ * `first`, which an answer writes. `first` is when the sign was met, the only way to tell a new
+ * word from a missed old one once both sit in the first box. */
 export type Learned = { box: number; due: number; added: number; word: string; id: string; seen?: number; first?: number; missed?: number };
 
 export type Progress = Record<string, Learned>;
@@ -49,12 +48,12 @@ export function save(progress: Progress) {
  * right lands in the first box, which is what Ord records; every later answer comes from a story. */
 export function record(progress: Progress, card: SignWord, correct: boolean, now = Date.now()): Progress {
   const previous = progress[card.sign];
-  // A sign answered before it was due keeps its box and its date (user, 2026-09-21). A box is a claim
-  // about an interval — the third means "still remembered after seven days" — and an answer on the
-  // second day has not tested that, so promoting would push the next repetition out to an interval
-  // that was never met, and a word could climb out of the boxes by being drilled in one sitting. A
-  // miss is evidence whatever the day, since forgetting a sign that was not due means its interval
-  // was already too long, so a miss always falls back to the first box.
+  // A sign answered before it was due keeps its box and its date. A box is a claim about an
+  // interval — the third means "still remembered after seven days" — and an answer on the second
+  // day has not tested that, so promoting would push the next repetition out to an interval that
+  // was never met, and a word could climb out of the boxes by being drilled in one sitting. A miss
+  // is evidence whatever the day, since forgetting a sign that was not due means its interval was
+  // already too long, so a miss always falls back to the first box.
   const early = correct && previous && previous.due > now;
   const box = early ? previous.box : correct ? Math.min((previous?.box ?? 0) + 1, DAYS.length) : 1;
   const due = early ? previous.due : now + DAYS[box - 1] * DAY;
@@ -66,7 +65,7 @@ export function record(progress: Progress, card: SignWord, correct: boolean, now
   return { ...progress, [card.sign]: learned };
 }
 
-/** The progress after the learner picked `words` in Tecken. A sign already in the store keeps its
+/** The progress after the learner picked `words` in Sök. A sign already in the store keeps its
  * box, so picking a word again never undoes what has been learned of it; a new one lands in box 0,
  * which is "valt men inte övat" and what Ord teaches from. */
 export function add(progress: Progress, words: SignWord[], now = Date.now()): Progress {
@@ -79,8 +78,8 @@ export function add(progress: Progress, words: SignWord[], now = Date.now()): Pr
 }
 
 /** The progress without `sign`. A picked sign can always be unpicked, in Sök where it was picked and
- * in the list under Tecken alike (user, 2026-09-24), and unpicking drops what was learned of it:
- * that is what removing a word from the vocabulary means, and the sign can be picked again. */
+ * in the list under Tecken alike, and unpicking drops what was learned of it: that is what removing
+ * a word from the vocabulary means, and the sign can be picked again. */
 export function remove(progress: Progress, sign: string): Progress {
   const { [sign]: dropped, ...rest } = progress;
   return rest;
@@ -89,8 +88,8 @@ export function remove(progress: Progress, sign: string): Progress {
 /** The signs Ord teaches: the ones missed since they were last taught, then the ones picked and
  * never practised, each group longest waiting first. A missed word comes first of all because it is
  * the one the learner is getting wrong now, and a vocabulary picked in one sitting would otherwise
- * bury it under words that have been waiting since (step 16 of ROADMAP-takk.md). Meningar is where a
- * word that is merely due comes back; Ord is where the clip is on screen while it is signed. */
+ * bury it under words that have been waiting since. Meningar is where a word that is merely due
+ * comes back; Ord is where the clip is on screen while it is signed. */
 export function toLearn(progress: Progress): SignWord[] {
   return boxes(progress)
     .filter((row) => row.box === 0 || row.missed)
@@ -116,11 +115,11 @@ const card = (row: Row): SignWord => ({
 });
 
 /** The signs a story is written over: `size` of the words already practised, due or not, drawn without
- * replacement and each weighted by `1 / DAYS[box - 1]`, so a word in the first box is twenty-one times
- * as likely as one in the last (user, 2026-09-21). That weight is the rate the ordinary schedule would
- * meet the word at, so a story is the same schedule run early and spends its words on the
- * weakest ones. Taking the longest unseen instead would do the opposite: the last box is due in three
- * weeks, so its words are always the ones longest unseen.
+ * replacement and each weighted by `1 / DAYS[box - 1]`, so a word in the first box is twenty-one
+ * times as likely as one in the last. That weight is the rate the ordinary schedule would meet the
+ * word at, so a story is the same schedule run early and spends its words on the weakest ones.
+ * Taking the longest unseen instead would do the opposite: the last box is due in three weeks, so
+ * its words are always the ones longest unseen.
  *
  * Nothing new is taught here, the pool being what the learner has practised, and `record` leaves a word
  * that was not due where it is, so a story can repair the boxes but never inflate them. Covering

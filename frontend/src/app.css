@@ -1,7 +1,5 @@
-/* The app is light, with colours that pop (user, 2026-09-26, after a calm palette and a colour per
-   section the same day, and the dark theme of 2026-09-23): a white page and one vivid blue, the
-   clips' own hue, on every interactive surface and every mark. Green and red are kept for verdicts
-   alone. */
+/* The app is light, with colours that pop: a white page and one vivid blue, the clips' own hue, on
+   every interactive surface and every mark. Green and red are kept for verdicts alone. */
 :root {
   color-scheme: light;
   --bg: #ffffff;
@@ -154,15 +152,15 @@ button:disabled {
   cursor: default;
 }
 
-/* A page switches at once when the section changes (user, 2026-09-26: the fade between pages was not
-   liked); only the menu's underline, which has a view transition of its own, slides. */
+/* A page switches at once when the section changes; only the menu's underline, which has a view
+   transition of its own, slides. */
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation: none;
 }
 
 /* The shape of what is coming, grey and breathing, where the wait is long enough to see and what
-   arrives has a known shape: the page then does not jump when it does (user, 2026-09-26). */
+   arrives has a known shape: the page then does not jump when it does. */
 .skeleton {
   background: var(--surface);
   animation: breathe 1.2s ease-in-out infinite alternate;

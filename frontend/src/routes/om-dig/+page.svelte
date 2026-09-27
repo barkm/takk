@@ -4,11 +4,11 @@
   import { about, setAbout, type Level } from "$lib/about";
   import { hand, setHand, type Hand } from "$lib/hand";
 
-  // Om dig (step 23 of ROADMAP-takk.md): the page the app opens on the first time, and a section of
-  // its own after that. Three questions in the learner's words and nothing about what they are for:
-  // the hand every recording is mirrored by, whether they have signed before, and who they sign with
-  // and where, which is what the chips on Sök and the text under Meningar are fitted to. Last, whether
-  // they speak while signing, which is what tells a recording's signs apart (`Recorder.svelte`).
+  // Om dig: the page the app opens on the first time, and a section of its own after that. Three
+  // questions in the learner's words and nothing about what they are for: the hand every recording
+  // is mirrored by, whether they have signed before, and who they sign with and where, which is
+  // what the chips on Sök and the text under Meningar are fitted to. Last, whether they speak while
+  // signing, which is what tells a recording's signs apart (`Recorder.svelte`).
   let signs = $state<Hand | null>(null);
   let level = $state<Level | null>(null);
   let context = $state("");
