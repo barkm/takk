@@ -22,7 +22,7 @@ from matplotlib.animation import FuncAnimation, PillowWriter
 from matplotlib.collections import LineCollection
 
 from isolated_sign_verification.dataset import AugmentConfig, augment
-from isolated_sign_verification.landmarks import (
+from sign_data.landmarks import (
     LANDMARK_GROUPS,
     LANDMARK_SLICES,
     N_LANDMARKS,

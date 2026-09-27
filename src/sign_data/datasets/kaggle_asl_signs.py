@@ -1,6 +1,6 @@
 """Adapter converting the Kaggle ASL Signs dataset into a landmark store.
 
-Run from the repo root: uv run python -m isolated_sign_verification.datasets.kaggle_asl_signs
+Run from the repo root: uv run python -m sign_data.datasets.kaggle_asl_signs
 """
 
 import os
@@ -10,8 +10,8 @@ import numpy as np
 import polars as pl
 from tqdm import tqdm
 
-from isolated_sign_verification.landmarks import LANDMARK_SLICES, N_LANDMARKS, write_store
-from isolated_sign_verification.parallel import parallel_map
+from sign_data.landmarks import LANDMARK_SLICES, N_LANDMARKS, write_store
+from sign_data.parallel import parallel_map
 
 DATASET = "kaggle_asl_signs"
 RAW_DIR = Path("data/raw/asl-signs")

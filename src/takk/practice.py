@@ -29,8 +29,8 @@ from torch import nn
 
 from isolated_sign_verification.checks import check_clip
 from isolated_sign_verification.dataset import clip_item, collate
-from isolated_sign_verification.landmarks import N_LANDMARKS, SKELETON_EDGES, VideoInfo
 from isolated_sign_verification.preparation import ONE_HANDED, PrepConfig, hand_presence, hide_low_hands, mirror, prepare_clip
+from sign_data.landmarks import N_LANDMARKS, SKELETON_EDGES, VideoInfo
 from takk.speech import MIN_WORD_SCORE, Aligner, decode_audio, split_speech
 from takk.story import write_story
 from takk.suggest import suggest

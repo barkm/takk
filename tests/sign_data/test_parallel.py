@@ -4,7 +4,7 @@ import subprocess
 import sys
 import time
 
-from isolated_sign_verification.parallel import parallel_map
+from sign_data.parallel import parallel_map
 
 
 def test_parallel_map_keeps_order_across_batches():
@@ -23,7 +23,7 @@ def process_group_alive(pgid: int) -> bool:
 def test_ctrl_c_stops_main_process_and_workers_promptly():
     script = (
         "import time\n"
-        "from isolated_sign_verification.parallel import parallel_map\n"
+        "from sign_data.parallel import parallel_map\n"
         "for _ in parallel_map(time.sleep, [0.5] * 1000, max_workers=2):\n"
         "    print('result', flush=True)\n"
     )

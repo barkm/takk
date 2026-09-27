@@ -25,9 +25,9 @@ takk = "takk.main:main"
 requires = ["uv_build>=0.11.5,<0.12"]
 build-backend = "uv_build"
 
-# Two packages in one repository: the ISV model and data work, and the TAKK app built on it.
+# Three packages in one repository: the sign data, the ISV model built on it, and the TAKK app built on both.
 [tool.uv.build-backend]
-module-name = ["isolated_sign_verification", "takk"]
+module-name = ["sign_data", "isolated_sign_verification", "takk"]
 
 [dependency-groups]
 dev = [

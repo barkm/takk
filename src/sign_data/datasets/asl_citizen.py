@@ -2,8 +2,8 @@
 
 Extraction takes about half a day; an interrupted run resumes where it left off when run again.
 Run from the repo root:
-    uv run python -m isolated_sign_verification.datasets.asl_citizen             # all videos
-    uv run python -m isolated_sign_verification.datasets.asl_citizen --signs 10  # all videos of 10 random signs
+    uv run python -m sign_data.datasets.asl_citizen             # all videos
+    uv run python -m sign_data.datasets.asl_citizen --signs 10  # all videos of 10 random signs
 """
 
 import argparse
@@ -11,7 +11,7 @@ from pathlib import Path
 
 import polars as pl
 
-from isolated_sign_verification.extraction import extract_store
+from sign_data.extraction import extract_store
 
 DATASET = "asl_citizen"
 RAW_DIR = Path("data/raw/asl-citizen/ASL_Citizen")

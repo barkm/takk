@@ -18,10 +18,10 @@ import numpy as np
 import polars as pl
 
 from isolated_sign_verification.dataset import SignDataset
-from isolated_sign_verification.datasets import mm_wlauslan
 from isolated_sign_verification.preparation import PrepConfig, PreparedData
-from isolated_sign_verification.splits import normalize_label
 from isolated_sign_verification.training import embed, load_run
+from sign_data.datasets import mm_wlauslan
+from sign_data.labels import normalize_label
 
 RUNS_DIR = Path("outputs/runs")
 PREPARED_DIR = Path("data/prepared")

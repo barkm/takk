@@ -16,7 +16,7 @@ import polars as pl
 from matplotlib.figure import Figure
 from tqdm import tqdm
 
-from isolated_sign_verification.landmarks import LANDMARK_GROUPS, LANDMARK_SLICES, LandmarkStore
+from sign_data.landmarks import LANDMARK_GROUPS, LANDMARK_SLICES, LandmarkStore
 
 CHUNK_FRAMES = 200_000
 COORD_SAMPLE_STEP = 20  # every n-th frame is used for the coordinate ranges

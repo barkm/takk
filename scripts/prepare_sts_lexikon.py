@@ -25,10 +25,10 @@ from pathlib import Path
 
 import polars as pl
 
-from isolated_sign_verification.datasets import sts_lexikon
-from isolated_sign_verification.landmarks import LandmarkStore
 from isolated_sign_verification.preparation import PrepConfig, PreparedData, prepare_store, print_summary
 from isolated_sign_verification.splits import assign_evaluation_only
+from sign_data.datasets import sts_lexikon
+from sign_data.landmarks import LandmarkStore
 
 
 def longest_signs(data: PreparedData, n: int) -> pl.DataFrame:

@@ -2,8 +2,7 @@ import json
 
 import polars as pl
 
-from isolated_sign_verification.datasets.wlasl import map_signs, read_videos, sign_labels, twin_pairs
-from isolated_sign_verification.splits import sign_split
+from sign_data.datasets.wlasl import read_videos, sign_labels, twin_pairs
 
 
 def test_read_videos_skips_instances_without_a_video(tmp_path):
@@ -26,20 +25,6 @@ def test_read_videos_skips_instances_without_a_video(tmp_path):
     assert videos["path"][0] == str(videos_dir / "00584.mp4")
 
 
-def test_map_signs():
-    # WINE is a val sign, the others are train signs (by the hash split, checked below)
-    assert sign_split("WINE") != "train" and sign_split("FATHER") == sign_split("CHICKEN") == "train"
-    asl_citizen = ["FATHER", "DRINK1", "DRINK2", "WINE", "POLICEMAN1"]
-
-    mapping = map_signs(["father", "drink", "wine", "chicken", "policeman"], asl_citizen)
-
-    assert mapping["father"] == "FATHER"  # a unique match joins the ASL Citizen class
-    assert mapping["policeman"] == "POLICEMAN1"  # matching ignores the sense number
-    assert mapping["drink"] is None  # several variants, the label doesn't say which
-    assert mapping["wine"] is None  # a held-out sign
-    assert mapping["chicken"] == "CHICKEN"  # a new sign the hash split puts in train
-
-
 def test_sign_labels_keep_held_out_signs():
     labels = sign_labels(["wine", "drink", "chicken"], ["WINE", "DRINK1", "DRINK2"])
 
@@ -56,16 +41,3 @@ def test_twin_pairs():
 
     # a shared video makes a pair; a video of one label doesn't
     assert twin_pairs(clips) == {("HABIT", "TRADITION"), ("FINAL", "LAST")}
-
-
-def test_map_signs_holds_out_twins_of_held_out_signs():
-    assert sign_split("WINE") != "train" and sign_split("FATHER") == sign_split("CHICKEN") == "train"
-
-    assert sign_split("SHORT1") == "train" and sign_split("SHORT2") != "train"
-    twins = {("CHICKEN", "WINE"), ("FATHER", "SHORT1|SHORT2")}
-
-    mapping = map_signs(["father", "wine", "chicken", "short"], ["FATHER", "WINE", "SHORT1", "SHORT2"], twins)
-
-    assert mapping["chicken"] is None  # may show the held-out WINE under another word
-    assert mapping["father"] is None  # may show the held-out variant SHORT2
-    assert mapping["short"] is None

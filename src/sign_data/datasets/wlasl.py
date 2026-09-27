@@ -8,8 +8,8 @@ the videos somewhere below it (see README).
 
 Extraction takes about two hours; an interrupted run resumes where it left off when run again. Run
 from the repo root:
-    uv run python -m isolated_sign_verification.datasets.wlasl                # all available videos
-    uv run python -m isolated_sign_verification.datasets.wlasl --signs 20     # a sample
+    uv run python -m sign_data.datasets.wlasl                # all available videos
+    uv run python -m sign_data.datasets.wlasl --signs 20     # a sample
 """
 
 import argparse
@@ -20,8 +20,8 @@ from pathlib import Path
 
 import polars as pl
 
-from isolated_sign_verification.extraction import extract_store
-from isolated_sign_verification.splits import normalize_label, sign_split
+from sign_data.extraction import extract_store
+from sign_data.labels import normalize_label
 
 DATASET = "wlasl"
 RAW_DIR = Path("data/raw/wlasl")
@@ -74,27 +74,6 @@ def twin_pairs(clips: pl.DataFrame) -> set[tuple[str, str]]:
     return pairs
 
 
-def map_signs(
-    wlasl_signs: Collection[str], asl_citizen_signs: Collection[str], twins: Collection[tuple[str, str]] = ()
-) -> dict[str, str | None]:
-    """Each WLASL gloss's sign label for training, or None if the gloss is not used.
-
-    WLASL is ASL, so a gloss that matches exactly one ASL Citizen gloss becomes that gloss and both
-    datasets' clips share the class. A gloss matching several variants of one gloss is None (see
-    `sign_labels`). A gloss whose sign is held out, a new gloss the hash split doesn't put in train,
-    and a gloss that is one of the `twins` (e.g. `twin_pairs`) of a held-out sign are None as well,
-    the last because its clips may show the held-out sign under another word.
-    """
-
-    def held_out(label: str) -> bool:  # any variant held out, for a gloss matching several
-        return any(sign_split(variant) != "train" for variant in label.split("|"))
-
-    labels = sign_labels(wlasl_signs, asl_citizen_signs)
-    near_held_out = {a for pair in twins for a in pair if any(held_out(b) for b in pair)}
-    return {
-        gloss: None if "|" in label or held_out(label) or label in near_held_out else label
-        for gloss, label in labels.items()
-    }
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)

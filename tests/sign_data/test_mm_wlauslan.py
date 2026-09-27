@@ -1,6 +1,6 @@
 import json
 
-from isolated_sign_verification.datasets.mm_wlauslan import read_videos, sign_words
+from sign_data.datasets.mm_wlauslan import read_videos, sign_words
 
 
 def test_read_videos(tmp_path):

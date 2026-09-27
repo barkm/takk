@@ -15,10 +15,11 @@ case they are never trained on and all of their signs are unseen.
 """
 
 import hashlib
-import re
 from collections.abc import Collection
 
 import polars as pl
+
+from sign_data.labels import normalize_label
 
 VAL_PERCENT = 10
 TEST_PERCENT = 10
@@ -42,17 +43,32 @@ def assign_splits(clips: pl.DataFrame, test_signers: Collection[str]) -> pl.Data
     )
 
 
-def normalize_label(label: str) -> str:
-    """A sign label or English word reduced for matching across datasets and sign languages: lowercase
-    letters and spaces, without parenthesized notes and sense numbers ("SAIL1" and "sail (boat)" give "sail")."""
-    return re.sub(r"[^a-z ]", "", re.sub(r"\d+$", "", re.sub(r"\(.*?\)", "", label).strip().lower())).strip()
-
-
 def matching_signs(words: dict[str, Collection[str]], labels: Collection[str]) -> set[str]:
     """The signs (keys of `words`, which gives each sign's label and English words) with a word that
     matches one of `labels` after normalize_label."""
     targets = {normalize_label(label) for label in labels}
     return {sign for sign, sign_words in words.items() if {normalize_label(word) for word in sign_words} & targets}
+
+
+def training_labels(labels: dict[str, str], twins: Collection[tuple[str, str]] = ()) -> dict[str, str | None]:
+    """Each gloss's sign label for training, or None if the gloss is not used, for a dataset of the
+    same sign language whose glosses are matched onto the held-out-split labels (`labels`, gloss to
+    label, several matching variants joined by "|", as `wlasl.sign_labels` gives them).
+
+    A gloss matching several variants is None, since its label doesn't say which was signed. A gloss
+    whose sign is held out, a new gloss the hash split doesn't put in train, and a gloss that is one
+    of the `twins` (pairs of labels, e.g. `wlasl.twin_pairs`) of a held-out sign are None as well, the
+    last because its clips may show the held-out sign under another word.
+    """
+
+    def held_out(label: str) -> bool:  # any variant held out, for a gloss matching several
+        return any(sign_split(variant) != "train" for variant in label.split("|"))
+
+    near_held_out = {a for pair in twins for a in pair if any(held_out(b) for b in pair)}
+    return {
+        gloss: None if "|" in label or held_out(label) or label in near_held_out else label
+        for gloss, label in labels.items()
+    }
 
 
 def assign_training_only(clips: pl.DataFrame, excluded_signs: Collection[str]) -> pl.DataFrame:

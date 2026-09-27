@@ -26,10 +26,11 @@ import polars as pl
 
 from isolated_sign_verification.baselines import hand_embedding
 from isolated_sign_verification.dataset import SignDataset
-from isolated_sign_verification.datasets import asl_citizen, asl_lex
 from isolated_sign_verification.preparation import PrepConfig, PreparedData
-from isolated_sign_verification.splits import normalize_label, sign_split
+from isolated_sign_verification.splits import sign_split
 from isolated_sign_verification.training import embed, load_run
+from sign_data.datasets import asl_citizen, asl_lex
+from sign_data.labels import normalize_label
 
 RUNS_DIR = Path("outputs/runs")
 PREPARED_DIR = Path("data/prepared")

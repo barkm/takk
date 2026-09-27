@@ -2,7 +2,7 @@ import json
 
 import polars as pl
 
-from isolated_sign_verification.datasets.sts_lexikon import ENTRIES_FILE
+from sign_data.datasets.sts_lexikon import ENTRIES_FILE
 from takk.vocabulary import HISTORICAL, category_words, search, search_index, sign_forms, word_index
 
 

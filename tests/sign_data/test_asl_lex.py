@@ -1,6 +1,6 @@
 import polars as pl
 
-from isolated_sign_verification.datasets.asl_lex import FEATURES, read_phonology, signbank_twins
+from sign_data.datasets.asl_lex import FEATURES, read_phonology, signbank_twins
 
 
 def test_read_phonology(tmp_path):

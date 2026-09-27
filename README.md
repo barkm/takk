@@ -50,13 +50,13 @@ Then extract the landmarks into a landmark store in `data/processed/asl_citizen/
 
 ```sh
 tmux new -s extract
-uv run python -m isolated_sign_verification.datasets.asl_citizen
+uv run python -m sign_data.datasets.asl_citizen
 ```
 
 For a quick look at the data, extract only all videos of a few randomly chosen signs into a separate store (`data/processed/asl_citizen_10_signs/`, a few minutes) and inspect them with the clip viewer:
 
 ```sh
-uv run python -m isolated_sign_verification.datasets.asl_citizen --signs 10
+uv run python -m sign_data.datasets.asl_citizen --signs 10
 uv run scripts/view_clips.py --store data/processed/asl_citizen_10_signs --sign <SIGN>
 ```
 
@@ -76,8 +76,8 @@ done
 Then extract the landmarks of the 64,300 videos into `data/processed/mm_wlauslan/` (~36 GB, about 11 hours; run it in `tmux`, and run it again to resume). `--subsets` and `--signs N` extract a sample into a separate store instead:
 
 ```sh
-uv run python -m isolated_sign_verification.datasets.mm_wlauslan
-uv run python -m isolated_sign_verification.datasets.mm_wlauslan --subsets Valid --signs 30
+uv run python -m sign_data.datasets.mm_wlauslan
+uv run python -m sign_data.datasets.mm_wlauslan --subsets Valid --signs 30
 ```
 
 ### Downloading Slovo
@@ -93,7 +93,7 @@ Then extract the landmarks of the 20,000 videos into `data/processed/slovo/` (5.
 in `tmux`, and run it again to resume). The 400 `no_event` videos hold no signing and are left out:
 
 ```sh
-uv run python -m isolated_sign_verification.datasets.slovo
+uv run python -m sign_data.datasets.slovo
 ```
 
 ### Downloading WLASL
@@ -120,8 +120,8 @@ hours; run it in `tmux`, and run it again to resume). `--signs N` extracts a sam
 store instead:
 
 ```sh
-uv run python -m isolated_sign_verification.datasets.wlasl
-uv run python -m isolated_sign_verification.datasets.wlasl --signs 20
+uv run python -m sign_data.datasets.wlasl
+uv run python -m sign_data.datasets.wlasl --signs 20
 ```
 
 ### Downloading Svenskt teckenspråkslexikon
@@ -143,8 +143,8 @@ Then extract the landmarks of every entry into `data/processed/sts_lexikon/` (16
 on the CPU; run it again to resume). `--signs N` extracts a sample into a separate store instead:
 
 ```sh
-uv run python -m isolated_sign_verification.datasets.sts_lexikon
-uv run python -m isolated_sign_verification.datasets.sts_lexikon --signs 20
+uv run python -m sign_data.datasets.sts_lexikon
+uv run python -m sign_data.datasets.sts_lexikon --signs 20
 ```
 
 The dictionary publishes one recording per entry and no signer ids. Entries the lexicon marks as
@@ -207,10 +207,10 @@ uvx kaggle competitions download -c asl-signs -p data/raw
 unzip -q data/raw/asl-signs.zip -d data/raw/asl-signs
 ```
 
-4. Convert to the common landmark format (a landmark store in `data/processed/kaggle_asl_signs/`, ~22 GB; the format is described in `src/isolated_sign_verification/landmarks.py`):
+4. Convert to the common landmark format (a landmark store in `data/processed/kaggle_asl_signs/`, ~22 GB; the format is described in `src/sign_data/landmarks.py`):
 
 ```sh
-uv run python -m isolated_sign_verification.datasets.kaggle_asl_signs
+uv run python -m sign_data.datasets.kaggle_asl_signs
 ```
 
 ## Training and baselines
@@ -323,7 +323,7 @@ lists the clips each take was shown) and are converted like any other dataset, u
 only:
 
 ```sh
-uv run python -m isolated_sign_verification.datasets.recordings  # -> data/processed/recordings/
+uv run python -m isolated_sign_verification.recordings  # -> data/processed/recordings/
 uv run scripts/prepare_recordings.py                          # -> data/prepared/recordings-<config id>/
 ```
 

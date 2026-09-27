@@ -26,10 +26,10 @@ import polars as pl
 from playwright.sync_api import sync_playwright
 from tqdm import tqdm
 
+from isolated_sign_verification import recordings
 from isolated_sign_verification.collection import RAW_DIR
-from isolated_sign_verification.datasets import recordings
-from isolated_sign_verification.extraction import MODEL_PATH, download_model
-from isolated_sign_verification.landmarks import LANDMARK_SLICES, N_LANDMARKS, LandmarkStore, write_store
+from sign_data.extraction import MODEL_PATH, download_model
+from sign_data.landmarks import LANDMARK_SLICES, N_LANDMARKS, LandmarkStore, write_store
 
 SHOULDERS = [LANDMARK_SLICES["pose"].start + 11, LANDMARK_SLICES["pose"].start + 12]
 

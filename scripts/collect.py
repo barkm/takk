@@ -10,7 +10,7 @@ camera on localhost or over https, so forward the port when the machine is remot
     uv run scripts/collect.py --glossary data/prepared/sts_lexikon-<id> --signs 25 --takes 3   # Swedish
 The sign list is fixed by --glossary, --signs and --seed, so several signers can record the same signs.
 Recordings of every glossary are written to data/raw/recordings/, ready for
-`uv run python -m isolated_sign_verification.datasets.recordings`.
+`uv run python -m isolated_sign_verification.recordings`.
 """
 
 import argparse
@@ -20,8 +20,8 @@ import polars as pl
 import uvicorn
 
 from isolated_sign_verification.collection import RAW_DIR, Recordings, create_app, session_prompts, video_paths
-from isolated_sign_verification.extraction import download_model
 from isolated_sign_verification.preparation import PrepConfig
+from sign_data.extraction import download_model
 
 
 def main() -> None:

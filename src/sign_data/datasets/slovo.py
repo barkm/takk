@@ -8,8 +8,8 @@ data/raw/slovo/train/<attachment id>.mp4.
 Extraction takes 5.5 hours (the videos are large, mostly 1080x1920 phone video); an interrupted
 run resumes where it left off when run again.
 Run from the repo root:
-    uv run python -m isolated_sign_verification.datasets.slovo             # all videos
-    uv run python -m isolated_sign_verification.datasets.slovo --signs 10  # all videos of 10 random signs
+    uv run python -m sign_data.datasets.slovo             # all videos
+    uv run python -m sign_data.datasets.slovo --signs 10  # all videos of 10 random signs
 """
 
 import argparse
@@ -18,7 +18,7 @@ from pathlib import Path
 
 import polars as pl
 
-from isolated_sign_verification.extraction import extract_store
+from sign_data.extraction import extract_store
 
 DATASET = "slovo"
 RAW_DIR = Path("data/raw/slovo")

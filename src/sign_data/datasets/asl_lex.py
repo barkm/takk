@@ -9,7 +9,7 @@ from pathlib import Path
 
 import polars as pl
 
-from isolated_sign_verification.splits import normalize_label
+from sign_data.labels import normalize_label
 
 RAW_DIR = Path("data/raw/asl-lex")
 # The phonological features coded in ASL-LEX 2.0, without the derived MarkedHandshape.

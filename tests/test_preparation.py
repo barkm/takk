@@ -6,7 +6,7 @@ import numpy as np
 import polars as pl
 import pytest
 
-from isolated_sign_verification.landmarks import LANDMARK_SLICES, N_LANDMARKS, write_store
+from sign_data.landmarks import LANDMARK_SLICES, N_LANDMARKS, write_store
 from isolated_sign_verification.preparation import (
     PrepConfig,
     PreparedData,

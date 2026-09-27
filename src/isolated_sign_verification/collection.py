@@ -7,7 +7,7 @@ system is meant for: a user copying a dictionary clip, filmed with their own cam
 room. No score is ever shown, so the signer cannot retake until the model happens to agree, which
 would bias the set toward clips the model already likes.
 
-Recordings are stored as a raw dataset, ready for `datasets/recordings.py`:
+Recordings are stored as a raw dataset, ready for `recordings.py`:
 
 - ``videos/<clip id>.mp4``: the recording, transcoded to a constant frame rate (the browser's
   MediaRecorder writes variable frame rate video, whose frame rate the extractor cannot read).
@@ -34,9 +34,9 @@ from fastapi import FastAPI, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from isolated_sign_verification.checks import check_clip
-from isolated_sign_verification.extraction import extract_landmarks
-from isolated_sign_verification.landmarks import SKELETON_EDGES
 from isolated_sign_verification.preparation import PrepConfig
+from sign_data.extraction import extract_landmarks
+from sign_data.landmarks import SKELETON_EDGES
 
 DATASET = "recordings"
 RAW_DIR = Path("data/raw") / DATASET
@@ -96,7 +96,7 @@ def video_paths(clips: pl.DataFrame) -> dict[str, str]:
     """The video file of each of `clips` (clip_id and dataset columns), from its dataset's adapter."""
     paths = {}
     for dataset in clips["dataset"].unique():
-        adapter = importlib.import_module(f"isolated_sign_verification.datasets.{dataset}")
+        adapter = importlib.import_module(f"sign_data.datasets.{dataset}")
         videos = adapter.read_videos(adapter.RAW_DIR)
         paths |= dict(zip(videos["clip_id"], videos["path"]))
     return {clip_id: str(paths[clip_id]) for clip_id in clips["clip_id"]}

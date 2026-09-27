@@ -5,12 +5,23 @@ from pathlib import Path
 SRC = Path(__file__).resolve().parent.parent / "src"
 
 
+def importers(package: str, of: str) -> list[str]:
+    """The modules of `package` that import `of`; a mention in a docstring is fine."""
+    imports = re.compile(rf"^\s*(?:from|import) {of}\b", re.M)
+    return [str(path) for path in (SRC / package).rglob("*.py") if imports.search(path.read_text())]
+
+
 def test_the_isv_package_does_not_depend_on_the_app():
     """The TAKK app (`takk`) is built on the ISV work (`isolated_sign_verification`), never the reverse:
-    the model, the data pipeline and the evaluation have to stand on their own."""
-    imports = re.compile(r"^\s*(?:from|import) takk\b", re.M)  # a mention in a docstring is fine
-    offenders = [path for path in (SRC / "isolated_sign_verification").rglob("*.py") if imports.search(path.read_text())]
-    assert not offenders, [str(path) for path in offenders]
+    the model, the training and the evaluation have to stand on their own."""
+    assert not importers("isolated_sign_verification", "takk")
+
+
+def test_the_data_package_depends_on_neither_the_model_nor_the_app():
+    """The sign data (`sign_data`: the landmark format, the extraction and the dataset adapters) is
+    independent of any model and of what it is used for, so ISV and the app both build on it."""
+    assert not importers("sign_data", "isolated_sign_verification")
+    assert not importers("sign_data", "takk")
 
 
 def test_the_app_does_not_import_the_extraction_dependencies():

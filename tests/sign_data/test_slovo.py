@@ -1,6 +1,6 @@
 import polars as pl
 
-from isolated_sign_verification.datasets.slovo import is_single_sign, read_videos
+from sign_data.datasets.slovo import is_single_sign, read_videos
 
 
 def test_read_videos(tmp_path):

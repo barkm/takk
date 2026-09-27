@@ -22,7 +22,7 @@ from typing import NamedTuple
 
 import polars as pl
 
-from isolated_sign_verification.datasets.sts_lexikon import ENTRIES_FILE, RAW_DIR
+from sign_data.datasets.sts_lexikon import ENTRIES_FILE, RAW_DIR
 
 # Entries of Österberg's 1916 dictionary, whose sign forms are historical and not what to teach.
 HISTORICAL = "Österberg 1916"

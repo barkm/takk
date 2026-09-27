@@ -1,11 +1,11 @@
 """Prepare the WLASL clips for training alongside ASL Citizen.
 
-WLASL is ASL, so its glosses are mapped onto ASL Citizen's labels (`wlasl.map_signs`): a gloss
-matching one ASL Citizen gloss joins that class, a gloss matching several variants of one gloss, a
-held-out sign, or a new sign the hash split doesn't put in train is left out of training (prepared
-with a null split and a "wlasl:" label). So is a gloss that shares a source video with a held-out
-sign, since it may be that sign under another word, and so is a gloss whose ASL Citizen sign is a
-SignBank twin of a held-out sign (`asl_lex.signbank_twins`, left out of ASL Citizen's training too).
+WLASL is ASL, so its glosses are mapped onto ASL Citizen's labels (`wlasl.sign_labels`, then
+`splits.training_labels`): a gloss matching one ASL Citizen gloss joins that class, a gloss matching
+several variants of one gloss, a held-out sign, or a new sign the hash split doesn't put in train is
+left out of training (prepared with a null split and a "wlasl:" label). So is a gloss that shares a
+source video with a held-out sign, since it may be that sign under another word, and so is a gloss
+whose ASL Citizen sign is a SignBank twin of a held-out sign (`asl_lex.signbank_twins`, left out of ASL Citizen's training too).
 Clips that join an ASL Citizen class get that sign's ASL-LEX phonological features, like the ASL
 Citizen clips do.
 
@@ -21,9 +21,10 @@ from pathlib import Path
 
 import polars as pl
 
-from isolated_sign_verification.datasets import asl_citizen, asl_lex, wlasl
-from isolated_sign_verification.landmarks import LandmarkStore
 from isolated_sign_verification.preparation import PreparedData, add_config_arguments, config_from, prepare_store, print_summary
+from isolated_sign_verification.splits import training_labels
+from sign_data.datasets import asl_citizen, asl_lex, wlasl
+from sign_data.landmarks import LandmarkStore
 
 
 def main() -> None:
@@ -36,10 +37,10 @@ def main() -> None:
     clips = LandmarkStore(args.store).clips.with_row_index("row").join(urls, on="clip_id", how="left", maintain_order="left")
     asl_citizen_signs = LandmarkStore(asl_citizen.STORE_DIR).clips["sign"].unique().to_list()
     glosses = clips["sign"].unique().to_list()
-    labels = pl.col("sign").replace_strict(wlasl.sign_labels(glosses, asl_citizen_signs), return_dtype=pl.String)
-    twins = wlasl.twin_pairs(clips.with_columns(label=labels))
+    sign_labels = wlasl.sign_labels(glosses, asl_citizen_signs)
+    twins = wlasl.twin_pairs(clips.with_columns(label=pl.col("sign").replace_strict(sign_labels, return_dtype=pl.String)))
     codes = asl_citizen.read_videos(asl_citizen.RAW_DIR).select(sign="Gloss", Code="ASL-LEX Code").unique()
-    mapping = wlasl.map_signs(glosses, asl_citizen_signs, twins | asl_lex.signbank_twins(asl_lex.RAW_DIR, codes))
+    mapping = training_labels(sign_labels, twins | asl_lex.signbank_twins(asl_lex.RAW_DIR, codes))
     mapped = pl.col("sign").replace_strict(mapping, return_dtype=pl.String)
     clips = (
         clips.with_columns(mapped=mapped)

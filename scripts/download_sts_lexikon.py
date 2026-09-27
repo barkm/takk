@@ -30,7 +30,7 @@ from pathlib import Path
 import polars as pl
 from tqdm import tqdm
 
-from isolated_sign_verification.datasets.sts_lexikon import (
+from sign_data.datasets.sts_lexikon import (
     BASE_URL,
     ENTRIES_FILE,
     GROUPS_FILE,

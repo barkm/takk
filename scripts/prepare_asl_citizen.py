@@ -17,11 +17,11 @@ from pathlib import Path
 
 import polars as pl
 
-from isolated_sign_verification.datasets import asl_lex
-from isolated_sign_verification.datasets.asl_citizen import RAW_DIR, STORE_DIR, official_test_signers, read_videos
-from isolated_sign_verification.landmarks import LandmarkStore
 from isolated_sign_verification.preparation import PreparedData, add_config_arguments, config_from, prepare_store, print_summary
 from isolated_sign_verification.splits import assign_splits, sign_split
+from sign_data.datasets import asl_lex
+from sign_data.datasets.asl_citizen import RAW_DIR, STORE_DIR, official_test_signers, read_videos
+from sign_data.landmarks import LandmarkStore
 
 
 def main() -> None:
