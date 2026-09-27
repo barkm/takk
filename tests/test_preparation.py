@@ -6,8 +6,8 @@ import numpy as np
 import polars as pl
 import pytest
 
-from isolated_sign_validation.landmarks import LANDMARK_SLICES, N_LANDMARKS, write_store
-from isolated_sign_validation.preparation import (
+from isolated_sign_verification.landmarks import LANDMARK_SLICES, N_LANDMARKS, write_store
+from isolated_sign_verification.preparation import (
     PrepConfig,
     PreparedData,
     add_config_arguments,

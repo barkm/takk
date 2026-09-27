@@ -1,7 +1,7 @@
 import polars as pl
 
-from isolated_sign_validation.collection import SCHEMA
-from isolated_sign_validation.datasets.recordings import read_videos
+from isolated_sign_verification.collection import SCHEMA
+from isolated_sign_verification.datasets.recordings import read_videos
 
 
 def test_read_videos_takes_only_the_kept_takes(tmp_path):

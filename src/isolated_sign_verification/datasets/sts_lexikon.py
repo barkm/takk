@@ -14,8 +14,8 @@ query.
 
 Expects the crawl in data/raw/sts-lexikon (`scripts/download_sts_lexikon.py`, see README).
 Run from the repo root:
-    uv run python -m isolated_sign_validation.datasets.sts_lexikon             # every entry
-    uv run python -m isolated_sign_validation.datasets.sts_lexikon --signs 20  # a sample
+    uv run python -m isolated_sign_verification.datasets.sts_lexikon             # every entry
+    uv run python -m isolated_sign_verification.datasets.sts_lexikon --signs 20  # a sample
 """
 
 import argparse
@@ -26,7 +26,7 @@ from pathlib import Path
 
 import polars as pl
 
-from isolated_sign_validation.extraction import extract_store
+from isolated_sign_verification.extraction import extract_store
 
 DATASET = "sts_lexikon"
 RAW_DIR = Path("data/raw/sts-lexikon")

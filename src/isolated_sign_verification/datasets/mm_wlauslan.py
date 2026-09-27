@@ -6,8 +6,8 @@ data/raw/mm-wlauslan/Valid/Kinect_F/rgb/<sample id>_kf_rgb.mp4.
 
 Extraction of all subsets takes about 9 hours; an interrupted run resumes where it left off when
 run again. Run from the repo root:
-    uv run python -m isolated_sign_validation.datasets.mm_wlauslan                          # all subsets
-    uv run python -m isolated_sign_validation.datasets.mm_wlauslan --subsets Valid --signs 20  # a sample
+    uv run python -m isolated_sign_verification.datasets.mm_wlauslan                          # all subsets
+    uv run python -m isolated_sign_verification.datasets.mm_wlauslan --subsets Valid --signs 20  # a sample
 """
 
 import argparse
@@ -17,7 +17,7 @@ from pathlib import Path
 
 import polars as pl
 
-from isolated_sign_validation.extraction import extract_store
+from isolated_sign_verification.extraction import extract_store
 
 DATASET = "mm_wlauslan"
 RAW_DIR = Path("data/raw/mm-wlauslan")

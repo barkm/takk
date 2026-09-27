@@ -14,10 +14,10 @@ from pathlib import Path
 
 import polars as pl
 
-from isolated_sign_validation.dataset import SignDataset
-from isolated_sign_validation.evaluation import cosine_similarity, evaluate
-from isolated_sign_validation.preparation import PrepConfig, PreparedData
-from isolated_sign_validation.training import embed, load_run
+from isolated_sign_verification.dataset import SignDataset
+from isolated_sign_verification.evaluation import cosine_similarity, evaluate
+from isolated_sign_verification.preparation import PrepConfig, PreparedData
+from isolated_sign_verification.training import embed, load_run
 
 RUNS_DIR = Path("outputs/runs")
 METRICS = ["eer@1", "top1@1", "eer@5", "top1@5"]

@@ -21,9 +21,9 @@ from pathlib import Path
 
 import polars as pl
 
-from isolated_sign_validation.datasets import asl_citizen, asl_lex, wlasl
-from isolated_sign_validation.landmarks import LandmarkStore
-from isolated_sign_validation.preparation import PreparedData, add_config_arguments, config_from, prepare_store, print_summary
+from isolated_sign_verification.datasets import asl_citizen, asl_lex, wlasl
+from isolated_sign_verification.landmarks import LandmarkStore
+from isolated_sign_verification.preparation import PreparedData, add_config_arguments, config_from, prepare_store, print_summary
 
 
 def main() -> None:

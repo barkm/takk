@@ -3,9 +3,9 @@ import math
 import pytest
 import torch
 
-from isolated_sign_validation.dataset import collate
-from isolated_sign_validation.models import ArcFace, ConvTransformerEncoder, GRUEncoder, frame_features, n_frame_features
-from isolated_sign_validation.preparation import PrepConfig
+from isolated_sign_verification.dataset import collate
+from isolated_sign_verification.models import ArcFace, ConvTransformerEncoder, GRUEncoder, frame_features, n_frame_features
+from isolated_sign_verification.preparation import PrepConfig
 
 CONFIG = PrepConfig()
 HANDS = [CONFIG.group_slices["left_hand"], CONFIG.group_slices["right_hand"]]

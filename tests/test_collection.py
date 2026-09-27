@@ -5,10 +5,10 @@ import polars as pl
 import pytest
 from fastapi import HTTPException
 
-from isolated_sign_validation.checks import check_clip
-from isolated_sign_validation.collection import NO_EVENT, NO_EVENT_PROMPTS, SCHEMA, Recordings, create_app, overlay, read_clips, session_prompts
-from isolated_sign_validation.landmarks import N_LANDMARKS, VideoInfo
-from isolated_sign_validation.preparation import PrepConfig
+from isolated_sign_verification.checks import check_clip
+from isolated_sign_verification.collection import NO_EVENT, NO_EVENT_PROMPTS, SCHEMA, Recordings, create_app, overlay, read_clips, session_prompts
+from isolated_sign_verification.landmarks import N_LANDMARKS, VideoInfo
+from isolated_sign_verification.preparation import PrepConfig
 
 
 def glossary(n_signs, signers):

@@ -15,11 +15,11 @@ from pathlib import Path
 
 import polars as pl
 
-from isolated_sign_validation.collection import NO_EVENT
-from isolated_sign_validation.datasets import recordings
-from isolated_sign_validation.landmarks import LandmarkStore
-from isolated_sign_validation.preparation import PrepConfig, prepare_store
-from isolated_sign_validation.splits import assign_evaluation_only
+from isolated_sign_verification.collection import NO_EVENT
+from isolated_sign_verification.datasets import recordings
+from isolated_sign_verification.landmarks import LandmarkStore
+from isolated_sign_verification.preparation import PrepConfig, prepare_store
+from isolated_sign_verification.splits import assign_evaluation_only
 
 
 def main() -> None:

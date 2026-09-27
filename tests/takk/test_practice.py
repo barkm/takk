@@ -8,8 +8,8 @@ from fastapi import HTTPException, UploadFile
 from fastapi.testclient import TestClient
 from torch import nn
 
-from isolated_sign_validation.landmarks import LANDMARK_SLICES, N_LANDMARKS
-from isolated_sign_validation.preparation import PrepConfig, mirror, prepare_clip
+from isolated_sign_verification.landmarks import LANDMARK_SLICES, N_LANDMARKS
+from isolated_sign_verification.preparation import PrepConfig, mirror, prepare_clip
 from takk.practice import NOTES, create_app, prepare_attempt, sign_means
 from takk.vocabulary import Index, spoken_word
 from takk.speech import SAMPLE_RATE

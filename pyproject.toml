@@ -1,5 +1,5 @@
 [project]
-name = "isolated-sign-validation"
+name = "isolated-sign-verification"
 version = "0.1.0"
 requires-python = ">=3.12"
 # What the TAKK app needs to serve a bundle; the deployed image installs these alone.
@@ -27,7 +27,7 @@ build-backend = "uv_build"
 
 # Two packages in one repository: the ISV model and data work, and the TAKK app built on it.
 [tool.uv.build-backend]
-module-name = ["isolated_sign_validation", "takk"]
+module-name = ["isolated_sign_verification", "takk"]
 
 [dependency-groups]
 dev = [

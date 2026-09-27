@@ -30,7 +30,7 @@ from pathlib import Path
 import polars as pl
 from tqdm import tqdm
 
-from isolated_sign_validation.datasets.sts_lexikon import (
+from isolated_sign_verification.datasets.sts_lexikon import (
     BASE_URL,
     ENTRIES_FILE,
     GROUPS_FILE,
@@ -40,7 +40,7 @@ from isolated_sign_validation.datasets.sts_lexikon import (
     sign_classes,
 )
 
-USER_AGENT = "isolated-sign-validation research crawler"
+USER_AGENT = "isolated-sign-verification research crawler"
 MAX_ID = 26_999  # the highest published id was below 26,300 in 2026-09; ids above it simply 404
 
 

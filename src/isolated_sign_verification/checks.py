@@ -7,8 +7,8 @@ practice app before scoring an attempt.
 
 import numpy as np
 
-from isolated_sign_validation.landmarks import VideoInfo
-from isolated_sign_validation.preparation import PrepConfig, hand_presence, hide_low_hands, prepare_clip
+from isolated_sign_verification.landmarks import VideoInfo
+from isolated_sign_verification.preparation import PrepConfig, hand_presence, hide_low_hands, prepare_clip
 
 
 NOTES = {

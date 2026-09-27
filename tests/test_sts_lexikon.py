@@ -2,7 +2,7 @@ import json
 
 import polars as pl
 
-from isolated_sign_validation.datasets.sts_lexikon import (
+from isolated_sign_verification.datasets.sts_lexikon import (
     FIELDS,
     parse_categories,
     parse_entry,

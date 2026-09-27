@@ -20,8 +20,8 @@ import numpy as np
 import polars as pl
 from tqdm import tqdm
 
-from isolated_sign_validation.landmarks import LANDMARK_GROUPS, LANDMARK_SLICES, MIRROR_INDEX, LandmarkStore
-from isolated_sign_validation.parallel import parallel_map
+from isolated_sign_verification.landmarks import LANDMARK_GROUPS, LANDMARK_SLICES, MIRROR_INDEX, LandmarkStore
+from isolated_sign_verification.parallel import parallel_map
 
 _POSE = LANDMARK_SLICES["pose"].start
 SHOULDERS = [_POSE + 11, _POSE + 12]  # left, right

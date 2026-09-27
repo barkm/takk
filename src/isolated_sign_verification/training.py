@@ -28,10 +28,10 @@ import torch.nn.functional as F
 from torch import nn
 from torch.utils.data import DataLoader
 
-from isolated_sign_validation.dataset import AugmentConfig, SignDataset, collate
-from isolated_sign_validation.evaluation import cosine_similarity, evaluate, twin_matrix
-from isolated_sign_validation.models import ArcFace, build_model
-from isolated_sign_validation.preparation import PreparedData
+from isolated_sign_verification.dataset import AugmentConfig, SignDataset, collate
+from isolated_sign_verification.evaluation import cosine_similarity, evaluate, twin_matrix
+from isolated_sign_verification.models import ArcFace, build_model
+from isolated_sign_verification.preparation import PreparedData
 
 
 @dataclass(frozen=True)

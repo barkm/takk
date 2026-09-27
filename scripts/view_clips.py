@@ -21,15 +21,15 @@ import polars as pl
 from matplotlib.animation import FuncAnimation, PillowWriter
 from matplotlib.collections import LineCollection
 
-from isolated_sign_validation.dataset import AugmentConfig, augment
-from isolated_sign_validation.landmarks import (
+from isolated_sign_verification.dataset import AugmentConfig, augment
+from isolated_sign_verification.landmarks import (
     LANDMARK_GROUPS,
     LANDMARK_SLICES,
     N_LANDMARKS,
     SKELETON_EDGES,
     LandmarkStore,
 )
-from isolated_sign_validation.preparation import PrepConfig, PreparedData
+from isolated_sign_verification.preparation import PrepConfig, PreparedData
 
 # Skeleton lines to draw: (edges as indices into the landmark axis, color)
 SKELETON = [

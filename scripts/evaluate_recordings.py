@@ -33,11 +33,11 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 
-from isolated_sign_validation.collection import RAW_DIR, read_clips
-from isolated_sign_validation.dataset import SignDataset
-from isolated_sign_validation.evaluation import cosine_similarity, draw_scores, evaluate, signer_codes
-from isolated_sign_validation.preparation import PrepConfig, PreparedData
-from isolated_sign_validation.training import embed, load_run
+from isolated_sign_verification.collection import RAW_DIR, read_clips
+from isolated_sign_verification.dataset import SignDataset
+from isolated_sign_verification.evaluation import cosine_similarity, draw_scores, evaluate, signer_codes
+from isolated_sign_verification.preparation import PrepConfig, PreparedData
+from isolated_sign_verification.training import embed, load_run
 
 RUNS_DIR = Path("outputs/runs")
 METRICS = ["auc", "eer", "top1", "top5"]

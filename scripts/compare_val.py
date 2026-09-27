@@ -21,10 +21,10 @@ import numpy as np
 import polars as pl
 import torch
 
-from isolated_sign_validation.dataset import AugmentConfig, SignDataset
-from isolated_sign_validation.evaluation import cosine_similarity, evaluate
-from isolated_sign_validation.preparation import PreparedData
-from isolated_sign_validation.training import embed, load_run
+from isolated_sign_verification.dataset import AugmentConfig, SignDataset
+from isolated_sign_verification.evaluation import cosine_similarity, evaluate
+from isolated_sign_verification.preparation import PreparedData
+from isolated_sign_verification.training import embed, load_run
 
 RUNS_DIR = Path("outputs/runs")
 METRICS = ["top1", "eer", "top5"]

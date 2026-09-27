@@ -9,8 +9,8 @@ the videos somewhere below it (see README).
 
 Extraction takes about two hours; an interrupted run resumes where it left off when run again. Run
 from the repo root:
-    uv run python -m isolated_sign_validation.datasets.wlasl                # all available videos
-    uv run python -m isolated_sign_validation.datasets.wlasl --signs 20     # a sample
+    uv run python -m isolated_sign_verification.datasets.wlasl                # all available videos
+    uv run python -m isolated_sign_verification.datasets.wlasl --signs 20     # a sample
 """
 
 import argparse
@@ -22,8 +22,8 @@ from pathlib import Path
 
 import polars as pl
 
-from isolated_sign_validation.extraction import extract_store
-from isolated_sign_validation.splits import normalize_label, sign_split
+from isolated_sign_verification.extraction import extract_store
+from isolated_sign_verification.splits import normalize_label, sign_split
 
 DATASET = "wlasl"
 RAW_DIR = Path("data/raw/wlasl")

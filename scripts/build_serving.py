@@ -25,10 +25,10 @@ from pathlib import Path
 
 import numpy as np
 
-from isolated_sign_validation.dataset import SignDataset
-from isolated_sign_validation.datasets.sts_lexikon import video_urls
-from isolated_sign_validation.preparation import PreparedData
-from isolated_sign_validation.training import embed, load_run
+from isolated_sign_verification.dataset import SignDataset
+from isolated_sign_verification.datasets.sts_lexikon import video_urls
+from isolated_sign_verification.preparation import PreparedData
+from isolated_sign_verification.training import embed, load_run
 from takk import bundle
 from takk.practice import sign_means
 from takk.vocabulary import search_index, sign_forms

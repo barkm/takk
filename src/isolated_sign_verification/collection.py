@@ -33,10 +33,10 @@ import polars as pl
 from fastapi import FastAPI, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
-from isolated_sign_validation.checks import check_clip
-from isolated_sign_validation.extraction import extract_landmarks
-from isolated_sign_validation.landmarks import SKELETON_EDGES
-from isolated_sign_validation.preparation import PrepConfig
+from isolated_sign_verification.checks import check_clip
+from isolated_sign_verification.extraction import extract_landmarks
+from isolated_sign_verification.landmarks import SKELETON_EDGES
+from isolated_sign_verification.preparation import PrepConfig
 
 DATASET = "recordings"
 RAW_DIR = Path("data/raw") / DATASET
@@ -96,7 +96,7 @@ def video_paths(clips: pl.DataFrame) -> dict[str, str]:
     """The video file of each of `clips` (clip_id and dataset columns), from its dataset's adapter."""
     paths = {}
     for dataset in clips["dataset"].unique():
-        adapter = importlib.import_module(f"isolated_sign_validation.datasets.{dataset}")
+        adapter = importlib.import_module(f"isolated_sign_verification.datasets.{dataset}")
         videos = adapter.read_videos(adapter.RAW_DIR)
         paths |= dict(zip(videos["clip_id"], videos["path"]))
     return {clip_id: str(paths[clip_id]) for clip_id in clips["clip_id"]}

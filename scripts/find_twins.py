@@ -24,12 +24,12 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 
-from isolated_sign_validation.baselines import hand_embedding
-from isolated_sign_validation.dataset import SignDataset
-from isolated_sign_validation.datasets import asl_citizen, asl_lex
-from isolated_sign_validation.preparation import PrepConfig, PreparedData
-from isolated_sign_validation.splits import normalize_label, sign_split
-from isolated_sign_validation.training import embed, load_run
+from isolated_sign_verification.baselines import hand_embedding
+from isolated_sign_verification.dataset import SignDataset
+from isolated_sign_verification.datasets import asl_citizen, asl_lex
+from isolated_sign_verification.preparation import PrepConfig, PreparedData
+from isolated_sign_verification.splits import normalize_label, sign_split
+from isolated_sign_verification.training import embed, load_run
 
 RUNS_DIR = Path("outputs/runs")
 PREPARED_DIR = Path("data/prepared")

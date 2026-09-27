@@ -25,7 +25,7 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from isolated_sign_validation.datasets.wlasl import METADATA_FILE, RAW_DIR, trim_clip
+from isolated_sign_verification.datasets.wlasl import METADATA_FILE, RAW_DIR, trim_clip
 
 OUT_DIR = RAW_DIR / "youtube"
 UNAVAILABLE_FILE = OUT_DIR / "unavailable.tsv"

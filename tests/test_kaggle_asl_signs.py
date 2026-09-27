@@ -1,8 +1,8 @@
 import numpy as np
 import polars as pl
 
-from isolated_sign_validation.datasets.kaggle_asl_signs import read_clip
-from isolated_sign_validation.landmarks import LANDMARK_SLICES, N_LANDMARKS
+from isolated_sign_verification.datasets.kaggle_asl_signs import read_clip
+from isolated_sign_verification.landmarks import LANDMARK_SLICES, N_LANDMARKS
 
 
 def test_read_clip(tmp_path):

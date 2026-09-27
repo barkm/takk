@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import numpy as np
 import torch
 
-from isolated_sign_validation.preparation import PreparedData, resample
+from isolated_sign_verification.preparation import PreparedData, resample
 
 
 @dataclass(frozen=True)

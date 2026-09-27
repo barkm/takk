@@ -12,8 +12,8 @@ import numpy as np
 import polars as pl
 from tqdm import tqdm
 
-from isolated_sign_validation.landmarks import LANDMARK_SLICES, N_LANDMARKS, VideoInfo, write_store_resumable
-from isolated_sign_validation.parallel import parallel_map
+from isolated_sign_verification.landmarks import LANDMARK_SLICES, N_LANDMARKS, VideoInfo, write_store_resumable
+from isolated_sign_verification.parallel import parallel_map
 
 # Holistic extraction uses ~1.7 cores per process; more workers than this are slower.
 MAX_WORKERS = 8

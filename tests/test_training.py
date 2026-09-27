@@ -7,8 +7,8 @@ import polars as pl
 import pytest
 import torch
 
-from isolated_sign_validation.preparation import PrepConfig, PreparedData
-from isolated_sign_validation.training import TrainConfig, near_minimal_matrix, phonology_targets, train
+from isolated_sign_verification.preparation import PrepConfig, PreparedData
+from isolated_sign_verification.training import TrainConfig, near_minimal_matrix, phonology_targets, train
 
 
 def test_phonology_targets():

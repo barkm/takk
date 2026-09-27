@@ -9,7 +9,7 @@ from pathlib import Path
 
 import polars as pl
 
-from isolated_sign_validation.training import TrainConfig
+from isolated_sign_verification.training import TrainConfig
 
 RUNS_DIR = Path("outputs/runs")
 

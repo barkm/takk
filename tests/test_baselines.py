@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 import torch
 
-from isolated_sign_validation.baselines import dtw_distances, dtw_features, dtw_from_cost, hand_embedding
-from isolated_sign_validation.preparation import PrepConfig
+from isolated_sign_verification.baselines import dtw_distances, dtw_features, dtw_from_cost, hand_embedding
+from isolated_sign_verification.preparation import PrepConfig
 
 CONFIG = PrepConfig()
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"

@@ -9,7 +9,7 @@ labels are the ASL Citizen glosses, so a recording and the clips it was copied f
 The signer's handedness stays in `clips.csv`, since the landmark store has no column for it.
 
 Run from the repo root:
-    uv run python -m isolated_sign_validation.datasets.recordings
+    uv run python -m isolated_sign_verification.datasets.recordings
 """
 
 import argparse
@@ -17,8 +17,8 @@ from pathlib import Path
 
 import polars as pl
 
-from isolated_sign_validation.collection import RAW_DIR, read_clips
-from isolated_sign_validation.extraction import extract_store
+from isolated_sign_verification.collection import RAW_DIR, read_clips
+from isolated_sign_verification.extraction import extract_store
 
 DATASET = "recordings"
 STORE_DIR = Path("data/processed") / DATASET

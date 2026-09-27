@@ -25,8 +25,8 @@ import polars as pl
 import torch
 from torch import nn
 
-from isolated_sign_validation.models import build_model
-from isolated_sign_validation.preparation import PrepConfig
+from isolated_sign_verification.models import build_model
+from isolated_sign_verification.preparation import PrepConfig
 from takk.vocabulary import Index, make_index
 
 MODEL_FILE = "model.pt"

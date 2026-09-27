@@ -4,8 +4,8 @@ import cv2
 import numpy as np
 import pytest
 
-from isolated_sign_validation.extraction import MODEL_PATH, extract_landmarks, result_to_array
-from isolated_sign_validation.landmarks import LANDMARK_SLICES, N_LANDMARKS
+from isolated_sign_verification.extraction import MODEL_PATH, extract_landmarks, result_to_array
+from isolated_sign_verification.landmarks import LANDMARK_SLICES, N_LANDMARKS
 
 
 def points(n: int, value: float) -> list[SimpleNamespace]:

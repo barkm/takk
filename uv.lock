@@ -853,7 +853,7 @@ wheels = [
 ]
 
 [[package]]
-name = "isolated-sign-validation"
+name = "isolated-sign-verification"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

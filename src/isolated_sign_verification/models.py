@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from isolated_sign_validation.preparation import PrepConfig
+from isolated_sign_verification.preparation import PrepConfig
 
 
 # The 20 bones of a hand, from the wrist out along each finger (MediaPipe hand landmark order).

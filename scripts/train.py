@@ -16,8 +16,8 @@ import dataclasses
 import json
 from pathlib import Path
 
-from isolated_sign_validation.preparation import PrepConfig, PreparedData
-from isolated_sign_validation.training import TrainConfig, train
+from isolated_sign_verification.preparation import PrepConfig, PreparedData
+from isolated_sign_verification.training import TrainConfig, train
 
 
 def with_override(config, key: str, value: str):

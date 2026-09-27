@@ -4,8 +4,8 @@ import subprocess
 import numpy as np
 import polars as pl
 
-from isolated_sign_validation.datasets.wlasl import map_signs, read_videos, sign_labels, trim_clip, twin_pairs
-from isolated_sign_validation.splits import sign_split
+from isolated_sign_verification.datasets.wlasl import map_signs, read_videos, sign_labels, trim_clip, twin_pairs
+from isolated_sign_verification.splits import sign_split
 
 
 def test_read_videos_skips_instances_without_a_video(tmp_path):

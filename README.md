@@ -1,6 +1,6 @@
-# isolated-sign-validation
+# isolated-sign-verification
 
-A system that validates whether a sequence of human pose landmarks is signing a given sign.
+A system that verifies whether a sequence of human pose landmarks is signing a given sign.
 
 **Input:**
 - A sequence of human pose landmarks
@@ -13,7 +13,7 @@ The vocabulary is not fixed: the system must also work for signs that were not s
 
 ## Approach
 
-Train a sequence encoder that maps a landmark sequence to an embedding, so that clips of the same sign end up close together and clips of different signs end up far apart. A sign is validated by comparing the embedding of the attempt with embeddings of reference clips of the target sign, and thresholding the similarity.
+Train a sequence encoder that maps a landmark sequence to an embedding, so that clips of the same sign end up close together and clips of different signs end up far apart. A sign is verified by comparing the embedding of the attempt with embeddings of reference clips of the target sign, and thresholding the similarity.
 
 Planned starting point: a 1D-conv + transformer encoder (as in the top Kaggle ASL Signs solutions), trained as a classifier with a margin-based loss (e.g. ArcFace), using its embedding layer for verification.
 
@@ -50,13 +50,13 @@ Then extract the landmarks into a landmark store in `data/processed/asl_citizen/
 
 ```sh
 tmux new -s extract
-uv run python -m isolated_sign_validation.datasets.asl_citizen
+uv run python -m isolated_sign_verification.datasets.asl_citizen
 ```
 
 For a quick look at the data, extract only all videos of a few randomly chosen signs into a separate store (`data/processed/asl_citizen_10_signs/`, a few minutes) and inspect them with the clip viewer:
 
 ```sh
-uv run python -m isolated_sign_validation.datasets.asl_citizen --signs 10
+uv run python -m isolated_sign_verification.datasets.asl_citizen --signs 10
 uv run scripts/view_clips.py --store data/processed/asl_citizen_10_signs --sign <SIGN>
 ```
 
@@ -76,8 +76,8 @@ done
 Then extract the landmarks of the 64,300 videos into `data/processed/mm_wlauslan/` (~36 GB, about 11 hours; run it in `tmux`, and run it again to resume). `--subsets` and `--signs N` extract a sample into a separate store instead:
 
 ```sh
-uv run python -m isolated_sign_validation.datasets.mm_wlauslan
-uv run python -m isolated_sign_validation.datasets.mm_wlauslan --subsets Valid --signs 30
+uv run python -m isolated_sign_verification.datasets.mm_wlauslan
+uv run python -m isolated_sign_verification.datasets.mm_wlauslan --subsets Valid --signs 30
 ```
 
 ### Downloading Slovo
@@ -93,7 +93,7 @@ Then extract the landmarks of the 20,000 videos into `data/processed/slovo/` (5.
 in `tmux`, and run it again to resume). The 400 `no_event` videos hold no signing and are left out:
 
 ```sh
-uv run python -m isolated_sign_validation.datasets.slovo
+uv run python -m isolated_sign_verification.datasets.slovo
 ```
 
 ### Downloading WLASL
@@ -128,8 +128,8 @@ hours; run it in `tmux`, and run it again to resume). `--signs N` extracts a sam
 store instead:
 
 ```sh
-uv run python -m isolated_sign_validation.datasets.wlasl
-uv run python -m isolated_sign_validation.datasets.wlasl --signs 20
+uv run python -m isolated_sign_verification.datasets.wlasl
+uv run python -m isolated_sign_verification.datasets.wlasl --signs 20
 ```
 
 ### Downloading Svenskt teckenspråkslexikon
@@ -151,8 +151,8 @@ Then extract the landmarks of every entry into `data/processed/sts_lexikon/` (16
 on the CPU; run it again to resume). `--signs N` extracts a sample into a separate store instead:
 
 ```sh
-uv run python -m isolated_sign_validation.datasets.sts_lexikon
-uv run python -m isolated_sign_validation.datasets.sts_lexikon --signs 20
+uv run python -m isolated_sign_verification.datasets.sts_lexikon
+uv run python -m isolated_sign_verification.datasets.sts_lexikon --signs 20
 ```
 
 The dictionary publishes one recording per entry and no signer ids. Entries the lexicon marks as
@@ -173,14 +173,14 @@ curl -L -o data/raw/asl-lex/signdataKEY.csv https://osf.io/download/ygq4v/  # co
 
 ### Preparing training data
 
-Training uses prepared clips (`src/isolated_sign_validation/preparation.py`): hands resting low below the shoulders treated as undetected (out of view, as in close webcam framings), broken clips excluded, trimmed to the frames with hands, corrected for the video's aspect ratio, short hand gaps interpolated, normalized by the shoulders, mirrored so the dominant hand is always in the `right_hand` slot, reduced to the hands, upper body and face reference points, and resampled to 30 fps (at most 128 frames). ASL Citizen clips also get their sign's ASL-LEX phonological features. This takes a few seconds and writes `data/prepared/asl_citizen-<config id>/` (~1 GB):
+Training uses prepared clips (`src/isolated_sign_verification/preparation.py`): hands resting low below the shoulders treated as undetected (out of view, as in close webcam framings), broken clips excluded, trimmed to the frames with hands, corrected for the video's aspect ratio, short hand gaps interpolated, normalized by the shoulders, mirrored so the dominant hand is always in the `right_hand` slot, reduced to the hands, upper body and face reference points, and resampled to 30 fps (at most 128 frames). ASL Citizen clips also get their sign's ASL-LEX phonological features. This takes a few seconds and writes `data/prepared/asl_citizen-<config id>/` (~1 GB):
 
 ```sh
 uv run scripts/prepare_asl_citizen.py
 uv run scripts/view_clips.py --prepared data/prepared/asl_citizen-<config id> --sign APPLE --augment
 ```
 
-The viewer shows the prepared clips below the original ones, and with `--augment` a random training augmentation below them. `src/isolated_sign_validation/dataset.py` serves the prepared clips of a split as a PyTorch dataset.
+The viewer shows the prepared clips below the original ones, and with `--augment` a random training augmentation below them. `src/isolated_sign_verification/dataset.py` serves the prepared clips of a split as a PyTorch dataset.
 
 MM-WLAuslan is prepared as extra training data: all its clips are training clips, except the signs whose gloss or English keyword matches an ASL Citizen val or test sign, which could look like held-out signs. Its sign labels get the prefix `auslan:`. It writes `data/prepared/mm_wlauslan-<config id>/`:
 
@@ -215,10 +215,10 @@ uvx kaggle competitions download -c asl-signs -p data/raw
 unzip -q data/raw/asl-signs.zip -d data/raw/asl-signs
 ```
 
-4. Convert to the common landmark format (a landmark store in `data/processed/kaggle_asl_signs/`, ~22 GB; the format is described in `src/isolated_sign_validation/landmarks.py`):
+4. Convert to the common landmark format (a landmark store in `data/processed/kaggle_asl_signs/`, ~22 GB; the format is described in `src/isolated_sign_verification/landmarks.py`):
 
 ```sh
-uv run python -m isolated_sign_validation.datasets.kaggle_asl_signs
+uv run python -m isolated_sign_verification.datasets.kaggle_asl_signs
 ```
 
 ## Training and baselines
@@ -229,7 +229,7 @@ Baselines without training (a hand-crafted embedding and dynamic time warping) a
 uv run scripts/evaluate_baselines.py  # results in outputs/results/
 ```
 
-The learned baseline, a bidirectional GRU embedding model trained with an ArcFace loss over the training signs (`src/isolated_sign_validation/models.py`, `training.py`), is trained with:
+The learned baseline, a bidirectional GRU embedding model trained with an ArcFace loss over the training signs (`src/isolated_sign_verification/models.py`, `training.py`), is trained with:
 
 ```sh
 uv run scripts/train.py --name gru_best
@@ -243,7 +243,7 @@ A run writes `outputs/runs/<name>/`: `config.json`, per-epoch `metrics.csv` and 
 
 ## Evaluation
 
-Splits (`src/isolated_sign_validation/splits.py`) hold out both signs and signers:
+Splits (`src/isolated_sign_verification/splits.py`) hold out both signs and signers:
 
 - **Held-out signs:** signs are assigned to train, val or test (~80/10/10) by a hash of the sign label, so a held-out sign stays held out when datasets are added.
 - **Held-out signers:** test clips are test signs performed by the official ASL Citizen test signers, who never appear in training or validation.
@@ -252,7 +252,7 @@ Splits (`src/isolated_sign_validation/splits.py`) hold out both signs and signer
 
 For ASL Citizen this gives 40,126 train clips (2,172 signs, 40 signers), 5,342 val clips (290 signs, 13–20 signers per sign) and 3,239 test clips (269 signs, 11 signers).
 
-Evaluation (`src/isolated_sign_validation/evaluation.py`) works on a similarity matrix between the clips of a split, e.g. cosine similarities of embeddings or negative DTW distances:
+Evaluation (`src/isolated_sign_verification/evaluation.py`) works on a similarity matrix between the clips of a split, e.g. cosine similarities of embeddings or negative DTW distances:
 
 - **k-shot references (k = 1, 3, 5):** for each query clip and each sign of the split, k reference clips of the sign by k different signers, never the query's signer. The query's score for a sign is its mean similarity to the references.
 - **Verification:** the query's own sign is a positive trial, every other sign a negative trial (so confusable signs are included). ROC-AUC and equal error rate over all trials pooled, i.e. for one global threshold.
@@ -331,7 +331,7 @@ lists the clips each take was shown) and are converted like any other dataset, u
 only:
 
 ```sh
-uv run python -m isolated_sign_validation.datasets.recordings  # -> data/processed/recordings/
+uv run python -m isolated_sign_verification.datasets.recordings  # -> data/processed/recordings/
 uv run scripts/prepare_recordings.py                          # -> data/prepared/recordings-<config id>/
 ```
 
@@ -530,4 +530,4 @@ uv run scripts/download_sts_lexikon.py   # the entry pages carry the categories
 
 ## Future
 
-- Validate Swedish Sign Language signs from [Svenskt teckenspråkslexikon](https://teckensprakslexikon.su.se/), which have little training data.
+- Verify Swedish Sign Language signs from [Svenskt teckenspråkslexikon](https://teckensprakslexikon.su.se/), which have little training data.

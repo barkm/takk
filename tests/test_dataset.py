@@ -3,8 +3,8 @@ import polars as pl
 import pytest
 import torch
 
-from isolated_sign_validation.dataset import AugmentConfig, SignDataset, affine, augment, collate, drop_frames, drop_hand, hide_below
-from isolated_sign_validation.preparation import PrepConfig, PreparedData
+from isolated_sign_verification.dataset import AugmentConfig, SignDataset, affine, augment, collate, drop_frames, drop_hand, hide_below
+from isolated_sign_verification.preparation import PrepConfig, PreparedData
 
 CONFIG = PrepConfig()
 HANDS = [CONFIG.group_slices["left_hand"], CONFIG.group_slices["right_hand"]]

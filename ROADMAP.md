@@ -1,6 +1,6 @@
 # Roadmap
 
-Status of the work and the plan ahead. Update this file when a step is finished, a decision is made, or the plan changes. Covers the isolated sign verification work itself (`src/isolated_sign_validation/`); the TAKK app built on it (`src/takk/`) has its own roadmap in ROADMAP-takk.md. Read the roadmap of the package you touch, both when the change crosses. See README.md for the task, approach and evaluation protocol.
+Status of the work and the plan ahead. Update this file when a step is finished, a decision is made, or the plan changes. Covers the isolated sign verification work itself (`src/isolated_sign_verification/`); the TAKK app built on it (`src/takk/`) has its own roadmap in ROADMAP-takk.md. Read the roadmap of the package you touch, both when the change crosses. See README.md for the task, approach and evaluation protocol.
 
 ## Steps
 
@@ -124,6 +124,7 @@ Later: sensitivity analysis and threshold selection, including score normalizati
 
 ## Decisions
 
+- **The project is called isolated sign verification** (user, 2026-09-27), package `isolated_sign_verification`: "verification" is the established name for 1:1 yes/no matching against enrolled references (as in face and speaker verification), and "validation" already means the val split here.
 - **ASL Citizen is the primary dataset** instead of Kaggle ASL Signs: ~11x the vocabulary (the main lever for unseen signs), 52 signers, both hands free, and videos so the landmark extractor is under our control and matches what the system will use in practice. Kaggle ASL Signs is one-handed smartphone signing with landmarks from a removed MediaPipe version.
 
 - **Landmark extractor:** MediaPipe Tasks `HolisticLandmarker` (successor of the legacy Holistic) in video mode with default settings, on the CPU with 8 worker processes (`extraction.py`). Its landmarks match the Kaggle layout and hand label convention. MediaPipe's GPU mode was rejected: the holistic model fails on the GPU, and the separate face/hand/pose models run on the GPU but scale worse than the CPU (see findings).

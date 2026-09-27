@@ -2,7 +2,7 @@ import numpy as np
 import polars as pl
 import pytest
 
-from isolated_sign_validation.landmarks import (
+from isolated_sign_verification.landmarks import (
     LANDMARK_GROUPS,
     MIRROR_INDEX,
     N_LANDMARKS,

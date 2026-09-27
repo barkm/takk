@@ -2,7 +2,7 @@ import numpy as np
 import polars as pl
 import pytest
 
-from isolated_sign_validation.evaluation import _metrics, cosine_similarity, draw_scores, evaluate, sample_references, signer_codes, twin_matrix
+from isolated_sign_verification.evaluation import _metrics, cosine_similarity, draw_scores, evaluate, sample_references, signer_codes, twin_matrix
 
 
 def test_twin_matrix():

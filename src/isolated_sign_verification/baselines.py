@@ -9,7 +9,7 @@ import warnings
 import numpy as np
 import torch
 
-from isolated_sign_validation.preparation import PrepConfig, resample
+from isolated_sign_verification.preparation import PrepConfig, resample
 
 # Pose wrists within the upper_body group (pose indices 11-22): left wrist 15, right wrist 16
 _WRISTS = {"left_hand": 4, "right_hand": 5}

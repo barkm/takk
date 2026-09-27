@@ -2,7 +2,7 @@ from collections import Counter
 
 import polars as pl
 
-from isolated_sign_validation.splits import assign_splits, assign_training_only, matching_signs, normalize_label, sign_split
+from isolated_sign_verification.splits import assign_splits, assign_training_only, matching_signs, normalize_label, sign_split
 
 
 def test_sign_split_is_roughly_80_10_10():

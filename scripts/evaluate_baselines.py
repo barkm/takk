@@ -11,9 +11,9 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 
-from isolated_sign_validation.baselines import dtw_distances, dtw_features, hand_embedding
-from isolated_sign_validation.evaluation import cosine_similarity, evaluate
-from isolated_sign_validation.preparation import PrepConfig, PreparedData
+from isolated_sign_verification.baselines import dtw_distances, dtw_features, hand_embedding
+from isolated_sign_verification.evaluation import cosine_similarity, evaluate
+from isolated_sign_verification.preparation import PrepConfig, PreparedData
 
 OUT_DIR = Path("outputs/results")
 

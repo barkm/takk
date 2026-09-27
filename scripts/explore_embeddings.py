@@ -23,10 +23,10 @@ from fastapi.responses import FileResponse
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.manifold import TSNE
 
-from isolated_sign_validation.collection import WEB_DIR, video_paths
-from isolated_sign_validation.dataset import SignDataset
-from isolated_sign_validation.preparation import PrepConfig, PreparedData
-from isolated_sign_validation.training import embed, load_run
+from isolated_sign_verification.collection import WEB_DIR, video_paths
+from isolated_sign_verification.dataset import SignDataset
+from isolated_sign_verification.preparation import PrepConfig, PreparedData
+from isolated_sign_verification.training import embed, load_run
 
 RUNS_DIR = Path("outputs/runs")
 NEIGHBORS = 12  # nearest signs listed per sign

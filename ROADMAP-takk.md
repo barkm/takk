@@ -1,6 +1,6 @@
 # Roadmap — the TAKK practice app
 
-Status of the app and the plan ahead, as ROADMAP.md holds them for the isolated sign verification work the app is built on (`src/isolated_sign_validation/`). Update this file when a step is finished, a decision is made, or the plan changes. Read the roadmap of the package you touch, both when a change crosses. See README.md for how to run the app.
+Status of the app and the plan ahead, as ROADMAP.md holds them for the isolated sign verification work the app is built on (`src/isolated_sign_verification/`). Update this file when a step is finished, a decision is made, or the plan changes. Read the roadmap of the package you touch, both when a change crosses. See README.md for how to run the app.
 
 The app (user, 2026-09-19): practising TAKK (tecken som alternativ och kompletterande kommunikation), from single signs to sentences. TAKK signs the key words of spoken Swedish with STS lexicon signs, in Swedish word order and closer to isolation than fluent STS, so a sentence is a known sequence of lexicon signs to find and score in order. What remains is splitting the recording into signs, possibly slightly blended forms, and errors adding up over a sentence's signs.
 
