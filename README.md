@@ -158,8 +158,8 @@ uv run python -m isolated_sign_validation.datasets.sts_lexikon --signs 20
 The dictionary publishes one recording per entry and no signer ids. Entries the lexicon marks as
 sharing a sign form ("Teckenformen kan också betyda") are one sign, a class of separate recordings of
 that form under different Swedish meanings, usually by different model signers: 2,476 classes of
-8,138 clips. Every other entry is a sign with a single clip. See ROADMAP.md for what this does and
-doesn't buy.
+8,138 clips. Every other entry is a sign with a single clip. A self-recorded clip can be scored
+against any entry, but a trial of the lexicon against itself needs a class.
 
 ### Downloading ASL-LEX
 
@@ -235,7 +235,7 @@ The learned baseline, a bidirectional GRU embedding model trained with an ArcFac
 uv run scripts/train.py --name gru_best
 ```
 
-The defaults are the best configuration of the validation search (see ROADMAP.md): hidden size 384, 20 epochs, validation and checkpoints of an exponential moving average of the weights, and training on ASL Citizen, MM-WLAuslan and WLASL together. Linear heads on the pooled encoder output also predict each sign's ASL-LEX phonological features (handshape, location, movement, ...) as an auxiliary loss with weight 1 (`phonology_weight`; `phonology_input=embedding` puts the heads on the embedding instead); clips without features (e.g. MM-WLAuslan) only get the ArcFace loss. Settings are changed with `--set key=value`.
+The defaults are the best configuration of the validation search: hidden size 384, 20 epochs, validation and checkpoints of an exponential moving average of the weights, and training on ASL Citizen, MM-WLAuslan and WLASL together. Linear heads on the pooled encoder output also predict each sign's ASL-LEX phonological features (handshape, location, movement, ...) as an auxiliary loss with weight 1 (`phonology_weight`; `phonology_input=embedding` puts the heads on the embedding instead); clips without features (e.g. MM-WLAuslan) only get the ArcFace loss. Settings are changed with `--set key=value`.
 
 To train on other datasets, pass their prepared directories: `--prepared data/prepared/asl_citizen-<config id> ...`.
 
@@ -353,15 +353,15 @@ scored highest, which is what a handful of clips can actually say something abou
 
 ## Practicing signs
 
-The app itself lives in its own package, `src/takk/` (see ROADMAP-takk.md); everything else in this
-repository is the isolated sign verification work it is built on. It serves a small web app: learn a
-new Swedish sign from its clip, sign it to the webcam, and repeat what you know by signing your way
-through a story. The landmarks are extracted in the browser, live on the GPU while the camera runs (the CPU if
-there is no GPU), with the same MediaPipe version and model as `extraction.py`, and drawn over the
-camera image; only the landmarks of a recording are sent to the server, the video never leaves the
-device. The server checks and prepares the attempt like a recording, embeds it with the run's model,
-and accepts it when its mean cosine similarity to the sign's lexicon clips reaches `--threshold` (a
-provisional 0.38, see ROADMAP.md). It also names the closest sign of the whole lexicon:
+The app itself lives in its own package, `src/takk/`; everything else in this repository is the
+isolated sign verification work it is built on. It serves a small web app: learn a new Swedish sign
+from its clip, sign it to the webcam, and repeat what you know by signing your way through a story.
+The landmarks are extracted in the browser, live on the GPU while the camera runs (the CPU if there
+is no GPU), with the same MediaPipe version and model as `extraction.py`, and drawn over the camera
+image; only the landmarks of a recording are sent to the server, the video never leaves the device.
+The server checks and prepares the attempt like a recording, embeds it with the run's model, and
+accepts it when its mean cosine similarity to the sign's lexicon clips reaches `--threshold` (a
+provisional 0.38). It also names the closest sign of the whole lexicon:
 
 ```sh
 uv run scripts/build_serving.py   # once per model: the bundle the API serves, in outputs/serving/
@@ -479,10 +479,10 @@ box stays and the checkbox is locked.
 ### The frontend
 
 The page is a SvelteKit app in `frontend/` (TypeScript, Vite, `adapter-static`). It is a separate
-deployment from the API and is never served by it (see the decisions in ROADMAP-takk.md): Vite proxies
-`/api` to the server in development and in `preview`, and a deployed build is pointed at the API with
-`VITE_API_BASE`. `src/lib/landmarks.ts` and `tracking.ts` hold the camera, the landmarker loop and the
-common landmark layout; the components only show them.
+deployment from the API and is never served by it: Vite proxies `/api` to the server in development
+and in `preview`, and a deployed build is pointed at the API with `VITE_API_BASE`.
+`src/lib/landmarks.ts` and `tracking.ts` hold the camera, the landmarker loop and the common
+landmark layout; the components only show them.
 
 `.github/workflows/pages.yml` builds and deploys it to GitHub Pages on every push to `main` that
 touches `frontend/`. A project site is served under `/<repo>/`, so the build sets `BASE_PATH` and
