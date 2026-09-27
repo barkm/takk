@@ -1,6 +1,6 @@
-# Build and deploy the API, from a Cloud Build trigger connected to this repository (step 18 of
-# ROADMAP-takk.md). Nothing about GCP lives in GitHub: the trigger holds the substitutions and Cloud
-# Build's own service account holds the credentials.
+# Build and deploy the API, from a Cloud Build trigger connected to this repository. Nothing about
+# GCP lives in GitHub: the trigger holds the substitutions and Cloud Build's own service account
+# holds the credentials.
 #
 # The image needs the serving bundle, which is not in the repository - it is built from the datasets
 # on the training machine and uploaded with `scripts/build_serving.py --publish`. What is committed
@@ -62,11 +62,11 @@ steps:
     name: gcr.io/cloud-builders/docker
     args: [push, --all-tags, $_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE]
 
-  # 2 vCPU scores an attempt of a 3 s recording in 0.66 s, nearly all of it the speech model (see the
-  # findings in ROADMAP-takk.md), so the concurrency is low and there is no GPU. The Anthropic key is
-  # read from Secret Manager at start; without it the API runs and only stories are off.
-  # _MIN_INSTANCES stays 0 for the free tier, which covers request-based billing only: the first
-  # request after an idle period waits for the image and the 3.2 s the speech model takes to load.
+  # 2 vCPU scores an attempt of a 3 s recording in 0.66 s, nearly all of it the speech model, so the
+  # concurrency is low and there is no GPU. The Anthropic key is read from Secret Manager at start;
+  # without it the API runs and only stories are off. _MIN_INSTANCES stays 0 for the free tier,
+  # which covers request-based billing only: the first request after an idle period waits for the
+  # image and the 3.2 s the speech model takes to load.
   - id: deploy
     name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     entrypoint: gcloud

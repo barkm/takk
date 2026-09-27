@@ -1,16 +1,16 @@
 """Adapter extracting landmarks from the Svenskt teckenspråkslexikon clips into a landmark store.
 
 Svenskt teckenspråkslexikon is the Swedish Sign Language dictionary and the goal vocabulary, so it
-is an evaluation set only and is never trained on (see ROADMAP.md). It is a dictionary rather than a
-dataset: one recording per entry and no signer ids. Every entry with a sign video is extracted.
-Entries the lexicon marks as sharing a sign form ("Teckenformen kan också betyda") are one sign, a
-class of separate recordings of that form under different Swedish meanings, usually by different
-model signers; every other entry is a sign with a single clip. A self-recorded clip can be scored
-against any entry, but a trial of the lexicon against itself needs a class.
+is an evaluation set only and is never trained on. It is a dictionary rather than a dataset: one
+recording per entry and no signer ids. Every entry with a sign video is extracted. Entries the
+lexicon marks as sharing a sign form ("Teckenformen kan också betyda") are one sign, a class of
+separate recordings of that form under different Swedish meanings, usually by different model
+signers; every other entry is a sign with a single clip. A self-recorded clip can be scored against
+any entry, but a trial of the lexicon against itself needs a class.
 
 `signer` is null: the lexicon publishes no signer ids, and the pseudo ids by face clustering are a
-separate step (see ROADMAP.md). Until they exist, a trial may draw its reference from the same model
-signer as the query.
+separate step. Until they exist, a trial may draw its reference from the same model signer as the
+query.
 
 Expects the crawl in data/raw/sts-lexikon (`scripts/download_sts_lexikon.py`, see README).
 Run from the repo root:
@@ -67,11 +67,11 @@ def parse_entry(page: str | None) -> dict:
     The rest is what the page shows around the sign: `also` the other Swedish wording of the same
     entry under its title ("arbetsvetenskap" is also "ergonomi"), `categories` the lexicon's own
     subject categories as (slug, path) with the path as published ("Djur > fisk"), `english` the
-    English translation, and the four hit counts of the
-    "Förekomster" section. The page's "Uppdaterat" date is the day the page was rendered, the same on
-    every entry, so it is not read. The practice app builds its word sets from `categories` and
-    can order them by `corpus_hits` (see ROADMAP-takk.md). The example sentences, which sit in a
-    Livewire block mixed with other entries' films, are not read either.
+    English translation, and the four hit counts of the "Förekomster" section. The page's
+    "Uppdaterat" date is the day the page was rendered, the same on every entry, so it is not read.
+    The practice app builds its word sets from `categories` and can order them by `corpus_hits`. The
+    example sentences, which sit in a Livewire block mixed with other entries' films, are not read
+    either.
     """
     video = re.search(r'<source src="(/movies/[^"?]+-tecken\.mp4)', page) if page else None
     if page is None or video is None:
@@ -171,8 +171,8 @@ def video_urls(raw_dir: Path = RAW_DIR) -> dict[str, str]:
     """The lexicon's own address for each entry's sign video, by clip id.
 
     The crawl keeps the site's path of every video it downloaded, so a clip can be watched from the
-    lexicon itself instead of from a copy: the practice app hands these to the page (see
-    ROADMAP-takk.md) rather than serving the 17 GB of clips through its API.
+    lexicon itself instead of from a copy: the practice app hands these to the page rather
+    than serving the 17 GB of clips through its API.
     """
     entries = pl.read_ndjson(raw_dir / ENTRIES_FILE).filter(pl.col("video").is_not_null())
     return dict(zip(entries["id"], BASE_URL + entries["video"]))
@@ -183,7 +183,7 @@ def mixed_transcriptions(raw_dir: Path) -> pl.DataFrame:
 
     The lexicon notates every sign's form, so entries of one form should notate the same way. A
     class that doesn't is a same-form group that holds more than one sign, and is worth viewing
-    before the benchmark is trusted (see ROADMAP.md).
+    before the benchmark is trusted.
     """
     entries = pl.read_ndjson(raw_dir / ENTRIES_FILE).filter(pl.col("video").is_not_null())
     groups = pl.read_ndjson(raw_dir / GROUPS_FILE)["members"].to_list()

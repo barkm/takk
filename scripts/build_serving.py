@@ -1,10 +1,9 @@
 """Build the bundle the practice app serves, from a training run and a prepared glossary.
 
-This is where the model stops being a training artifact and becomes a deployable one (step 12 of
-ROADMAP.md): the bundle holds the encoder's weights, one mean embedding per sign, the lexicon
-addresses its clips are watched at and the words that lead to them, and nothing of the data pipeline.
-The API reads only this, so an image can be built without a dataset, a prepared store or a run
-directory (step 18 of ROADMAP-takk.md).
+This is where the model stops being a training artifact and becomes a deployable one: the bundle
+holds the encoder's weights, one mean embedding per sign, the lexicon addresses its clips are
+watched at and the words that lead to them, and nothing of the data pipeline. The API reads only
+this, so an image can be built without a dataset, a prepared store or a run directory.
 
 The clip embeddings are the ones cached beside the run by `takk/main.py`; they are computed here when
 that cache is missing or older than the model or the glossary.
@@ -56,7 +55,7 @@ def publish(bundle_dir: Path, uri: str, pin: Path = PIN_FILE) -> str:
     """Upload `bundle_dir` as one archive named by its own sha256, and write that name and digest to
     `pin`, which is committed. The bucket is not: it comes from TAKK_BUNDLE_URI here and from a
     substitution in the build, so the repository says which bundle is served and never where it is
-    kept (see step 12 of ROADMAP.md).
+    kept.
 
     The name holds the digest, so an object is never overwritten and an older bundle is still there
     to deploy when a new one turns out worse.
@@ -78,7 +77,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--run", default="iv14_h384_e20", help="training run whose model the bundle serves")
     parser.add_argument("--glossary", type=Path, default=Path("data/prepared/sts_lexikon-234f4575"), help="prepared evaluation set whose test signs are practiced")  # fmt: skip
-    parser.add_argument("--threshold", type=float, default=0.38, help="lowest score that counts as the sign (see the decisions in ROADMAP.md)")  # fmt: skip
+    parser.add_argument("--threshold", type=float, default=0.38, help="lowest score that counts as the sign")  # fmt: skip
     parser.add_argument("--device", default="cpu", help="the GPU is shared; embedding the glossary on the CPU takes about a minute")  # fmt: skip
     parser.add_argument("--out", type=Path, help="where to write the bundle (default outputs/serving/<run>-<glossary>)")  # fmt: skip
     parser.add_argument("--publish", action="store_true", help=f"also upload it to $TAKK_BUNDLE_URI and pin it in {PIN_FILE}")  # fmt: skip

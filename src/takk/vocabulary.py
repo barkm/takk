@@ -1,9 +1,9 @@
-"""What a learner can search for and choose to learn (step 9 of ROADMAP-takk.md).
+"""What a learner can search for and choose to learn.
 
 Everything here is built from the crawl of Svenskt teckenspråkslexikon
 (`data/raw/sts-lexikon/entries.jsonl`, see the README), so nothing is generated and no LLM is
 involved. A learner searches for a word or for a theme and ticks the signs they want; there are no
-ready-made lists to turn on, which is what the starter packs and the category picker used to be.
+ready-made lists to turn on.
 
 A **word** is the heading of a lexicon entry, or the other wording its page shows under the title.
 The word a learner is asked to sign is not always the label of the sign that scores it: signs of one

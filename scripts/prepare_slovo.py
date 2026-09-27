@@ -1,8 +1,8 @@
 """Prepare the Slovo clips as a held-out cross-language evaluation set.
 
-Slovo is Russian Sign Language and is never trained on (see ROADMAP.md), so every clip is a "test"
-clip and all of its signs are unseen by construction. Classes whose label is a phrase rather than a
-single sign are left out, since the task is validating one sign: labels without a single-word gloss
+Slovo is Russian Sign Language and is never trained on, so every clip is a "test" clip and all of
+its signs are unseen by construction. Classes whose label is a phrase rather than a single sign are
+left out, since the task is validating one sign: labels without a single-word gloss
 (`slovo.is_single_sign`), and classes whose clips take much longer to sign than usual
 (`--max_median_seconds`), which catches phrases that the label doesn't reveal. Sign labels get the
 prefix "rsl:", since a Russian sign is a different sign from an ASL sign with the same meaning.

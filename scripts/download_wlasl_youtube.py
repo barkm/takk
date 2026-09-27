@@ -1,13 +1,13 @@
 """Download WLASL's YouTube instances, which the Kaggle mirror lacks, into data/raw/wlasl/youtube.
 
 All 5,135 YouTube instances (3,250 videos) are missing from the mirror, and about three in four of
-the videos are still public (see ROADMAP.md). Each video is downloaded once with yt-dlp, every
-instance of it is cut out at its frame range into `youtube/<video id>.mp4` (where
-`datasets/wlasl.py` finds it like the mirror's clips), and the downloaded video is deleted. A video
-that can't be had (private, removed) is recorded in `youtube/unavailable.tsv` with yt-dlp's error
-and skipped from then on; an instance whose frame range runs past the end of its video is skipped
-too. A run stops when YouTube asks to confirm that it isn't a bot. Clips that exist are skipped, so
-an interrupted run resumes when run again.
+the videos are still public. Each video is downloaded once with yt-dlp, every instance of it is cut
+out at its frame range into `youtube/<video id>.mp4` (where `datasets/wlasl.py` finds it like the
+mirror's clips), and the downloaded video is deleted. A video that can't be had (private, removed)
+is recorded in `youtube/unavailable.tsv` with yt-dlp's error and skipped from then on; an instance
+whose frame range runs past the end of its video is skipped too. A run stops when YouTube asks to
+confirm that it isn't a bot. Clips that exist are skipped, so an interrupted run resumes when run
+again.
 
 Run from the repo root:
     uv run scripts/download_wlasl_youtube.py

@@ -139,7 +139,7 @@ def test_attempt_refuses_a_sentence_whose_words_were_not_spoken():
 
 def test_attempt_scores_an_unheard_word_as_a_miss_when_the_caller_asks_for_it():
     """A story never stops: a word the learner did not say is a miss of that sign, with a verdict of
-    its own, and the signs around it are still scored (step 12 of ROADMAP-takk.md)."""
+    its own, and the signs around it are still scored."""
     heard = [(0.5, 0.7, -0.2), (2.5, 2.7, -5.2)]  # the second word was not spoken
     app = create_app({"A": ["a1"], "B": ["b1"]}, np.array([[0.6, 0.8], [1.0, 0.0]]), Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: heard)  # fmt: skip
     attempt = next(route for route in app.routes if getattr(route, "path", "") == "/api/attempt").endpoint

@@ -2,7 +2,7 @@
 
 The recordings are collected with the web app in `collection.py`, where a signer copies reference
 clips of held-out ASL Citizen signs in front of their own camera. They are never trained on: they
-are an evaluation set for the setting the system is meant for (see ROADMAP.md).
+are an evaluation set for the setting the system is meant for.
 
 Only the takes the signer kept are extracted; the discarded takes stay in `clips.csv`. The sign
 labels are the ASL Citizen glosses, so a recording and the clips it was copied from share a label.

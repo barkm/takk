@@ -2,8 +2,8 @@
 name = "isolated-sign-validation"
 version = "0.1.0"
 requires-python = ">=3.12"
-# What the TAKK app needs to serve a bundle; the deployed image installs these alone (see
-# ROADMAP-takk.md step 18). scikit-learn is here because transformers imports it.
+# What the TAKK app needs to serve a bundle; the deployed image installs these alone.
+# scikit-learn is here because transformers imports it.
 dependencies = [
     "anthropic>=1.7.0",
     "fastapi>=0.141.1",

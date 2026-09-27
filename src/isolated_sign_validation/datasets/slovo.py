@@ -1,9 +1,9 @@
 """Adapter extracting landmarks from the Slovo videos into a landmark store.
 
-Slovo is Russian Sign Language and is used as a held-out cross-language evaluation set (see
-ROADMAP.md), so its own train/test split is ignored and only the signer ids matter. The 400
-`no_event` clips (no signing) are not clips of a sign and are left out. Expects the downloaded zip
-unzipped in place, e.g. data/raw/slovo/train/<attachment id>.mp4.
+Slovo is Russian Sign Language and is used as a held-out cross-language evaluation set, so its own
+train/test split is ignored and only the signer ids matter. The 400 `no_event` clips (no signing)
+are not clips of a sign and are left out. Expects the downloaded zip unzipped in place, e.g.
+data/raw/slovo/train/<attachment id>.mp4.
 
 Extraction takes 5.5 hours (the videos are large, mostly 1080x1920 phone video); an interrupted
 run resumes where it left off when run again.
@@ -43,7 +43,7 @@ def is_single_sign(label: str) -> bool:
 
     A label is one or more glosses separated by semicolons, each possibly with a parenthesized note
     ("кусок; тонкими слоями", "пока (что)"). It counts as a single sign if any of its glosses is a
-    single word; multi-word labels such as "С днем рождения" are phrases (see ROADMAP.md).
+    single word; multi-word labels such as "С днем рождения" are phrases.
     """
     glosses = [re.sub(r"\(.*?\)", "", gloss).strip() for gloss in label.split(";")]
     return any(" " not in gloss for gloss in glosses if gloss)

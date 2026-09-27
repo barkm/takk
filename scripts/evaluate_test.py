@@ -33,8 +33,8 @@ def evaluate_set(embeddings: np.ndarray, clips: pl.DataFrame, signs: int | None,
     """Evaluate all the clips, or, with `signs`, random subsets of that many signs, averaged over draws.
 
     A query is scored against every sign of the set, so top-1 and top-5 drop as the set holds more
-    signs, and comparing them between two evaluation sets means matching their vocabulary sizes (see
-    ROADMAP.md). The subsets are drawn the same way for every run.
+    signs, and comparing them between two evaluation sets means matching their vocabulary sizes. The
+    subsets are drawn the same way for every run.
     """
     if not signs:
         return evaluate(cosine_similarity(embeddings), clips, twins=twins)

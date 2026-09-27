@@ -34,8 +34,8 @@ SAMPLE_RATE = 16000
 
 # The lowest mean log probability of a word's characters that still counts as spoken. Aligned against
 # silence or room noise the words of a sentence score -5.4 to -3.9 (measured on this model with
-# `hej` and `mamma`), while a word actually spoken scores near 0. Provisional, as the threshold of
-# ROADMAP.md is: it separates silence from speech, and mumbling has not been measured.
+# `hej` and `mamma`), while a word actually spoken scores near 0. Provisional, as the acceptance
+# threshold is: it separates silence from speech, and mumbling has not been measured.
 MIN_WORD_SCORE = -3.0
 
 # How much of the recording around the spoken words is signing, in seconds. A sign runs alongside its

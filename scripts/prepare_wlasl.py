@@ -1,13 +1,13 @@
 """Prepare the WLASL clips for training alongside ASL Citizen.
 
-WLASL is ASL, so its glosses are mapped onto ASL Citizen's labels (`wlasl.map_signs`, see ROADMAP.md):
-a gloss matching one ASL Citizen gloss joins that class, a gloss matching several variants of one
-gloss, a held-out sign, or a new sign the hash split doesn't put in train is left out of training
-(prepared with a null split and a "wlasl:" label). So is a gloss that shares a source video with a
-held-out sign, since it may be that sign under another word, and so is a gloss whose ASL Citizen
-sign is a SignBank twin of a held-out sign (`asl_lex.signbank_twins`, left out of ASL Citizen's
-training too). Clips that join an ASL Citizen class get that sign's ASL-LEX phonological features,
-like the ASL Citizen clips do.
+WLASL is ASL, so its glosses are mapped onto ASL Citizen's labels (`wlasl.map_signs`): a gloss
+matching one ASL Citizen gloss joins that class, a gloss matching several variants of one gloss, a
+held-out sign, or a new sign the hash split doesn't put in train is left out of training (prepared
+with a null split and a "wlasl:" label). So is a gloss that shares a source video with a held-out
+sign, since it may be that sign under another word, and so is a gloss whose ASL Citizen sign is a
+SignBank twin of a held-out sign (`asl_lex.signbank_twins`, left out of ASL Citizen's training too).
+Clips that join an ASL Citizen class get that sign's ASL-LEX phonological features, like the ASL
+Citizen clips do.
 
 The pairs of sign labels that share a source video (`wlasl.twin_pairs`, one sign form under several
 words) are written to twins.csv, so that training doesn't push them apart.

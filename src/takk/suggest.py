@@ -1,12 +1,11 @@
-"""The chips on Sök: a few named sets of words fitted to who the learner is (step 23 of
-ROADMAP-takk.md).
+"""The chips on Sök: a few named sets of words fitted to who the learner is.
 
 The learner says, on Om dig, whether they have signed before and, in their own words, who they sign
 with and where. The model answers with a handful of chips, each a label and the Swedish words under
-it, and a chip is pressed to fill the grid the search fills. A chip carries its own words rather than
-being a query for `vocabulary.search`, since a label the model writes ("Påklädning") is not the name
-of one of the lexicon's categories, and the categories are subject areas rather than what a learner
-starts from (see the findings).
+it, and a chip is pressed to fill the grid the search fills. A chip carries its own words rather
+than being a query for `vocabulary.search`, since a label the model writes ("Påklädning") is not the
+name of one of the lexicon's categories, and the categories are subject areas rather than what a
+learner starts from.
 
 Each word is looked up exactly among the words the lexicon has a sign for, the most counted first,
 and a word it has no sign for is simply dropped, as is a chip left empty: nothing here is worth

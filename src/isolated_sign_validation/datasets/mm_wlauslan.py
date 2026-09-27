@@ -1,8 +1,8 @@
 """Adapter extracting landmarks from the MM-WLAuslan videos into a landmark store.
 
-Only the RGB videos of the front Kinect camera are used, from the subsets in SUBSETS (see ROADMAP.md).
-The dataset has no signer ids, so `signer` is null. Expects the downloaded zips unzipped in place,
-e.g. data/raw/mm-wlauslan/Valid/Kinect_F/rgb/<sample id>_kf_rgb.mp4.
+Only the RGB videos of the front Kinect camera are used, from the subsets in SUBSETS. The dataset
+has no signer ids, so `signer` is null. Expects the downloaded zips unzipped in place, e.g.
+data/raw/mm-wlauslan/Valid/Kinect_F/rgb/<sample id>_kf_rgb.mp4.
 
 Extraction of all subsets takes about 9 hours; an interrupted run resumes where it left off when
 run again. Run from the repo root:

@@ -1,6 +1,6 @@
-# The page, on GitHub Pages (step 18 of ROADMAP-takk.md). It is a static site and a separate
-# deployment from the API, which it reaches at VITE_API_BASE: set that repository variable to the
-# Cloud Run URL, or the built page calls /api on its own origin, where nothing answers.
+# The page, on GitHub Pages. It is a static site and a separate deployment from the API, which it
+# reaches at VITE_API_BASE: set that repository variable to the Cloud Run URL, or the built page
+# calls /api on its own origin, where nothing answers.
 name: Page
 
 on:

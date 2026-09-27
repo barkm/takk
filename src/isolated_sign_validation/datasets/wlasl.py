@@ -1,11 +1,11 @@
 """Adapter extracting landmarks from the WLASL videos into a landmark store.
 
 WLASL is distributed as links to YouTube and ASL dictionary sites, many of them dead. The videos
-used here come from a mirror of the surviving ones (11,880 of the 21,083 instances, see ROADMAP.md),
-the glosses and signer ids from WLASL's own metadata, plus the YouTube instances, which the mirror
-lacks, downloaded by scripts/download_wlasl_youtube.py. Each video is one sign instance, already
-trimmed. Instances without a video are skipped. Expects the mirror unpacked in
-data/raw/wlasl, i.e. WLASL_v0.3.json and the videos somewhere below it (see README).
+used here come from a mirror of the surviving ones (11,880 of the 21,083 instances), the glosses and
+signer ids from WLASL's own metadata, plus the YouTube instances, which the mirror lacks, downloaded
+by scripts/download_wlasl_youtube.py. Each video is one sign instance, already trimmed. Instances
+without a video are skipped. Expects the mirror unpacked in data/raw/wlasl, i.e. WLASL_v0.3.json and
+the videos somewhere below it (see README).
 
 Extraction takes about two hours; an interrupted run resumes where it left off when run again. Run
 from the repo root:
@@ -83,8 +83,8 @@ def sign_labels(wlasl_signs: Collection[str], asl_citizen_signs: Collection[str]
 
 def twin_pairs(clips: pl.DataFrame) -> set[tuple[str, str]]:
     """Pairs of sign labels (sorted within each pair) that share a source video: WLASL files one
-    dictionary video under every word the sign translates to (see ROADMAP.md), so such labels are
-    one sign form. `clips` has columns `label` (see `sign_labels`) and `url`."""
+    dictionary video under every word the sign translates to, so such labels are one sign form.
+    `clips` has columns `label` (see `sign_labels`) and `url`."""
     pairs = set()
     for labels in clips.group_by("url").agg(pl.col("label").unique().sort())["label"]:
         pairs |= {(a, b) for i, a in enumerate(labels) for b in labels[i + 1 :]}
@@ -94,7 +94,7 @@ def twin_pairs(clips: pl.DataFrame) -> set[tuple[str, str]]:
 def map_signs(
     wlasl_signs: Collection[str], asl_citizen_signs: Collection[str], twins: Collection[tuple[str, str]] = ()
 ) -> dict[str, str | None]:
-    """Each WLASL gloss's sign label for training, or None if the gloss is not used (see ROADMAP.md).
+    """Each WLASL gloss's sign label for training, or None if the gloss is not used.
 
     WLASL is ASL, so a gloss that matches exactly one ASL Citizen gloss becomes that gloss and both
     datasets' clips share the class. A gloss matching several variants of one gloss is None (see

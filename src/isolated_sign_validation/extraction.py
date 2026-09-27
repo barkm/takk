@@ -15,7 +15,7 @@ from tqdm import tqdm
 from isolated_sign_validation.landmarks import LANDMARK_SLICES, N_LANDMARKS, VideoInfo, write_store_resumable
 from isolated_sign_validation.parallel import parallel_map
 
-# Holistic extraction uses ~1.7 cores per process; more workers than this are slower (see ROADMAP.md).
+# Holistic extraction uses ~1.7 cores per process; more workers than this are slower.
 MAX_WORKERS = 8
 MODEL_URL = "https://storage.googleapis.com/mediapipe-models/holistic_landmarker/holistic_landmarker/float16/latest/holistic_landmarker.task"
 MODEL_PATH = Path("data/models/holistic_landmarker.task")
@@ -65,7 +65,7 @@ def extract_landmarks(video: Path, model_path: Path = MODEL_PATH) -> tuple[np.nd
     """
     # MediaPipe and OpenCV are imported here rather than at the top of the module so that reading a
     # dataset's metadata does not need them: the practice app takes landmarks from a browser and
-    # extracts none, and its image carries neither (see step 18 of ROADMAP-takk.md).
+    # extracts none, and its image carries neither.
     import cv2
     import mediapipe as mp
     from mediapipe.tasks.python import BaseOptions, vision

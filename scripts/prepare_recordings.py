@@ -1,10 +1,10 @@
 """Prepare the self-recorded clips as a held-out evaluation set.
 
-The recordings are never trained on (see ROADMAP.md), so every clip is a "test" clip. Their labels
-are ASL Citizen glosses and the signs are drawn from the held-out test signs, so they are unseen
-anyway. The `no_event` clips are left out: they are not clips of a sign, and every clip's sign
-becomes a class of the evaluation. They stay in the landmark store, for an evaluation that can use
-them as negatives.
+The recordings are never trained on, so every clip is a "test" clip. Their labels are ASL Citizen
+glosses and the signs are drawn from the held-out test signs, so they are unseen anyway. The
+`no_event` clips are left out: they are not clips of a sign, and every clip's sign becomes a class
+of the evaluation. They stay in the landmark store, for an evaluation that can use them as
+negatives.
 
 Run from the repo root: uv run scripts/prepare_recordings.py
 Writes data/prepared/<store name>-<preparation config id>/.

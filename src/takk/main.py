@@ -4,13 +4,13 @@ themselves are watched at the lexicon's own addresses, which it hands the page.
 The landmarks are extracted in the browser and only they are sent (see practice.py). An attempt
 counts as the sign when its mean cosine similarity to the sign's glossary clips reaches the
 threshold. The default, 0.38, is the equal-error point of the Swedish recordings against the whole
-lexicon with the default run (see the decisions in ROADMAP.md): about 2% of correct attempts are
-rejected and 2% of random wrong signs accepted; similar signs get through more often.
+lexicon with the default run: about 2% of correct attempts are rejected and 2% of random wrong signs
+accepted; similar signs get through more often.
 
 Everything served comes from one bundle (`bundle.py`, built by `scripts/build_serving.py`): the
 model, the mean embedding of each sign, the addresses of its clips and the words that lead to them.
 No dataset, no prepared store and no training run is read here, which is what lets this run in a
-container that holds none of them (step 18 of ROADMAP-takk.md).
+container that holds none of them.
 
 The page is a separate site (`frontend/`, see README) that reaches this server through a proxy in
 development, so this is one of two processes:

@@ -1,9 +1,8 @@
 """Practicing signs: pick a sign of a glossary, sign it in front of the webcam, and learn whether it was that sign.
 
 This is the app's API only (`main.py`); the page is a separate site, built from `frontend/` and never
-served from here (see the decisions in ROADMAP-takk.md). The browser extracts the landmarks itself,
-with the same HolisticLandmarker setup as `extraction.py` (see the browser extraction findings in
-ROADMAP.md), and sends only those: the video never leaves the user's device. The backend
+served from here. The browser extracts the landmarks itself, with the same HolisticLandmarker setup
+as `extraction.py`, and sends only those: the video never leaves the user's device. The backend
 checks and prepares the attempt like any recording, embeds it, and scores it against the glossary
 clips of the chosen sign: the mean cosine similarity to them, as `evaluation` scores a sign from k
 references. The attempt counts as the sign when the score reaches a global threshold. The sign of
@@ -37,7 +36,7 @@ from takk.story import write_story
 from takk.suggest import suggest
 from takk.vocabulary import Index, search, spoken_word
 
-# Everything the learner reads is Swedish (see ROADMAP-takk.md): the app is for practising TAKK.
+# Everything the learner reads is Swedish: the app is for practising TAKK.
 CLOSEST = 20  # signs a search by signing answers with, as many as a list of rows can show at once
 
 NOTES = {
@@ -48,8 +47,8 @@ NOTES = {
     "long": "{seconds:.0f} s tecknande syntes, vilket är för långt för ett tecken.",
     "no_body": "Din överkropp syntes inte. Sitt så att båda axlarna är i bild.",
     "lost_hand": "Går att bedöma, men en hand tappades i {lost:.0%} av bildrutorna medan du tecknade.",
-    # A recording with nothing wrong with it says nothing (user, 2026-09-24): the app tells the
-    # learner what to fix and never praises them, and "usable" already carries that it was fine.
+    # A recording with nothing wrong with it says nothing: the app tells the learner what to fix and
+    # never praises them, and "usable" already carries that it was fine.
     "ok": "",
     "no_audio": "Mikrofonen behövs: orden du säger är det som visar var tecknen är i inspelningen.",
     "not_said": "Meningens ord hittades inte i det du sa. Säg vart och ett av dem tydligt.",
@@ -110,11 +109,11 @@ def create_app(
     (see `story.py`)."""
     app = FastAPI()
     # The glossary is 2.3 MB of JSON and every page load fetches it, which compresses to 271 kB: the
-    # page is quicker for it and the egress is a tenth of what it was (see step 18 of ROADMAP-takk.md).
+    # page loads quicker and the egress is a tenth.
     app.add_middleware(GZipMiddleware, minimum_size=1000)
-    # The page is served from another origin than this API (see the decisions in ROADMAP-takk.md),
-    # so every call from it is cross-origin. Any origin may call: there are no accounts, no cookies
-    # and nothing here that is not the public lexicon. `TAKK_ORIGINS` narrows it when that changes.
+    # The page is served from another origin than this API, so every call from it is cross-origin.
+    # Any origin may call: there are no accounts, no cookies and nothing here that is not the public
+    # lexicon. `TAKK_ORIGINS` narrows it when that changes.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=os.environ.get("TAKK_ORIGINS", "*").split(","),
@@ -127,7 +126,7 @@ def create_app(
     @app.get("/api/signs")
     def signs() -> dict:
         """The glossary, each sign with the addresses of its clips: the lexicon's own, so the page
-        plays them whether or not this server is up (see ROADMAP-takk.md)."""
+        plays them whether or not this server is up."""
         return {
             "signs": [{"sign": sign, "references": clips} for sign, clips in references.items()],
             "fps": config.fps,
@@ -139,8 +138,8 @@ def create_app(
     def search_words(q: str) -> dict:
         """The signs a learner searching for `q` is offered, a word or a theme alike
         (`vocabulary.search`): each with the sign that scores it, its lexicon entry and the word to
-        show when the sign is not named for it. This is how vocabulary grows, so it is the one way in
-        (step 9 of ROADMAP-takk.md)."""
+        show when the sign is not named for it. This is how vocabulary grows, so it is the one way
+        in."""
         return {"words": search(vocabulary, q) if vocabulary else []}
 
     @app.post("/api/story")
@@ -197,7 +196,7 @@ def create_app(
     @app.post("/api/search")
     async def search_by_sign(landmarks: UploadFile, handedness: str = Form(), width: int = Form(), height: int = Form()) -> dict:  # fmt: skip
         """The lexicon signs closest to a recording of one sign, the nearest first: a learner who
-        knows a sign but not its Swedish word finds it by signing it (step 10 of ROADMAP-takk.md).
+        knows a sign but not its Swedish word finds it by signing it.
 
         This is a lookup and not an attempt, so nothing is spoken and nothing is scored against a
         threshold; the recording is checked and prepared exactly as an attempt is, and the ranking is
@@ -230,7 +229,7 @@ def create_app(
         A word that was not heard refuses the whole attempt, since its span is then arbitrary and the
         signs around it are cut by it. `unheard_is_miss` scores it as a miss of that sign instead and
         keeps the rest of the verdicts, which is what a story needs: it never stops, and a word left
-        unsaid is a word left unsigned (step 12 of ROADMAP-takk.md).
+        unsaid is a word left unsigned.
 
         A learner who signs in silence sends `cuts` instead of `audio`: a start and an end per sign,
         in seconds from the first frame, where the page saw the hands raised and lowered again."""

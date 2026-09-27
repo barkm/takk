@@ -36,7 +36,7 @@ METADATA_COLUMNS = ["dataset", "clip_id", "sign", "signer", "fps", "width", "hei
 class VideoInfo(NamedTuple):
     """The frame rate and frame size a clip's landmarks were extracted from. It lives here rather
     than in `extraction.py` so that reading landmarks does not import MediaPipe: the practice app
-    takes them from a browser and never extracts any (see step 18 of ROADMAP-takk.md)."""
+    takes them from a browser and never extracts any."""
 
     fps: float
     width: int  # of the decoded frames, which the landmark coordinates are fractions of

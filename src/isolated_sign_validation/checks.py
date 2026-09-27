@@ -28,7 +28,7 @@ def check_clip(landmarks: np.ndarray, info: VideoInfo, config: PrepConfig, signi
     detected while signing.
 
     The reason is worded by `notes`, keyed as NOTES is, because the same check serves apps in
-    different languages (the practice app is in Swedish, see ROADMAP-takk.md).
+    different languages (the practice app is in Swedish).
 
     A clip of not signing (`signing` false, the no_event prompts) only has to hold a recording: no
     hands, or hands moving for longer than any sign, is what it is meant to show.

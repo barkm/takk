@@ -1,20 +1,20 @@
 """Prepare the Svenskt teckenspråkslexikon clips as a held-out evaluation set.
 
-The lexicon is Swedish Sign Language and the goal vocabulary, and is never trained on (see
-ROADMAP.md), so every clip is a "test" clip and all of its signs are unseen by construction. Sign
-labels get the prefix "sts:", since a Swedish sign is a different sign from an ASL sign with the
-same meaning. Nothing is filtered out: the store holds every entry, a sign class of several clips
-or a sign of its own (see `datasets/sts_lexikon.py`). The clips are studio citation form.
+The lexicon is Swedish Sign Language and the goal vocabulary, and is never trained on, so every clip
+is a "test" clip and all of its signs are unseen by construction. Sign labels get the prefix "sts:",
+since a Swedish sign is a different sign from an ASL sign with the same meaning. Nothing is filtered
+out: the store holds every entry, a sign class of several clips or a sign of its own (see
+`datasets/sts_lexikon.py`). The clips are studio citation form.
 
 The lexicon's models rest with their hands clasped at the waist, in frame, at about 1.0 shoulder
 widths below the shoulders, right on the default `max_hand_y`. The rest is not part of the sign and
 a webcam user's rest is out of frame, so the lexicon is prepared with `max_hand_y` 0.9, which hides
-it in most clips (see ROADMAP.md).
+it in most clips.
 
 The set serves as the glossary for self-recorded Swedish clips (`scripts/evaluate_recordings.py`).
-Evaluating the lexicon against itself is blocked until it has signer ids (see ROADMAP.md):
-`evaluation.py` draws every reference from a signer other than the query's, so with one null signer
-for all clips no lexicon clip gets a reference.
+Evaluating the lexicon against itself is blocked until it has signer ids: `evaluation.py` draws
+every reference from a signer other than the query's, so with one null signer for all clips no
+lexicon clip gets a reference.
 
 Run from the repo root: uv run scripts/prepare_sts_lexikon.py
 Writes data/prepared/<store name>-<preparation config id>/.
@@ -35,7 +35,7 @@ def longest_signs(data: PreparedData, n: int) -> pl.DataFrame:
     """The `n` signs whose median clip takes longest to sign, longest first.
 
     A lexicon entry is one sign, but a compound signed as two signs in sequence shows up here, and
-    is worth viewing in the clip viewer before the numbers are trusted (see ROADMAP.md).
+    is worth viewing in the clip viewer before the numbers are trusted.
     """
     seconds = (pl.col("n_frames").median() / data.config.fps).alias("seconds")
     return data.clips.group_by("sign").agg(seconds, clips=pl.len()).sort("seconds", descending=True).head(n)

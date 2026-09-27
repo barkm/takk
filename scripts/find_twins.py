@@ -1,4 +1,4 @@
-"""Find candidate twin signs in ASL Citizen: pairs of glosses that may be one sign form (see ROADMAP.md).
+"""Find candidate twin signs in ASL Citizen: pairs of glosses that may be one sign form.
 
 Three independent signals, merged into one ranked list for inspection:
 - WLASL: the two glosses share a WLASL source video (the prepared WLASL data's twins.csv).

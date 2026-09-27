@@ -1,10 +1,10 @@
 """The glossary the app serves, as one directory that carries no training data.
 
 A bundle is what `scripts/build_serving.py` writes from a training run and a prepared glossary, and
-the only thing the API reads at startup (step 12 of ROADMAP.md, step 18 of ROADMAP-takk.md). It holds
-the encoder's weights, one mean embedding per sign, the addresses its clips are watched at, and the
-words a learner can search for — about 40 MB, against the 641 MB of prepared frames that loading a
-`PreparedData` reads for nothing once the clip embeddings are cached.
+the only thing the API reads at startup. It holds the encoder's weights, one mean embedding per
+sign, the addresses its clips are watched at, and the words a learner can search for — about 40 MB,
+against the 641 MB of prepared frames that loading a `PreparedData` reads for nothing once the clip
+embeddings are cached.
 
 Reading one imports `models.py` and `PrepConfig` and nothing else of the pipeline: not `dataset.py`,
 not `PreparedData`, not `training.py`, which is what lets the deployed image leave the data packages

@@ -1,24 +1,23 @@
 """Writing the Swedish story a learner signs their way through, a few sentences at a time.
 
-A story is how everything already learned is repeated (step 12 of ROADMAP-takk.md): one text is
-written around many of the words in the learner's Leitner boxes, and it is practised in order from
-beginning to end. The words are the ones
-in the learner's boxes, drawn towards the low ones, so the weak words are the ones the story leans
-on; nothing new is taught here, since words are learned on their own ("Ord", step 9).
+A story is how everything already learned is repeated: one text is written around many of the words
+in the learner's Leitner boxes, and it is practised in order from beginning to end. The words are
+the ones in the learner's boxes, drawn towards the low ones, so the weak words are the ones the
+story leans on; nothing new is taught here, since words are learned on their own ("Ord").
 
 The story comes back in chunks ("avsnitt"), one recording each. A chunk carries at most `MOST_WORDS`
 signs: every sign is another boundary the split has to place, and the whole chunk has to be said in
 one breath-length recording.
 
 The words are inflected as the sentence needs them, which is how TAKK is actually used, so the model
-reports what it wrote rather than the text being searched for base forms (user, 2026-09-25): each
-sign of a part says the form as it stands in the text (`said`, "bilen") and the offered word it signs
-(`word`, "bil"). `signed_words` checks what can be checked — the form is really in the part, in the
-order given, and the word is one that was offered — and trusts the pairing itself, since no cheap
-rule relates a Swedish surface form to its base ("åt" shares nothing with "äta"). The form is what is
-spoken, so it is what `speech.py` times in the audio and what the page marks; the word is what names
-the sign and moves the box. A word said twice in a part is signed twice and reported twice: forced
-alignment is positional, so two occurrences are two targets and two spans.
+reports what it wrote rather than the text being searched for base forms: each sign of a part says
+the form as it stands in the text (`said`, "bilen") and the offered word it signs (`word`, "bil").
+`signed_words` checks what can be checked — the form is really in the part, in the order given, and
+the word is one that was offered — and trusts the pairing itself, since no cheap rule relates a
+Swedish surface form to its base ("åt" shares nothing with "äta"). The form is what is spoken, so it
+is what `speech.py` times in the audio and what the page marks; the word is what names the sign and
+moves the box. A word said twice in a part is signed twice and reported twice: forced alignment is
+positional, so two occurrences are two targets and two spans.
 """
 
 import re
@@ -29,7 +28,7 @@ from pydantic import BaseModel, ValidationError
 MODEL = "claude-sonnet-5"
 
 # How deeply the model thinks before it writes. Low: measured over 10 word lists, thinking longer
-# bought nothing a story needs (see the findings in ROADMAP-takk.md).
+# buys nothing a story needs.
 EFFORT = "low"
 
 MOST_WORDS = 3  # signs in one part; every extra sign is another boundary the split can misplace
@@ -101,8 +100,8 @@ def story_parts(parts: list[Part], offered: list[str]) -> list[Part] | None:
 
 def write_story(client: anthropic.Anthropic, words: list[str], parts: int, about: str = "", model: str = MODEL, tries: int = 2) -> list[Part] | None:  # fmt: skip
     """A Swedish story of about `parts` parts over `words`, each part with the signs it is practised
-    by, set in the everyday life of a learner who describes themselves as `about` (step 23). None
-    when the model does not manage it within `tries`, which leaves the caller with nothing to tell."""
+    by, set in the everyday life of a learner who describes themselves as `about`. None when the
+    model does not manage it within `tries`, which leaves the caller with nothing to tell."""
     asked = f"Jag övar på orden: {', '.join(words)}. Skriv en berättelse i {parts} delar."
     if about.strip():
         asked += f" Om mig: {about.strip()}."
