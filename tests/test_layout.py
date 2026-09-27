@@ -15,11 +15,11 @@ def test_the_isv_package_does_not_depend_on_the_app():
 
 def test_the_app_does_not_import_the_extraction_dependencies():
     """The practice app takes landmarks from a browser and extracts none, so its image carries
-    neither MediaPipe nor OpenCV (nor matplotlib or yt-dlp, which only the data work needs). They are
+    neither MediaPipe nor OpenCV (nor matplotlib, which only the data work needs). They are
     installed here, so the check is that importing the app never reaches them."""
     import builtins
 
-    blocked = {"mediapipe", "cv2", "matplotlib", "yt_dlp"}
+    blocked = {"mediapipe", "cv2", "matplotlib"}
     real = builtins.__import__
 
     def guard(name, *args, **kwargs):

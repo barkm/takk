@@ -39,7 +39,6 @@ dev = [
 data = [
     "matplotlib>=3.11.2",
     "mediapipe>=1.0.1",
-    "yt-dlp[default]>=2026.8.19",
 ]
 
 [tool.uv]
