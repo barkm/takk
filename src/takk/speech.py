@@ -1,9 +1,10 @@
 """Finding the signs of a TAKK sentence by the words the signer speaks.
 
-TAKK is signed while speaking, so the signs of a sentence can be found in the speech instead of in
-the rests between them, which was tried first and removed (see ROADMAP-takk.md step 3): the signer speaks a whole Swedish sentence and
-signs its key words. Those key words are known — they are the signs of the sentence — so their times
-come from forced alignment of exactly those words to the audio, not from recognizing what was said.
+TAKK is signed while speaking, so the signs of a sentence can be found in the speech: the signer
+speaks a whole Swedish sentence and signs its key words. (A learner who signs in silence is split at
+the hands lowered between the signs instead, by the page; see practice.py.) Those key words are
+known — they are the signs of the sentence — so their times come from forced alignment of exactly
+those words to the audio, not from recognizing what was said.
 
 What is spoken between the key words is unknown, so a wildcard token stands between and around them.
 It is an extra column of zeros in the emissions, which is the highest possible log probability, so it
@@ -52,7 +53,7 @@ Aligner = Callable[[np.ndarray, list[str]], list[tuple[float, float, float]] | N
 
 def decode_audio(data: bytes) -> np.ndarray:
     """A recording's audio as mono float32 at `SAMPLE_RATE`, from any container ffmpeg reads (the
-    browser picks its own, see practice.html)."""
+    browser picks its own, see frontend/src/lib/tracking.ts)."""
     command = ["ffmpeg", "-v", "error", "-i", "pipe:0", "-f", "f32le", "-ac", "1", "-ar", str(SAMPLE_RATE), "pipe:1"]  # fmt: skip
     audio = subprocess.run(command, input=data, capture_output=True, check=True).stdout
     return np.frombuffer(audio, dtype=np.float32)

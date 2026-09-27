@@ -20,7 +20,7 @@ import polars as pl
 from takk.story import SYSTEM, Told, story_parts
 
 # What a learner's boxes hold: everyday TAKK words, the weakest ones a story would be asked to lean
-# on. Ten lists of the size `POST /api/story` is called with, drawn from the starter vocabulary.
+# on. Ten lists of the size `POST /api/story` is called with, chosen by hand.
 WORD_LISTS = [
     ["mamma", "mjölk", "mer", "sova", "bil"],
     ["pappa", "äta", "bröd", "vatten", "ute"],

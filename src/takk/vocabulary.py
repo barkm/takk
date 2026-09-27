@@ -10,9 +10,10 @@ The word a learner is asked to sign is not always the label of the sign that sco
 form are one class labelled by its lowest entry, so "äta" is scored as `sts:livsmedel-01265` while
 the learner still reads "äta".
 
-A **theme** is the lexicon's own subject category ("Djur", "Djur > fisk"), which every entry page
-names. They are subject areas of a dictionary rather than a learning order — Sport and Geografi are
-the largest — which is exactly what makes them a search index and made them a poor beginner's list.
+A **theme** is the top level of the lexicon's own subject categories ("Djur" of "Djur > fisk"),
+which every entry page names. They are subject areas of a dictionary rather than a learning order —
+Sport and Geografi are the largest — which is exactly what makes them a search index and made them a
+poor beginner's list.
 """
 
 import re
@@ -129,8 +130,8 @@ def category_words(clips: pl.DataFrame, raw_dir: Path = RAW_DIR) -> dict[str, li
 
     The order is the entry's `lexicon_hits`, then its `corpus_hits`, then the older entry, so it is
     the same on every start. Only 27% of entries are counted at all, so the tail of a large category keeps the
-    lexicon's own order; the head is what a session draws from, and there the counts are what a
-    learner meets first ("Sport" with träna, fotboll, ishockey).
+    lexicon's own order; the head is what a search for the theme offers first, and there the counts
+    are what a learner meets first ("Sport" with träna, fotboll, ishockey).
     """
     sign_of = dict(zip(clips["clip_id"], clips["sign"]))
     entries = pl.read_ndjson(raw_dir / ENTRIES_FILE).filter(pl.col("categories").list.len() > 0)
@@ -174,9 +175,9 @@ def _best(found: list[Entry]) -> list[dict]:
 
 
 def _word(sign: str, entry_id: str, word: str | None = None) -> dict:
-    """A pack's word: the entry it is, the sign that scores it, and the word to show only when it is
-    not the sign's own name. Thousands of category words travel to the browser, so what it can derive
-    is not sent. The entry is the word's own, not the class label: "grön" is entry 00419 of the class
+    """A word as a search offers it: the entry it is, the sign that scores it, and the word to show
+    only when it is not the sign's own name. Thousands of words travel to the browser, so what it can
+    derive is not sent. The entry is the word's own, not the class label: "grön" is entry 00419 of the class
     `sts:land-00416`, and it is that entry's description of the form a learner is shown."""
     named = {"sign": sign, "id": entry_id}
     return named if word is None or word == spoken_word(sign) else {**named, "word": word}

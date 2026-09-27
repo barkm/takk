@@ -10,14 +10,12 @@ references. The attempt counts as the sign when the score reaches a global thres
 the whole glossary with the highest score is reported too, so a wrong attempt shows what it resembled.
 
 An attempt can also be a sentence of several signs, as TAKK signs the key words of a spoken
-sentence. Every attempt is spoken, one sign or many: the signer says a whole Swedish sentence, its
-key words are timed in the audio, and each part of the recording is scored as an attempt of the sign
-at its place. The microphone is therefore needed, unless the learner signs in silence: the page then
-splits the recording itself, at the hands lowered between the signs, and sends where each one is.
-Splitting at the rests between the signs
-instead was removed (see ROADMAP-takk.md step 3): it could not tell a sign the signer skipped from a
-sign it had failed to find, so it voided the whole sentence and with it the verdicts on the signs
-that were right, while the speech split scores a skipped sign as a miss.
+sentence. A learner who speaks while signing says a whole Swedish sentence, its key words are timed
+in the audio, and each part of the recording is scored as an attempt of the sign at its place; a
+word left unsaid can be scored as a miss of its sign while the rest keep their verdicts. A learner
+who signs in silence lowers the hands between the signs, and the page splits the recording there
+and sends where each sign is; a sentence with the wrong number of signs is signed again, since which
+sign was skipped cannot be told.
 """
 
 import os
@@ -219,10 +217,11 @@ def create_app(
         landmarks as float32 (n_frames, N_LANDMARKS, 3), NaN where not detected, at the preparation's
         frame rate, from frames of `width` x `height` pixels.
 
-        Every attempt is spoken, which is how TAKK is used, so `audio` is required (recorded
-        `audio_offset` seconds before the first frame): the signs are located by their words timed in
-        it, and scored only when every word was heard. For a single sign that leaves the whole
-        recording, so the alignment's only job there is to say the word was said at all.
+        A spoken attempt sends its `audio` (recorded `audio_offset` seconds before the first frame):
+        the signs are located by their words timed in it, and scored only when every word was heard.
+        For a single sign that leaves the whole recording, so the alignment's only job there is to
+        say the word was said at all. Without `audio` or `cuts` nothing locates the signs, and the
+        attempt is refused.
 
         `spoken` is the word said for each sign, when that is not the sign's own name: a learner
         practising "blå" signs `sts:öga-02636`, since blå and öga are one sign form, and says "blå".

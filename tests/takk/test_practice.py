@@ -153,9 +153,9 @@ def test_attempt_scores_an_unheard_word_as_a_miss_when_the_caller_asks_for_it():
 
 
 def test_attempt_needs_the_microphone_however_few_signs_it_has():
-    """Every attempt is spoken, so the words said over it are the only thing that locates its signs.
-    One sign is no exception: the alignment has nothing to cut there, and its job is to say the word
-    was said at all."""
+    """Without `cuts` from the page, the words said over an attempt are the only thing that locates its
+    signs. One sign is no exception: the alignment has nothing to cut there, and its job is to say the
+    word was said at all."""
     app = create_app({"A": ["a1"]}, np.array([[0.6, 0.8]]), Fixed(), CONFIG, 0.7, "cpu", aligner=lambda audio, words: [])
     attempt = next(route for route in app.routes if getattr(route, "path", "") == "/api/attempt").endpoint
     landmarks = np.concatenate([attempt_landmarks(("right_hand",))] * 2)
