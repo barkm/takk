@@ -60,6 +60,14 @@ class Index(NamedTuple):
     by_sign: dict[str, dict]
 
 
+def make_index(words: list[dict], themes: dict[str, list[dict]]) -> Index:
+    """The index of `words`, which are in order, the best first, and `themes`."""
+    by_sign: dict[str, dict] = {}
+    for word in words:  # the words are in order, so the first one a sign is met under is its best
+        by_sign.setdefault(word["sign"], word)
+    return Index(words, themes, by_sign)
+
+
 def search_index(clips: pl.DataFrame, raw_dir: Path = RAW_DIR) -> Index:
     """Everything a learner can search for: each Swedish word the glossary can score a sign for, and
     each of the lexicon's categories as a theme. Österberg's historical forms are in neither.
@@ -78,11 +86,7 @@ def search_index(clips: pl.DataFrame, raw_dir: Path = RAW_DIR) -> Index:
         if entry_id in sign_of
     ]
     themes = {name: words for name, words in sorted(category_words(clips, raw_dir).items()) if name != HISTORICAL}
-    words = [word for _, _, word in sorted(found, key=lambda each: each[:2])]
-    by_sign: dict[str, dict] = {}
-    for word in words:  # the words are in order, so the first one a sign is met under is its best
-        by_sign.setdefault(word["sign"], word)
-    return Index(words, themes, by_sign)
+    return make_index([word for _, _, word in sorted(found, key=lambda each: each[:2])], themes)
 
 
 def search(index: Index, query: str, limit: int = 30) -> list[dict]:

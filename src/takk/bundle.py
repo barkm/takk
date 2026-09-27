@@ -27,7 +27,7 @@ from torch import nn
 
 from isolated_sign_validation.models import build_model
 from isolated_sign_validation.preparation import PrepConfig
-from takk.vocabulary import Index
+from takk.vocabulary import Index, make_index
 
 MODEL_FILE = "model.pt"
 SIGNS_FILE = "signs.parquet"
@@ -102,15 +102,11 @@ def load(path: Path, threshold: float | None = None) -> Bundle:
     model.eval()
     table = pl.read_parquet(path / SIGNS_FILE)
     vocabulary = json.loads((path / VOCABULARY_FILE).read_text())
-    words = vocabulary["words"]
-    by_sign: dict[str, dict] = {}
-    for word in words:  # the words are in order, so the first one a sign is met under is its best
-        by_sign.setdefault(word["sign"], word)
     return Bundle(
         signs=table["sign"].to_list(),
         means=table["mean"].to_numpy(),
         clips=dict(zip(table["sign"], table["clips"].to_list())),
-        vocabulary=Index(words, vocabulary["themes"], by_sign),
+        vocabulary=make_index(vocabulary["words"], vocabulary["themes"]),
         forms=vocabulary["forms"],
         config=config,
         threshold=meta["threshold"] if threshold is None else threshold,
