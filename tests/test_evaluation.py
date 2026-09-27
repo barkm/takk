@@ -2,7 +2,14 @@ import numpy as np
 import polars as pl
 import pytest
 
-from isolated_sign_validation.evaluation import _metrics, cosine_similarity, draw_scores, evaluate, sample_references, signer_codes
+from isolated_sign_validation.evaluation import _metrics, cosine_similarity, draw_scores, evaluate, sample_references, signer_codes, twin_matrix
+
+
+def test_twin_matrix():
+    matrix = twin_matrix({("A", "C"), ("B", "HELD_OUT")}, ["A", "B", "C"])
+
+    assert matrix.tolist() == [[False, False, True], [False, False, False], [True, False, False]]
+    assert not twin_matrix({("B", "HELD_OUT")}, ["A", "B"]).any()  # no pair among the signs
 
 
 def test_metrics_from_histograms():

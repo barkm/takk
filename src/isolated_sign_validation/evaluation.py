@@ -17,7 +17,7 @@ over signs. Scores are binned into per-sign histograms, which makes resampling s
 EER are therefore exact up to the bin resolution.
 """
 
-from collections.abc import Collection
+from collections.abc import Collection, Sequence
 
 import numpy as np
 import polars as pl
@@ -28,6 +28,16 @@ N_BINS = 2000
 def cosine_similarity(embeddings: np.ndarray) -> np.ndarray:
     normalized = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
     return normalized @ normalized.T
+
+
+def twin_matrix(twins: Collection[tuple[str, str]], signs: Sequence[str]) -> np.ndarray:
+    """Boolean (n_signs, n_signs) matrix of the `twins` pairs among `signs`."""
+    index = {sign: i for i, sign in enumerate(signs)}
+    matrix = np.zeros((len(signs), len(signs)), dtype=bool)
+    for a, b in twins:
+        if a in index and b in index:
+            matrix[index[a], index[b]] = matrix[index[b], index[a]] = True
+    return matrix
 
 
 def signer_codes(clips: pl.DataFrame) -> np.ndarray:
@@ -101,11 +111,7 @@ def evaluate(
     rng = np.random.default_rng(seed)
     sign_names, signs = np.unique(clips["sign"].to_numpy(), return_inverse=True)
     signers = signer_codes(clips)
-    index = {sign: i for i, sign in enumerate(sign_names)}
-    is_twin = np.zeros((len(sign_names), len(sign_names)), dtype=bool)
-    for a, b in twins:
-        if a in index and b in index:
-            is_twin[index[a], index[b]] = is_twin[index[b], index[a]] = True
+    is_twin = twin_matrix(twins, sign_names)
     query_rows = np.arange(len(signs)) if queries is None else np.flatnonzero(queries)
     summary, per_sign = [], []
     for k in ks:

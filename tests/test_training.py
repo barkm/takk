@@ -8,7 +8,7 @@ import pytest
 import torch
 
 from isolated_sign_validation.preparation import PrepConfig, PreparedData
-from isolated_sign_validation.training import TrainConfig, near_minimal_matrix, phonology_targets, train, twin_matrix
+from isolated_sign_validation.training import TrainConfig, near_minimal_matrix, phonology_targets, train
 
 
 def test_phonology_targets():
@@ -22,13 +22,6 @@ def test_phonology_targets():
 
     assert n_classes == [2, 2]
     assert targets.tolist() == [[1, 1], [1, 0], [0, 0], [-1, -1]]  # classes in sorted order, -1 unknown
-
-
-def test_twin_matrix():
-    matrix = twin_matrix({("A", "C"), ("B", "HELD_OUT")}, ["A", "B", "C"])
-
-    assert matrix.tolist() == [[False, False, True], [False, False, False], [True, False, False]]
-    assert twin_matrix({("B", "HELD_OUT")}, ["A", "B"]) is None  # no pair among the training signs
 
 
 def test_near_minimal_matrix():
