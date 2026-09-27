@@ -31,7 +31,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from torch import nn
 
 from isolated_sign_validation.checks import check_clip
-from isolated_sign_validation.dataset import collate
+from isolated_sign_validation.dataset import clip_item, collate
 from isolated_sign_validation.landmarks import N_LANDMARKS, SKELETON_EDGES, VideoInfo
 from isolated_sign_validation.preparation import ONE_HANDED, PrepConfig, hand_presence, hide_low_hands, mirror, prepare_clip
 from takk.speech import MIN_WORD_SCORE, Aligner, decode_audio, split_speech
@@ -86,8 +86,7 @@ def prepare_attempt(landmarks: np.ndarray, fps: float, aspect: float, handedness
 @torch.inference_mode()
 def embed_clip(model: nn.Module, frames: np.ndarray, config: PrepConfig, device: str) -> np.ndarray:
     """The unit-length embedding of one prepared clip."""
-    hands = np.stack([~np.isnan(frames[:, config.group_slices[hand].start, 0]) for hand in ("left_hand", "right_hand")], axis=1)
-    batch = collate([{"frames": torch.from_numpy(np.nan_to_num(frames)), "hands": torch.from_numpy(hands), "label": 0}])
+    batch = collate([clip_item(frames, [config.group_slices[hand] for hand in ("left_hand", "right_hand")])])
     model.eval()
     with torch.autocast(device, dtype=torch.bfloat16):  # as `training.embed`, which embeds the glossary
         embedding = model(batch["frames"].to(device), batch["hands"].to(device), batch["mask"].to(device)).float().cpu().numpy()[0]

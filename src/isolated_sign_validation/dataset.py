@@ -83,6 +83,13 @@ def augment(frames: np.ndarray, rng: np.random.Generator, config: AugmentConfig,
     return frames
 
 
+def clip_item(frames: np.ndarray, hands: list[slice], label: int = 0) -> dict:
+    """A clip of prepared frames as the model reads it: missing landmarks set to 0, and per-frame flags
+    for which of `hands` are present."""
+    present = np.stack([~np.isnan(frames[:, hand.start, 0]) for hand in hands], axis=1)
+    return {"frames": torch.from_numpy(np.nan_to_num(frames)), "hands": torch.from_numpy(present), "label": label}
+
+
 class SignDataset(torch.utils.data.Dataset):
     """The prepared clips of one split, labeled by sign (indices into `signs`); optionally only of
     `only_signs`, and without the clips of `exclude_signers`."""
@@ -116,12 +123,7 @@ class SignDataset(torch.utils.data.Dataset):
             # torch's generator is seeded differently in each DataLoader worker and epoch
             rng = np.random.default_rng(torch.randint(2**62, ()).item())
             frames = augment(frames, rng, self.augment, self.hands, self.data.config.max_frames)
-        hands = np.stack([~np.isnan(frames[:, hand.start, 0]) for hand in self.hands], axis=1)
-        return {
-            "frames": torch.from_numpy(np.nan_to_num(frames)),
-            "hands": torch.from_numpy(hands),
-            "label": int(self.labels[i]),
-        }
+        return clip_item(frames, self.hands, int(self.labels[i]))
 
 
 def collate(items: list[dict]) -> dict:
