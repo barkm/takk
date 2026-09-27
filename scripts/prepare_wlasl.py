@@ -23,7 +23,7 @@ import polars as pl
 
 from isolated_sign_validation.datasets import asl_citizen, asl_lex, wlasl
 from isolated_sign_validation.landmarks import LandmarkStore
-from isolated_sign_validation.preparation import PreparedData, add_config_arguments, config_from, prepare_store
+from isolated_sign_validation.preparation import PreparedData, add_config_arguments, config_from, prepare_store, print_summary
 
 
 def main() -> None:
@@ -64,19 +64,7 @@ def main() -> None:
     print(f"{len(twins)} twin pairs of sign labels that share a video")
 
     data = PreparedData(out)
-    print(
-        data.clips.group_by("split")
-        .agg(
-            clips=pl.len(),
-            signs=pl.col("sign").n_unique(),
-            mirrored=(pl.col("dominant") == "left").mean().round(3),
-            frames_median=pl.col("n_frames").median(),
-            frames_p95=pl.col("n_frames").quantile(0.95),
-            frames_max=pl.col("n_frames").max(),
-        )
-        .sort("split")
-    )
-    print(f"{data.frames.nbytes / 2**30:.2f} GB of frames")
+    print_summary(data)
 
 
 if __name__ == "__main__":

@@ -20,7 +20,7 @@ import polars as pl
 from isolated_sign_validation.datasets import asl_lex
 from isolated_sign_validation.datasets.asl_citizen import RAW_DIR, STORE_DIR, official_test_signers, read_videos
 from isolated_sign_validation.landmarks import LandmarkStore
-from isolated_sign_validation.preparation import PreparedData, add_config_arguments, config_from, prepare_store
+from isolated_sign_validation.preparation import PreparedData, add_config_arguments, config_from, prepare_store, print_summary
 from isolated_sign_validation.splits import assign_splits, sign_split
 
 
@@ -44,19 +44,7 @@ def main() -> None:
     pl.DataFrame(sorted(twins), schema=["sign_a", "sign_b"], orient="row").write_csv(out / "twins.csv")
 
     data = PreparedData(out)
-    print(
-        data.clips.group_by("split")
-        .agg(
-            clips=pl.len(),
-            signs=pl.col("sign").n_unique(),
-            mirrored=(pl.col("dominant") == "left").mean().round(3),
-            frames_median=pl.col("n_frames").median(),
-            frames_p95=pl.col("n_frames").quantile(0.95),
-            frames_max=pl.col("n_frames").max(),
-        )
-        .sort("split")
-    )
-    print(f"{data.frames.nbytes / 2**30:.2f} GB of frames")
+    print_summary(data)
 
 
 if __name__ == "__main__":

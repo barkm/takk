@@ -27,7 +27,7 @@ import polars as pl
 
 from isolated_sign_validation.datasets import sts_lexikon
 from isolated_sign_validation.landmarks import LandmarkStore
-from isolated_sign_validation.preparation import PrepConfig, PreparedData, prepare_store
+from isolated_sign_validation.preparation import PrepConfig, PreparedData, prepare_store, print_summary
 from isolated_sign_validation.splits import assign_evaluation_only
 
 
@@ -56,22 +56,12 @@ def main() -> None:
     prepare_store(args.store, clips, config, out)
 
     data = PreparedData(out)
-    print(
-        data.clips.select(
-            clips=pl.len(),
-            signs=pl.col("sign").n_unique(),
-            mirrored=(pl.col("dominant") == "left").mean().round(3),
-            frames_median=pl.col("n_frames").median(),
-            frames_p95=pl.col("n_frames").quantile(0.95),
-            frames_max=pl.col("n_frames").max(),
-        )
-    )
+    print_summary(data)
     clips_per_sign = data.clips.group_by("sign").len()["len"]
     print(f"clips per sign: min {clips_per_sign.min()}, median {clips_per_sign.median()}, max {clips_per_sign.max()}")
     print(f"{(clips_per_sign > 1).sum()} signs have several clips, {(clips_per_sign == 1).sum()} a single one")
     print("the signs that take longest to sign, which may be compounds rather than one sign:")
     print(longest_signs(data, 10))
-    print(f"{data.frames.nbytes / 2**30:.2f} GB of frames")
 
 
 if __name__ == "__main__":

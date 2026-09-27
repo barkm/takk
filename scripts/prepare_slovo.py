@@ -18,7 +18,7 @@ import polars as pl
 
 from isolated_sign_validation.datasets import slovo
 from isolated_sign_validation.landmarks import LandmarkStore
-from isolated_sign_validation.preparation import PrepConfig, PreparedData, prepare_store
+from isolated_sign_validation.preparation import PrepConfig, PreparedData, prepare_store, print_summary
 from isolated_sign_validation.splits import assign_evaluation_only
 
 LABEL_PREFIX = "rsl:"
@@ -59,20 +59,9 @@ def main() -> None:
             prepare_store(args.store, clips.filter(~pl.col("sign").is_in(long["sign"].to_list())), config, out)
 
     data = PreparedData(out)
-    print(
-        data.clips.select(
-            clips=pl.len(),
-            signs=pl.col("sign").n_unique(),
-            signers=pl.col("signer").n_unique(),
-            mirrored=(pl.col("dominant") == "left").mean().round(3),
-            frames_median=pl.col("n_frames").median(),
-            frames_p95=pl.col("n_frames").quantile(0.95),
-            frames_max=pl.col("n_frames").max(),
-        )
-    )
+    print_summary(data)
     signers_per_sign = data.clips.group_by("sign").agg(signers=pl.col("signer").n_unique())["signers"]
     print(f"signers per sign: min {signers_per_sign.min()}, median {signers_per_sign.median()}")
-    print(f"{data.frames.nbytes / 2**30:.2f} GB of frames")
 
 
 if __name__ == "__main__":

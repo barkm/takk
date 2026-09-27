@@ -259,3 +259,21 @@ class PreparedData:
     def __getitem__(self, i: int) -> np.ndarray:
         """Frames of clip `i`, shape (n_frames, n_landmarks, n_coords), NaN where missing."""
         return self.frames[self._offsets[i] : self._offsets[i] + self._n_frames[i]]
+
+
+def print_summary(data: PreparedData) -> None:
+    """Print the clip, sign, signer and frame counts of prepared clips per split, and their size."""
+    print(
+        data.clips.group_by("split")
+        .agg(
+            clips=pl.len(),
+            signs=pl.col("sign").n_unique(),
+            signers=pl.col("signer").n_unique(),
+            mirrored=(pl.col("dominant") == "left").mean().round(3),
+            frames_median=pl.col("n_frames").median(),
+            frames_p95=pl.col("n_frames").quantile(0.95),
+            frames_max=pl.col("n_frames").max(),
+        )
+        .sort("split")
+    )
+    print(f"{data.frames.nbytes / 2**30:.2f} GB of frames")
