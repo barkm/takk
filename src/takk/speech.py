@@ -19,7 +19,9 @@ all is that score against `MIN_WORD_SCORE` — without the check, a sentence sig
 at arbitrary places and scored as if the words had been heard.
 """
 
+import io
 import subprocess
+import wave
 from collections.abc import Callable
 
 import numpy as np
@@ -99,6 +101,17 @@ def load_aligner(device: str = "cpu") -> Aligner:
     model = AutoModelForCTC.from_pretrained(MODEL).to(device).eval()
     processor = AutoProcessor.from_pretrained(MODEL)
     return lambda audio, words: align_words(audio, words, model, processor, device)
+
+
+def warm_up(aligner: Aligner) -> None:
+    """Align a second of silence, so the first attempt does not pay for the first run of ffmpeg and the model."""
+    silence = io.BytesIO()
+    with wave.open(silence, "wb") as audio:
+        audio.setnchannels(1)
+        audio.setsampwidth(2)
+        audio.setframerate(SAMPLE_RATE)
+        audio.writeframes(bytes(2 * SAMPLE_RATE))
+    aligner(decode_audio(silence.getvalue()), ["hej"])
 
 
 def split_speech(spans: list[tuple[float, float, float]], offset: float, n_frames: int, fps: float) -> list[slice]:

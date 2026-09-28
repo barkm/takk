@@ -80,7 +80,8 @@ steps:
       - --set-secrets=ANTHROPIC_API_KEY=$_SECRET:latest
       # ^@^ is gcloud's own way of saying the list is split on @ rather than on a comma, which the
       # origins contain; without it the second origin is read as another variable and the deploy fails.
-      - --set-env-vars=^@^TAKK_ORIGINS=$_ORIGINS
+      # OMP_NUM_THREADS matches --cpu, since torch otherwise takes a thread per CPU the host has.
+      - --set-env-vars=^@^TAKK_ORIGINS=$_ORIGINS@OMP_NUM_THREADS=2
       - --cpu=2
       - --memory=4Gi
       - --concurrency=4

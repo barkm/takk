@@ -30,7 +30,7 @@ import uvicorn
 from takk import bundle
 from takk.practice import create_app
 from takk.speech import MODEL as SPEECH_MODEL
-from takk.speech import load_aligner
+from takk.speech import load_aligner, warm_up
 from takk.story import MODEL as STORY_MODEL
 
 BUNDLE_DIR = Path("outputs/serving/iv14_h384_e20-sts_lexikon-234f4575-v2")
@@ -68,6 +68,8 @@ def main() -> None:
     print(f"loading the Swedish speech model {SPEECH_MODEL} that times a spoken sentence's words (about 1.2 GB, downloaded once)")
     aligner = load_aligner(args.device)  # a spoken sentence is split by its words
     print("speech model loaded")
+    warm_up(aligner)  # before the port opens, so no request waits for it
+    print("speech model warmed up")
     app = create_app(served.clips, verifier, served.references, aligner, served.vocabulary, served.forms, story_writer(args.story_model))  # fmt: skip
     uvicorn.run(app, host=args.host, port=args.port)
 
