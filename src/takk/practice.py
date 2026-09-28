@@ -18,6 +18,7 @@ sign was skipped cannot be told.
 """
 
 import os
+import time
 
 import anthropic
 import numpy as np
@@ -27,7 +28,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 
 from isolated_sign_verification.verifier import Attempt, References, Verifier
 from sign_data.landmarks import N_LANDMARKS, SKELETON_EDGES
-from takk.speech import MIN_WORD_SCORE, Aligner, decode_audio, split_speech
+from takk.speech import MIN_WORD_SCORE, SAMPLE_RATE, Aligner, decode_audio, split_speech
 from takk.story import write_story
 from takk.suggest import suggest
 from takk.vocabulary import Index, search, spoken_word
@@ -206,7 +207,12 @@ def create_app(
         if audio is None:
             return {"threshold": threshold, "note": NOTES["no_audio"], "signs": []}
         words = list(spoken) or [spoken_word(s) for s in sign]
-        spans = aligner(decode_audio(await audio.read()), words)
+        # Timed in the log, since the alignment is nearly all of what an attempt costs.
+        started = time.perf_counter()
+        sound = decode_audio(await audio.read())
+        decoded = time.perf_counter()
+        spans = aligner(sound, words)
+        print(f"an attempt of {len(values) / verifier.fps:.1f} s, {len(sound) / SAMPLE_RATE:.1f} s of audio: decoded in {decoded - started:.2f} s, aligned in {time.perf_counter() - decoded:.2f} s")  # fmt: skip
         if spans is None:
             return {"threshold": threshold, "note": NOTES["not_said"], "signs": []}
         # The alignment is a Viterbi path and always returns one, so silence aligns as readily as

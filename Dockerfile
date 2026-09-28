@@ -8,7 +8,8 @@ FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
 # ffmpeg decodes the recording's audio (takk/speech.py); nothing else here needs a system library.
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
 
-ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/app/.venv HF_HOME=/opt/huggingface
+# Unbuffered, so each line the app prints reaches the log when it is printed and its timestamp times it.
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/app/.venv HF_HOME=/opt/huggingface PYTHONUNBUFFERED=1
 WORKDIR /app
 
 # The dependencies are a layer of their own, so a new bundle or a code change does not reinstall

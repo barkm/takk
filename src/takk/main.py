@@ -20,9 +20,11 @@ machine is remote.
 """
 
 import argparse
+import os
 from pathlib import Path
 
 import anthropic
+import torch
 import uvicorn
 
 from takk import bundle
@@ -56,12 +58,16 @@ def main() -> None:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8002)
     args = parser.parse_args()
+    # The first line after the imports; torch uses a thread per CPU it sees, which in a container can
+    # be more than the instance is given.
+    print(f"imported; {os.cpu_count()} CPUs seen, torch uses {torch.get_num_threads()} threads")
 
     served = bundle.load(args.bundle, args.device, args.threshold)
     verifier = served.verifier
     print(f"{args.bundle}: {served.meta['n_signs']} signs of {served.meta['glossary']}, embedded by {verifier.meta['run']}, threshold {verifier.threshold}")  # fmt: skip
     print(f"loading the Swedish speech model {SPEECH_MODEL} that times a spoken sentence's words (about 1.2 GB, downloaded once)")
     aligner = load_aligner(args.device)  # a spoken sentence is split by its words
+    print("speech model loaded")
     app = create_app(served.clips, verifier, served.references, aligner, served.vocabulary, served.forms, story_writer(args.story_model))  # fmt: skip
     uvicorn.run(app, host=args.host, port=args.port)
 
