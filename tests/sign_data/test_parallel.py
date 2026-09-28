@@ -44,3 +44,4 @@ def test_ctrl_c_stops_main_process_and_workers_promptly():
     finally:
         if process_group_alive(pgid):
             os.killpg(pgid, signal.SIGKILL)
+        process.stdout.close()

@@ -93,7 +93,10 @@ def hide_low_hands(landmarks: np.ndarray, aspect: float, max_hand_y: float) -> n
     """
     xy = landmarks[..., :2] * np.array([aspect, 1.0], dtype=np.float32)
     shoulders = xy[:, SHOULDERS]
-    width = np.nanmean(np.linalg.norm(shoulders[:, 0] - shoulders[:, 1], axis=1))
+    widths = np.linalg.norm(shoulders[:, 0] - shoulders[:, 1], axis=1)
+    if np.isnan(widths).all():  # no frame with both shoulders: nothing to measure low against
+        return landmarks.copy()
+    width = np.nanmean(widths)
     low = (xy[:, [hand.start for hand in HANDS], 1] - np.nanmean(shoulders[..., 1])) / width > max_hand_y
     out = landmarks.copy()
     for hand, hand_low in zip(HANDS, low.T):

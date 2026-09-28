@@ -43,3 +43,11 @@ data = [
 
 [tool.uv]
 default-groups = ["dev", "data"]
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    # Training's DataLoader workers fork a process torch has started threads in. Forking is chosen:
+    # the workers share the prepared frames copy-on-write, where spawn or forkserver would copy
+    # gigabytes into each of them. Outside pytest a DeprecationWarning from multiprocessing is not shown.
+    "ignore:This process .* is multi-threaded, use of fork\\(\\) may lead to deadlocks:DeprecationWarning",
+]

@@ -62,7 +62,8 @@ class GRUEncoder(nn.Module):
         self.hand_slices, self.bones = hand_slices, bones
         n_features = n_frame_features(n_landmarks, hand_slices, n_coords, bones)
         self.input = nn.Sequential(nn.Linear(n_features, hidden), nn.LayerNorm(hidden), nn.GELU(), nn.Dropout(dropout))
-        self.gru = nn.GRU(hidden, hidden, layers, batch_first=True, bidirectional=True, dropout=dropout)
+        # the GRU's own dropout is between its layers, so a single layer has none
+        self.gru = nn.GRU(hidden, hidden, layers, batch_first=True, bidirectional=True, dropout=dropout if layers > 1 else 0.0)
         self.attention = nn.Linear(2 * hidden, 1) if attention_pool else None
         self.head = nn.Linear((6 if attention_pool else 4) * hidden, embedding_dim)  # mean, max (and attention) pooling of both directions
 
