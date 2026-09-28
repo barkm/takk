@@ -29,7 +29,7 @@ def write(path, threshold: float = 0.38) -> Index:
     words = [{"sign": "sts:hej-1", "id": "1"}, {"sign": "sts:mamma-2", "id": "2", "word": "mamma"}]
     vocabulary = Index(words, {"Hälsning": words[:1]}, {word["sign"]: word for word in words})
     clips = {"sts:hej-1": ["https://example.test/hej.mp4"]}
-    bundle.write(path, verifier, references, clips, vocabulary, {"1": "Flata handen"}, "a_glossary")
+    bundle.write(path, verifier, references, clips, vocabulary, {"1": "Flata handen"}, {"glossary": "a_glossary", "verifier": "a_verifier"})
     return vocabulary
 
 
@@ -41,7 +41,7 @@ def test_a_bundle_round_trips_what_the_api_serves(tmp_path):
     assert read.clips == {"sts:hej-1": ["https://example.test/hej.mp4"], "sts:mamma-2": []}
     assert read.vocabulary == vocabulary and read.forms == {"1": "Flata handen"}
     assert read.verifier.threshold == 0.38 and read.verifier.meta["run"] == "a_run"
-    assert read.meta["glossary"] == "a_glossary" and read.meta["n_signs"] == 2
+    assert read.meta["glossary"] == "a_glossary" and read.meta["verifier"] == "a_verifier" and read.meta["n_signs"] == 2
 
 
 def test_a_threshold_can_be_overridden_when_it_is_read(tmp_path):

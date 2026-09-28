@@ -2,10 +2,10 @@
 # GCP lives in GitHub: the trigger holds the substitutions and Cloud Build's own service account
 # holds the credentials.
 #
-# The image needs the serving bundle, which is not in the repository - it is built from the datasets
-# on the training machine and uploaded with `scripts/build_serving.py --publish`. What is committed
-# is deploy/bundle.txt, the archive's name and digest, so a push of that file is what deploys a new
-# model and the history says which one each revision served.
+# The image needs the serving bundle, which is not in the repository - it is built from a published
+# verifier and the datasets on the training machine and uploaded with `scripts/build_serving.py
+# --publish`. What is committed is deploy/bundle.txt, the archive's name and digest, so a push of that
+# file is what deploys a new model and the history says which one each revision served.
 #
 # Substitutions the trigger sets: _BUNDLE_URI (gs://<bucket>/<prefix>, kept out of the repository),
 # _REGION, _REPO, _SERVICE, _RUNTIME_SA, _SECRET, _MIN_INSTANCES.

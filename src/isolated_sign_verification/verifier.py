@@ -9,13 +9,17 @@ prepared set of clips, so one model serves the glossary of any lexicon.
 
 A verifier is saved as a directory of its own (`save`, `load`): the weights, the configs they are
 built and fed by, the threshold, and the run and commit they came from. A reference set is a file of
-its own (`References.save`), since one verifier scores against many.
+its own (`References.save`), since one verifier scores against many. A saved directory is handed to
+an application as an archive in a bucket (`publish`, `fetch`), named by its own digest and pinned in
+a committed file, so the application needs neither the training run nor the machine it is on.
 """
 
 import dataclasses
 import hashlib
 import json
 import subprocess
+import tarfile
+import tempfile
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -90,6 +94,41 @@ def embed(model: nn.Module, dataset, device: str, batch_size: int = 512, num_wor
         with torch.autocast(device, dtype=torch.bfloat16):
             parts.append(model(batch["frames"].to(device), batch["hands"].to(device), batch["mask"].to(device)).float().cpu())
     return torch.cat(parts).numpy()
+
+
+def publish(directory: Path, uri: str, pin: Path) -> str:
+    """Upload `directory` as one archive named by its own sha256, and write that name and digest to
+    `pin`, which is committed. The bucket is not: `uri` comes from the environment, so the repository
+    says which archive is meant and never where it is kept. The name holds the digest, so an object
+    is never overwritten and an older one is still there to go back to."""
+    archive = Path(tempfile.gettempdir()) / f"{directory.name}.tar.gz"
+    with tarfile.open(archive, "w:gz") as tar:
+        for path in sorted(directory.iterdir()):
+            tar.add(path, arcname=path.name)
+    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+    name = f"{directory.name}-{digest[:12]}.tar.gz"
+    subprocess.run(["gcloud", "storage", "cp", str(archive), f"{uri.rstrip('/')}/{name}"], check=True)
+    pin.parent.mkdir(parents=True, exist_ok=True)
+    pin.write_text(f"{name} sha256:{digest}\n")
+    archive.unlink()
+    return name
+
+
+def fetch(pin: Path, uri: str, cache: Path) -> Path:
+    """The directory of the archive `pin` names: downloaded from `uri`, checked against the pinned
+    digest, and unpacked under `cache`, where a later call finds it without downloading again."""
+    name, digest = pin.read_text().split()
+    out = cache / name.removesuffix(".tar.gz")
+    if out.exists():
+        return out
+    with tempfile.TemporaryDirectory() as tmp:
+        archive = Path(tmp) / name
+        subprocess.run(["gcloud", "storage", "cp", f"{uri.rstrip('/')}/{name}", str(archive)], check=True)
+        if hashlib.sha256(archive.read_bytes()).hexdigest() != digest.removeprefix("sha256:"):
+            raise ValueError(f"{name} does not match the digest pinned in {pin}")
+        with tarfile.open(archive) as tar:
+            tar.extractall(out, filter="data")
+    return out
 
 
 def _prep_config(values: dict) -> PrepConfig:

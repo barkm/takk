@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
@@ -6,6 +7,7 @@ import pytest
 import torch
 from torch import nn
 
+from isolated_sign_verification import verifier as module
 from isolated_sign_verification.models import build_model
 from isolated_sign_verification.preparation import PrepConfig, mirror, prepare_clip
 from isolated_sign_verification.verifier import Attempt, References, Verifier, sign_means
@@ -98,3 +100,30 @@ def test_a_saved_verifier_and_references_round_trip(tmp_path):
 
     references = References.load(tmp_path / "r.parquet")
     assert references.signs == ["a", "b"] and np.allclose(references.means, [[1, 0, 0, 0], [0, 0.5, 0.5, 0]])
+
+
+def test_a_published_directory_is_fetched_back_by_its_pin(tmp_path, monkeypatch):
+    bucket = tmp_path / "bucket"
+    bucket.mkdir()
+
+    def gcloud(command, **kwargs):  # `gcloud storage cp <from> <to>`, with gs://bucket as a directory
+        source, target = (Path(arg.replace("gs://bucket", str(bucket))) for arg in command[3:5])
+        target.write_bytes(source.read_bytes())
+
+    monkeypatch.setattr(module.subprocess, "run", gcloud)
+    exported = tmp_path / "a_run-1234"
+    exported.mkdir()
+    (exported / "verifier.json").write_text('{"run": "a_run"}')
+    pin = tmp_path / "models" / "verifier.txt"
+
+    name = module.publish(exported, "gs://bucket/", pin)
+
+    written, digest = pin.read_text().split()
+    assert written == name and name.startswith("a_run-1234-") and digest.removeprefix("sha256:")[:12] in name
+    fetched = module.fetch(pin, "gs://bucket", tmp_path / "cache")
+    assert (fetched / "verifier.json").read_text() == '{"run": "a_run"}'
+    assert module.fetch(pin, "gs://bucket", tmp_path / "cache") == fetched  # kept, not downloaded again
+
+    (bucket / name).write_bytes(b"replaced")  # an object that no longer matches its pin is refused
+    with pytest.raises(ValueError):
+        module.fetch(pin, "gs://bucket", tmp_path / "other_cache")

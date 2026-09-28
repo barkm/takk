@@ -1,10 +1,10 @@
 """The glossary the app serves, as one directory that carries no training data.
 
-A bundle is what `scripts/build_serving.py` writes from a training run and a prepared glossary, and
-the only thing the API reads at startup: a saved verifier (`verifier/`) and the glossary's signs as
-its references (`references.parquet`), both in the verifier's own formats, and beside them what the
-app itself knows of the glossary - the addresses its clips are watched at and the words a learner can
-search for. About 40 MB, against the 641 MB of prepared frames the glossary is built from.
+A bundle is what `scripts/build_serving.py` writes from a published verifier and a prepared
+glossary, and the only thing the API reads at startup: the verifier (`verifier/`) and the glossary's
+signs as its references (`references.parquet`), both in the verifier's own formats, and beside them
+what the app itself knows of the glossary - the addresses its clips are watched at and the words a
+learner can search for. About 40 MB, against the 641 MB of prepared frames the glossary is built from.
 
 Reading one needs the verifier API (`isolated_sign_verification.verifier`) and nothing else of the
 training package, which is what lets the deployed image leave the data packages out.
@@ -47,11 +47,11 @@ def write(
     clips: dict[str, list[str]],
     vocabulary: Index,
     forms: dict[str, str],
-    glossary: str,
+    source: dict[str, str],
 ) -> None:
-    """Write a bundle. `glossary` names the prepared set the references came from, which is kept in
-    `meta.json` beside the verifier's own record of its run, so a served model can always be traced
-    back to what made it."""
+    """Write a bundle. `source` names the prepared glossary the references came from and the
+    verifier, which is kept in `meta.json` beside the verifier's own record of its run, so a served
+    model can always be traced back to what made it."""
     path.mkdir(parents=True, exist_ok=True)
     verifier.save(path / VERIFIER_DIR)
     references.save(path / REFERENCES_FILE)
@@ -62,7 +62,7 @@ def write(
     (path / VOCABULARY_FILE).write_text(
         json.dumps({"words": vocabulary.words, "themes": vocabulary.themes, "forms": forms}, ensure_ascii=False)
     )
-    meta = {"glossary": glossary, "created": date.today().isoformat(), "n_signs": len(references.signs)}
+    meta = source | {"created": date.today().isoformat(), "n_signs": len(references.signs)}
     (path / META_FILE).write_text(json.dumps(meta, indent=2))
 
 

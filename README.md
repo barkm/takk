@@ -357,12 +357,15 @@ it when the sign's score reaches the threshold (a provisional 0.38, `--threshold
 the closest sign of the whole lexicon:
 
 ```sh
+export ISV_VERIFIER_URI=gs://<bucket>/verifiers   # where the published verifiers are kept
 uv run scripts/build_serving.py   # once per model: the bundle the API serves, in outputs/serving/
 uv run takk                       # the API; the page is the SvelteKit app below
 ```
 
-Everything the API serves comes from that bundle (`takk/bundle.py`): the run's model as a saved
-verifier, the lexicon's signs as its references, the addresses of their lexicon clips and the words
+The model reaches the app as a published verifier: `scripts/export_verifier.py` makes one from a
+training run and the threshold, and `--publish` uploads it and pins it in `models/verifier.txt`,
+which is what `build_serving.py` builds from (`--verifier <dir>` takes an unpublished export
+instead). Everything the API serves comes from the bundle (`takk/bundle.py`): the verifier, the lexicon's signs as its references, the addresses of their lexicon clips and the words
 that lead to them, about 40 MB. It reads
 no dataset, no prepared store and no training run, so it can be deployed without any of them — which
 is what the image is (`Dockerfile`, 4.8 GB, the speech model and CPU torch being most of it):
@@ -373,17 +376,19 @@ docker run --rm -p 8002:8002 -e ANTHROPIC_API_KEY takk   # without the key, only
 ```
 
 In the cloud the API is a Cloud Run service, built by a Cloud Build trigger connected to this
-repository (`cloudbuild.yaml`). The bundle is not in the repository, so deploying a model is two
-steps: upload it, then commit the pin that names it.
+repository (`cloudbuild.yaml`). Neither the verifier nor the bundle is in the repository, so
+deploying a new model is an upload and a pin for each: the verifier, then the bundle built from it.
 
 ```sh
-export TAKK_BUNDLE_URI=gs://<bucket>/serving          # the bucket is not committed
-uv run scripts/build_serving.py --publish             # uploads <run>-<glossary>-<sha>.tar.gz
+export ISV_VERIFIER_URI=gs://<bucket>/verifiers TAKK_BUNDLE_URI=gs://<bucket>/serving  # not committed
+uv run scripts/export_verifier.py --run <run> --publish   # uploads <run>-<prep id>-<sha>.tar.gz
+git commit models/verifier.txt -m "Verifier from <run>"   # hands the model to the apps
+uv run scripts/build_serving.py --publish                 # uploads <run>-<glossary>-<sha>.tar.gz
 git commit deploy/bundle.txt -m "Serve <run>" && git push   # this is what deploys it
 ```
 
-The archive is named by its own sha256 and the build checks it against the digest in
-`deploy/bundle.txt`, so an object is never overwritten and rolling back is committing an older pin.
+Each archive is named by its own sha256 and checked against the digest in its pin when it is
+fetched, so an object is never overwritten and rolling back is committing an older pin.
 
 A part of a story is several signs, as TAKK signs the key words of a spoken sentence. Sign them in
 order and say the part aloud while you sign, the way TAKK is used: the recording is split into its
