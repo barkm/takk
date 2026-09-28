@@ -1,115 +1,80 @@
 """The glossary the app serves, as one directory that carries no training data.
 
 A bundle is what `scripts/build_serving.py` writes from a training run and a prepared glossary, and
-the only thing the API reads at startup. It holds the encoder's weights, one mean embedding per
-sign, the addresses its clips are watched at, and the words a learner can search for — about 40 MB,
-against the 641 MB of prepared frames that loading a `PreparedData` reads for nothing once the clip
-embeddings are cached.
+the only thing the API reads at startup: a saved verifier (`verifier/`) and the glossary's signs as
+its references (`references.parquet`), both in the verifier's own formats, and beside them what the
+app itself knows of the glossary - the addresses its clips are watched at and the words a learner can
+search for. About 40 MB, against the 641 MB of prepared frames the glossary is built from.
 
-Reading one imports `models.py` and `PrepConfig` and nothing else of the pipeline: not `dataset.py`,
-not `PreparedData`, not `training.py`, which is what lets the deployed image leave the data packages
-out. The mean embeddings sit in a column of `signs.parquet` beside the sign they belong to rather
-than in a bare matrix, so a sign that the training never saw is added by appending a row.
+Reading one needs the verifier API (`isolated_sign_verification.verifier`) and nothing else of the
+training package, which is what lets the deployed image leave the data packages out.
 """
 
-import dataclasses
-import hashlib
 import json
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
-from types import SimpleNamespace
 
-import numpy as np
 import polars as pl
-import torch
-from torch import nn
 
-from isolated_sign_verification.models import build_model
-from isolated_sign_verification.preparation import PrepConfig
+from isolated_sign_verification.verifier import References, Verifier
 from takk.vocabulary import Index, make_index
 
-MODEL_FILE = "model.pt"
-SIGNS_FILE = "signs.parquet"
+VERIFIER_DIR = "verifier"
+REFERENCES_FILE = "references.parquet"
+CLIPS_FILE = "clips.parquet"
 VOCABULARY_FILE = "vocabulary.json"
 META_FILE = "meta.json"
 
 
 @dataclass(frozen=True)
 class Bundle:
-    """Everything the API serves: the signs in the order of the rows of `means`, each sign's clip
-    addresses, the words that lead to them, the lexicon's description of each entry's form, the
-    preparation an attempt goes through, the model that embeds it and what a score has to reach."""
+    """Everything the API serves: the verifier and the glossary's signs as its references, each sign's
+    clip addresses, the words that lead to them and the lexicon's description of each entry's form."""
 
-    signs: list[str]
-    means: np.ndarray  # (n_signs, dim); row i is signs[i]
+    verifier: Verifier
+    references: References
     clips: dict[str, list[str]]
     vocabulary: Index
     forms: dict[str, str]
-    config: PrepConfig
-    threshold: float
-    model: nn.Module
     meta: dict
 
 
 def write(
     path: Path,
-    signs: list[str],
-    means: np.ndarray,
+    verifier: Verifier,
+    references: References,
     clips: dict[str, list[str]],
     vocabulary: Index,
     forms: dict[str, str],
-    config: PrepConfig,
-    train_config: dict,
-    threshold: float,
-    state_dict: dict,
-    source: dict,
+    glossary: str,
 ) -> None:
-    """Write a bundle. `source` names where it came from (the run and the glossary), which is kept in
-    `meta.json` so a served model can always be traced back to what made it."""
+    """Write a bundle. `glossary` names the prepared set the references came from, which is kept in
+    `meta.json` beside the verifier's own record of its run, so a served model can always be traced
+    back to what made it."""
     path.mkdir(parents=True, exist_ok=True)
-    torch.save({"model": state_dict}, path / MODEL_FILE)
+    verifier.save(path / VERIFIER_DIR)
+    references.save(path / REFERENCES_FILE)
     pl.DataFrame(
-        {"sign": signs, "mean": means.astype(np.float32), "clips": [clips.get(sign, []) for sign in signs]},
-        schema={"sign": pl.String, "mean": pl.Array(pl.Float32, means.shape[1]), "clips": pl.List(pl.String)},
-    ).write_parquet(path / SIGNS_FILE)
+        {"sign": references.signs, "clips": [clips.get(sign, []) for sign in references.signs]},
+        schema={"sign": pl.String, "clips": pl.List(pl.String)},
+    ).write_parquet(path / CLIPS_FILE)
     (path / VOCABULARY_FILE).write_text(
         json.dumps({"words": vocabulary.words, "themes": vocabulary.themes, "forms": forms}, ensure_ascii=False)
     )
-    (path / META_FILE).write_text(
-        json.dumps(
-            {
-                **source,
-                "created": date.today().isoformat(),
-                "threshold": threshold,
-                "n_signs": len(signs),
-                "dim": int(means.shape[1]),
-                "model_sha256": hashlib.sha256((path / MODEL_FILE).read_bytes()).hexdigest(),
-                "prep_config": dataclasses.asdict(config),
-                "train_config": train_config,
-            },
-            indent=2,
-        )
-    )
+    meta = {"glossary": glossary, "created": date.today().isoformat(), "n_signs": len(references.signs)}
+    (path / META_FILE).write_text(json.dumps(meta, indent=2))
 
 
-def load(path: Path, threshold: float | None = None) -> Bundle:
-    """Read a bundle, with the model on the CPU. `threshold` overrides the one it was built with."""
-    meta = json.loads((path / META_FILE).read_text())
-    config = PrepConfig(**meta["prep_config"] | {"groups": tuple(meta["prep_config"]["groups"])})
-    model = build_model(SimpleNamespace(**meta["train_config"]), config)
-    model.load_state_dict(torch.load(path / MODEL_FILE, map_location="cpu")["model"])
-    model.eval()
-    table = pl.read_parquet(path / SIGNS_FILE)
+def load(path: Path, device: str = "cpu", threshold: float | None = None) -> Bundle:
+    """Read a bundle. `threshold` overrides the verifier's."""
+    table = pl.read_parquet(path / CLIPS_FILE)
     vocabulary = json.loads((path / VOCABULARY_FILE).read_text())
     return Bundle(
-        signs=table["sign"].to_list(),
-        means=table["mean"].to_numpy(),
+        verifier=Verifier.load(path / VERIFIER_DIR, device, threshold),
+        references=References.load(path / REFERENCES_FILE),
         clips=dict(zip(table["sign"], table["clips"].to_list())),
         vocabulary=make_index(vocabulary["words"], vocabulary["themes"]),
         forms=vocabulary["forms"],
-        config=config,
-        threshold=meta["threshold"] if threshold is None else threshold,
-        model=model,
-        meta=meta,
+        meta=json.loads((path / META_FILE).read_text()),
     )

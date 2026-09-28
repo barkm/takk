@@ -17,6 +17,15 @@ def test_the_isv_package_does_not_depend_on_the_app():
     assert not importers("isolated_sign_verification", "takk")
 
 
+def test_the_app_uses_the_model_only_through_the_verifier():
+    """An app knows as little as possible about the model: `verifier.py` is the one module of the ISV
+    package it may import, so a change behind it (the preparation, the embedding, the scoring) never
+    reaches the app."""
+    imports = re.compile(r"^\s*(?:from|import) (isolated_sign_verification(?:\.\w+)*)", re.M)
+    used = {module for path in (SRC / "takk").rglob("*.py") for module in imports.findall(path.read_text())}
+    assert used <= {"isolated_sign_verification.verifier"}, used
+
+
 def test_the_data_package_depends_on_neither_the_model_nor_the_app():
     """The sign data (`sign_data`: the landmark format, the extraction and the dataset adapters) is
     independent of any model and of what it is used for, so ISV and the app both build on it."""

@@ -2,13 +2,12 @@
 themselves are watched at the lexicon's own addresses, which it hands the page.
 
 The landmarks are extracted in the browser and only they are sent (see practice.py). An attempt
-counts as the sign when its mean cosine similarity to the sign's glossary clips reaches the
-threshold. The default, 0.38, is the equal-error point of the Swedish recordings against the whole
-lexicon with the default run: about 2% of correct attempts are rejected and 2% of random wrong signs
-accepted; similar signs get through more often.
+counts as the sign when the verifier's score for it reaches the verifier's threshold, which
+`--threshold` overrides.
 
 Everything served comes from one bundle (`bundle.py`, built by `scripts/build_serving.py`): the
-model, the mean embedding of each sign, the addresses of its clips and the words that lead to them.
+verifier, the glossary's signs as its references, the addresses of their clips and the words that
+lead to them.
 No dataset, no prepared store and no training run is read here, which is what lets this run in a
 container that holds none of them.
 
@@ -32,7 +31,7 @@ from takk.speech import MODEL as SPEECH_MODEL
 from takk.speech import load_aligner
 from takk.story import MODEL as STORY_MODEL
 
-BUNDLE_DIR = Path("outputs/serving/iv14_h384_e20-sts_lexikon-234f4575")
+BUNDLE_DIR = Path("outputs/serving/iv14_h384_e20-sts_lexikon-234f4575-v2")
 
 
 def story_writer(model: str) -> anthropic.Anthropic | None:
@@ -58,12 +57,12 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8002)
     args = parser.parse_args()
 
-    served = bundle.load(args.bundle, args.threshold)
-    print(f"{args.bundle}: {served.meta['n_signs']} signs of {served.meta['glossary']}, embedded by {served.meta['run']}, threshold {served.threshold}")  # fmt: skip
-    model = served.model.to(args.device)
+    served = bundle.load(args.bundle, args.device, args.threshold)
+    verifier = served.verifier
+    print(f"{args.bundle}: {served.meta['n_signs']} signs of {served.meta['glossary']}, embedded by {verifier.meta['run']}, threshold {verifier.threshold}")  # fmt: skip
     print(f"loading the Swedish speech model {SPEECH_MODEL} that times a spoken sentence's words (about 1.2 GB, downloaded once)")
     aligner = load_aligner(args.device)  # a spoken sentence is split by its words
-    app = create_app(served.clips, served.means, model, served.config, served.threshold, args.device, aligner, served.vocabulary, served.forms, story_writer(args.story_model))  # fmt: skip
+    app = create_app(served.clips, verifier, served.references, aligner, served.vocabulary, served.forms, story_writer(args.story_model))  # fmt: skip
     uvicorn.run(app, host=args.host, port=args.port)
 
 

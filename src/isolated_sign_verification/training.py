@@ -32,6 +32,7 @@ from isolated_sign_verification.dataset import AugmentConfig, SignDataset, colla
 from isolated_sign_verification.evaluation import cosine_similarity, evaluate, twin_matrix
 from isolated_sign_verification.models import ArcFace, build_model
 from isolated_sign_verification.preparation import PreparedData
+from isolated_sign_verification.verifier import embed  # the references of an app are embedded as validation is
 
 
 @dataclass(frozen=True)
@@ -101,18 +102,6 @@ def near_minimal_matrix(targets: np.ndarray, max_differences: int = 2) -> torch.
     pairs = ((targets[:, None] != targets[None]).sum(axis=2) <= max_differences) & known[:, None] & known[None]
     np.fill_diagonal(pairs, False)
     return torch.from_numpy(pairs)
-
-
-@torch.no_grad()
-def embed(model: nn.Module, dataset: SignDataset, device: str, batch_size: int = 512) -> np.ndarray:
-    """Embeddings of all clips of a (non-augmented) dataset, in order."""
-    model.eval()
-    loader = DataLoader(dataset, batch_size=batch_size, collate_fn=collate, num_workers=4)
-    parts = []
-    for batch in loader:
-        with torch.autocast(device, dtype=torch.bfloat16):
-            parts.append(model(batch["frames"].to(device), batch["hands"].to(device), batch["mask"].to(device)).float().cpu())
-    return torch.cat(parts).numpy()
 
 
 def quick_validation(model: nn.Module, val: SignDataset, device: str) -> dict[str, float]:

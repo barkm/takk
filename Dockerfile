@@ -1,7 +1,7 @@
 # The TAKK API. It serves one bundle (see takk/bundle.py) and holds no dataset, no prepared store
 # and no training run. Build from the repo root, with a bundle built first: uv run
 # scripts/build_serving.py docker build --build-arg
-# BUNDLE=outputs/serving/iv14_h384_e20-sts_lexikon-234f4575 -t takk . docker run --rm -p 8002:8002
+# BUNDLE=outputs/serving/iv14_h384_e20-sts_lexikon-234f4575-v2 -t takk . docker run --rm -p 8002:8002
 # takk
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
 

@@ -5,6 +5,8 @@ still in front of the camera: the collection app (`collection.py`) before storin
 practice app before scoring an attempt.
 """
 
+from typing import NamedTuple
+
 import numpy as np
 
 from isolated_sign_verification.preparation import PrepConfig, hand_presence, hide_low_hands, prepare_clip
@@ -23,12 +25,20 @@ NOTES = {
 }
 
 
-def check_clip(landmarks: np.ndarray, info: VideoInfo, config: PrepConfig, signing: bool = True, notes: dict[str, str] = NOTES) -> tuple[bool, str, float]:  # fmt: skip
-    """Whether a recording (its extracted landmarks) can be used, why not, and how steadily a hand was
-    detected while signing.
+class Check(NamedTuple):
+    """Whether a recording can be used, the reason (a key of NOTES), the values its wording takes, and
+    how steadily a hand was detected while signing."""
 
-    The reason is worded by `notes`, keyed as NOTES is, because the same check serves apps in
-    different languages (the practice app is in Swedish).
+    usable: bool
+    reason: str
+    details: dict
+    hand_share: float
+
+
+def check(landmarks: np.ndarray, info: VideoInfo, config: PrepConfig, signing: bool = True) -> Check:
+    """Whether a recording (its extracted landmarks) can be used, why not, and how steadily a hand was
+    detected while signing. The reason is a key of NOTES rather than a sentence, because the same
+    check serves apps in different languages, each wording it itself.
 
     A clip of not signing (`signing` false, the no_event prompts) only has to hold a recording: no
     hands, or hands moving for longer than any sign, is what it is meant to show.
@@ -46,17 +56,23 @@ def check_clip(landmarks: np.ndarray, info: VideoInfo, config: PrepConfig, signi
     seconds = (with_hands[-1] - with_hands[0] + 1) / info.fps if len(with_hands) else 0.0
     hand_share = float(present[with_hands[0] : with_hands[-1] + 1].mean()) if len(with_hands) else 0.0
     if not len(landmarks):
-        return False, notes["empty"], 0.0
+        return Check(False, "empty", {}, 0.0)
     if not signing:
-        return True, notes["recorded"], hand_share
+        return Check(True, "recorded", {}, hand_share)
     if not len(with_hands):
-        return False, notes["no_hands"], hand_share
+        return Check(False, "no_hands", {}, hand_share)
     if seconds < config.min_hands:
-        return False, notes["short"].format(seconds=seconds), hand_share
+        return Check(False, "short", {"seconds": seconds}, hand_share)
     if seconds > config.max_hands:
-        return False, notes["long"].format(seconds=seconds), hand_share
+        return Check(False, "long", {"seconds": seconds}, hand_share)
     if not usable:
-        return False, notes["no_body"], hand_share
+        return Check(False, "no_body", {}, hand_share)
     if hand_share < 0.8:
-        return True, notes["lost_hand"].format(lost=1 - hand_share), hand_share
-    return True, notes["ok"], hand_share
+        return Check(True, "lost_hand", {"lost": 1 - hand_share}, hand_share)
+    return Check(True, "ok", {}, hand_share)
+
+
+def check_clip(landmarks: np.ndarray, info: VideoInfo, config: PrepConfig, signing: bool = True, notes: dict[str, str] = NOTES) -> tuple[bool, str, float]:  # fmt: skip
+    """`check`, with its reason worded by `notes`, keyed as NOTES is."""
+    result = check(landmarks, info, config, signing)
+    return result.usable, notes[result.reason].format(**result.details), result.hand_share

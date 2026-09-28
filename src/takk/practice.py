@@ -2,11 +2,11 @@
 
 This is the app's API only (`main.py`); the page is a separate site, built from `frontend/` and never
 served from here. The browser extracts the landmarks itself, with the same HolisticLandmarker setup
-as `extraction.py`, and sends only those: the video never leaves the user's device. The backend
-checks and prepares the attempt like any recording, embeds it, and scores it against the glossary
-clips of the chosen sign: the mean cosine similarity to them, as `evaluation` scores a sign from k
-references. The attempt counts as the sign when the score reaches a global threshold. The sign of
-the whole glossary with the highest score is reported too, so a wrong attempt shows what it resembled.
+as `extraction.py`, and sends only those: the video never leaves the user's device. The verifier
+(`isolated_sign_verification.verifier`) checks the attempt and scores it against every sign of the
+glossary; it counts as the chosen sign when that sign's score reaches the verifier's threshold. The
+sign of the whole glossary with the highest score is reported too, so a wrong attempt shows what it
+resembled.
 
 An attempt can also be a sentence of several signs, as TAKK signs the key words of a spoken
 sentence. A learner who speaks while signing says a whole Swedish sentence, its key words are timed
@@ -21,16 +21,12 @@ import os
 
 import anthropic
 import numpy as np
-import torch
 from fastapi import Body, FastAPI, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from torch import nn
 
-from isolated_sign_verification.checks import check_clip
-from isolated_sign_verification.dataset import clip_item, collate
-from isolated_sign_verification.preparation import ONE_HANDED, PrepConfig, hand_presence, hide_low_hands, mirror, prepare_clip
-from sign_data.landmarks import N_LANDMARKS, SKELETON_EDGES, VideoInfo
+from isolated_sign_verification.verifier import Attempt, References, Verifier
+from sign_data.landmarks import N_LANDMARKS, SKELETON_EDGES
 from takk.speech import MIN_WORD_SCORE, Aligner, decode_audio, split_speech
 from takk.story import write_story
 from takk.suggest import suggest
@@ -55,56 +51,18 @@ NOTES = {
     "not_heard": "Hörde inte {words}. Säg hela meningen högt medan du tecknar den.",
 }
 
-def sign_means(embeddings: np.ndarray, labels: np.ndarray, n_signs: int) -> np.ndarray:
-    """The mean of each sign's unit-length clip embeddings, shape (n_signs, dim). Its dot product with
-    a unit-length embedding is the mean cosine similarity to the sign's clips."""
-    unit = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
-    sums = np.zeros((n_signs, unit.shape[1]))
-    np.add.at(sums, labels, unit)
-    return sums / np.bincount(labels, minlength=n_signs)[:, None]
-
-
-def prepare_attempt(landmarks: np.ndarray, fps: float, aspect: float, handedness: str, config: PrepConfig) -> np.ndarray | None:
-    """Prepare an attempt's landmarks as `prepare_store` prepares a clip, mirrored when its dominant
-    hand is the left: a one-handed attempt's detected hand, a two-handed one's the user's
-    `handedness` (`add_dominant_hands`, with the signer's handedness stated rather than inferred)."""
-    frames = prepare_clip(landmarks, fps, aspect, config)
-    if frames is None:
-        return None
-    present = hand_presence(hide_low_hands(landmarks, aspect, config.max_hand_y))
-    left, right, both = present[:, 0].sum(), present[:, 1].sum(), present.all(axis=1).sum()
-    if both < ONE_HANDED * (left + right - both):
-        dominant = "left" if left > right else "right"
-    else:
-        dominant = handedness
-    return mirror(frames, config) if dominant == "left" else frames
-
-
-@torch.inference_mode()
-def embed_clip(model: nn.Module, frames: np.ndarray, config: PrepConfig, device: str) -> np.ndarray:
-    """The unit-length embedding of one prepared clip."""
-    batch = collate([clip_item(frames, [config.group_slices[hand] for hand in ("left_hand", "right_hand")])])
-    model.eval()
-    with torch.autocast(device, dtype=torch.bfloat16):  # as `training.embed`, which embeds the glossary
-        embedding = model(batch["frames"].to(device), batch["hands"].to(device), batch["mask"].to(device)).float().cpu().numpy()[0]
-    return embedding / np.linalg.norm(embedding)
-
-
 def create_app(
-    references: dict[str, list[str]],
-    means: np.ndarray,
-    model: nn.Module,
-    config: PrepConfig,
-    threshold: float,
-    device: str,
+    clips: dict[str, list[str]],
+    verifier: Verifier,
+    references: References,
     aligner: Aligner,
     vocabulary: Index | None = None,
     forms: dict[str, str] | None = None,
     writer: anthropic.Anthropic | None = None,
 ) -> FastAPI:
-    """The practice app: the glossary's signs with the addresses their clips are watched at
-    (`references`, sign -> clip URLs, in the order of the rows of `means`, see sign_means and
-    `bundle.py`), and the scoring of attempts. The `aligner` times a spoken sentence's words, which
+    """The practice app: the glossary's signs (the `verifier`'s `references`) with the addresses
+    their clips are watched at (`clips`, sign -> clip URLs, see `bundle.py`), and the scoring of
+    attempts. The `aligner` times a spoken sentence's words, which
     is what splits it into its signs. The `writer` writes the story a learner signs their way through
     (see `story.py`)."""
     app = FastAPI()
@@ -120,17 +78,18 @@ def create_app(
         allow_methods=["GET", "POST"],
         allow_headers=["*"],
     )
-    names = list(references)
+    names = references.signs
     index = {sign: i for i, sign in enumerate(names)}
+    threshold = verifier.threshold
 
     @app.get("/api/signs")
     def signs() -> dict:
         """The glossary, each sign with the addresses of its clips: the lexicon's own, so the page
         plays them whether or not this server is up."""
         return {
-            "signs": [{"sign": sign, "references": clips} for sign, clips in references.items()],
-            "fps": config.fps,
-            "max_seconds": config.max_frames / config.fps,
+            "signs": [{"sign": sign, "references": clips.get(sign, [])} for sign in names],
+            "fps": verifier.fps,
+            "max_seconds": verifier.max_seconds,
             "edges": {group: edges.tolist() for group, edges in SKELETON_EDGES.items()},  # to draw the tracked landmarks
         }
 
@@ -178,9 +137,10 @@ def create_app(
     def scores_of(values: np.ndarray, handedness: str, width: int, height: int) -> tuple[np.ndarray | None, str]:
         """The recording of one sign scored against every sign of the glossary, or None when it cannot
         be used, and the check's note on it."""
-        usable, note, _ = check_clip(values, VideoInfo(config.fps, width, height), config, notes=NOTES)
-        frames = prepare_attempt(values, config.fps, width / height, handedness, config) if usable else None
-        return (None if frames is None else means @ embed_clip(model, frames, config, device)), note
+        attempt = Attempt(values, width, height, handedness)
+        check = verifier.check(attempt)
+        note = NOTES[check.reason].format(**check.details)
+        return (verifier.scores(attempt, references) if check.usable else None), note
 
     def judge(values: np.ndarray, sign: str, handedness: str, width: int, height: int) -> dict:
         """Score the landmarks of one sign as an attempt of `sign`."""
@@ -213,7 +173,7 @@ def create_app(
     @app.post("/api/attempt")
     async def attempt(landmarks: UploadFile, sign: list[str] = Form(), handedness: str = Form(), width: int = Form(), height: int = Form(), spoken: list[str] = Form([]), audio: UploadFile | None = None, audio_offset: float = Form(0.0), unheard_is_miss: bool = Form(False), cuts: list[float] = Form([])) -> dict:  # fmt: skip
         """Score an attempt of one sign or a sentence of several (`sign` repeated, in order): its
-        landmarks as float32 (n_frames, N_LANDMARKS, 3), NaN where not detected, at the preparation's
+        landmarks as float32 (n_frames, N_LANDMARKS, 3), NaN where not detected, at the verifier's
         frame rate, from frames of `width` x `height` pixels.
 
         A spoken attempt sends its `audio` (recorded `audio_offset` seconds before the first frame):
@@ -241,7 +201,7 @@ def create_app(
         if cuts:
             if len(cuts) != 2 * len(sign):
                 raise HTTPException(400, "a start and an end per sign")
-            edges = np.clip(np.round(np.array(cuts) * config.fps), 0, len(values)).astype(int)
+            edges = np.clip(np.round(np.array(cuts) * verifier.fps), 0, len(values)).astype(int)
             return {"threshold": threshold, "note": "", "signs": [judge(values[a:b], s, handedness, width, height) for a, b, s in zip(edges[::2], edges[1::2], sign)]}  # fmt: skip
         if audio is None:
             return {"threshold": threshold, "note": NOTES["no_audio"], "signs": []}
@@ -256,7 +216,7 @@ def create_app(
             print(f"an attempt was refused, the words scoring {[round(s, 2) for *_, s in spans]}")  # while MIN_WORD_SCORE is provisional
         if unheard and not unheard_is_miss:
             return {"threshold": threshold, "note": NOTES["not_heard"].format(words=" och ".join(unheard)), "signs": []}  # fmt: skip
-        parts = split_speech(spans, audio_offset, len(values), config.fps)
+        parts = split_speech(spans, audio_offset, len(values), verifier.fps)
         if len(parts) != len(sign) or any(part.stop - part.start < 2 for part in parts):
             return {"threshold": threshold, "note": NOTES["not_said"], "signs": []}
         signs = [judge(values[part], s, handedness, width, height) for part, s in zip(parts, sign)]
