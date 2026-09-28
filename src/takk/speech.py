@@ -48,6 +48,10 @@ MIN_WORD_SCORE = -3.0
 PRE_ROLL = 0.5
 POST_ROLL = 0.4
 
+# How much audio around the voice the page heard is aligned, in seconds: its detector hears a word
+# 150 ms after it begins, and a soft first or last sound may be quieter than it listens for.
+VOICE_MARGIN = 0.3
+
 # Each word of a sentence as (start, end, score): when it was spoken, in seconds, and how well it
 # aligned. None when the words cannot be aligned at all.
 Aligner = Callable[[np.ndarray, list[str]], list[tuple[float, float, float]] | None]
@@ -101,6 +105,13 @@ def load_aligner(device: str = "cpu") -> Aligner:
     model = AutoModelForCTC.from_pretrained(MODEL).to(device).eval()
     processor = AutoProcessor.from_pretrained(MODEL)
     return lambda audio, words: align_words(audio, words, model, processor, device)
+
+
+def trim(audio: np.ndarray, voice: list[float]) -> tuple[np.ndarray, float]:
+    """The part of `audio` around the `voice` (its start and end, in seconds), and how many seconds
+    were cut from its start."""
+    first = max(round((voice[0] - VOICE_MARGIN) * SAMPLE_RATE), 0)
+    return audio[first : round((voice[1] + VOICE_MARGIN) * SAMPLE_RATE)], first / SAMPLE_RATE
 
 
 def warm_up(aligner: Aligner) -> None:

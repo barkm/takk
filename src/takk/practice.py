@@ -28,7 +28,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 
 from isolated_sign_verification.verifier import Attempt, References, Verifier
 from sign_data.landmarks import N_LANDMARKS, SKELETON_EDGES
-from takk.speech import MIN_WORD_SCORE, SAMPLE_RATE, Aligner, decode_audio, split_speech
+from takk.speech import MIN_WORD_SCORE, SAMPLE_RATE, Aligner, decode_audio, split_speech, trim
 from takk.story import write_story
 from takk.suggest import suggest
 from takk.vocabulary import Index, search, spoken_word
@@ -172,7 +172,7 @@ def create_app(
         return {"words": words, "note": note}
 
     @app.post("/api/attempt")
-    async def attempt(landmarks: UploadFile, sign: list[str] = Form(), handedness: str = Form(), width: int = Form(), height: int = Form(), spoken: list[str] = Form([]), audio: UploadFile | None = None, audio_offset: float = Form(0.0), unheard_is_miss: bool = Form(False), cuts: list[float] = Form([])) -> dict:  # fmt: skip
+    async def attempt(landmarks: UploadFile, sign: list[str] = Form(), handedness: str = Form(), width: int = Form(), height: int = Form(), spoken: list[str] = Form([]), audio: UploadFile | None = None, audio_offset: float = Form(0.0), unheard_is_miss: bool = Form(False), cuts: list[float] = Form([]), voice: list[float] = Form([])) -> dict:  # fmt: skip
         """Score an attempt of one sign or a sentence of several (`sign` repeated, in order): its
         landmarks as float32 (n_frames, N_LANDMARKS, 3), NaN where not detected, at the verifier's
         frame rate, from frames of `width` x `height` pixels.
@@ -192,6 +192,9 @@ def create_app(
         keeps the rest of the verdicts, which is what a story needs: it never stops, and a word left
         unsaid is a word left unsigned.
 
+        `voice` is when the page heard the voice, its start and end in seconds of the audio; only the
+        audio around it is aligned, since the rest is the wait before speaking and the silence after.
+
         A learner who signs in silence sends `cuts` instead of `audio`: a start and an end per sign,
         in seconds from the first frame, where the page saw the hands raised and lowered again."""
         if any(s not in index for s in sign):
@@ -199,6 +202,8 @@ def create_app(
         values = decode(await landmarks.read(), handedness, width, height)
         if spoken and len(spoken) != len(sign):
             raise HTTPException(400, "a spoken word per sign, or none at all")
+        if voice and len(voice) != 2:
+            raise HTTPException(400, "a start and an end of the voice")
         if cuts:
             if len(cuts) != 2 * len(sign):
                 raise HTTPException(400, "a start and an end per sign")
@@ -211,6 +216,9 @@ def create_app(
         started = time.perf_counter()
         sound = decode_audio(await audio.read())
         decoded = time.perf_counter()
+        if voice:
+            sound, cut = trim(sound, voice)
+            audio_offset -= cut  # the words are then timed from the trimmed audio's start
         spans = aligner(sound, words)
         print(f"an attempt of {len(values) / verifier.fps:.1f} s, {len(sound) / SAMPLE_RATE:.1f} s of audio: decoded in {decoded - started:.2f} s, aligned in {time.perf_counter() - decoded:.2f} s")  # fmt: skip
         if spans is None:

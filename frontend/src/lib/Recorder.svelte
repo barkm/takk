@@ -6,7 +6,7 @@
   import { useCamera } from "$lib/camera.svelte";
   import { hand } from "$lib/hand";
   import { follow, following, hands } from "$lib/hands";
-  import { hear, listening, type Phase } from "$lib/voice";
+  import { SETTINGS, hear, listening, type Phase } from "$lib/voice";
 
   let {
     sentence,
@@ -28,6 +28,7 @@
   const TICK = 50; // ms between readings of the microphone; each covers the newest 21 ms of sound
   const IDLE = 10; // seconds armed without a word before the recording is thrown away and started over
   const PAD = 0.25; // seconds kept around each silent sign, under the 0.7 s the hands are down between two
+  const KEEP = 1; // seconds of frames sent around the voice, more than the server scores around the words
   const APART = "Sänk händerna mellan tecknen.";
 
   // The camera, the landmarker and the framing feedback belong to the Träna layout, which keeps
@@ -41,6 +42,7 @@
   let ticker: ReturnType<typeof setInterval> | null = null;
   let ears = listening();
   let since = 0; // when the current phase began, to arm afresh and to time the attempt
+  let voice: [number, number] = [0, 0]; // when the voice began and ended, on the frames' clock
 
   // A learner who signs in silence (Om dig) has no words to locate the signs by, so the hands do it
   // instead: each sign is made with the hands raised and ends with them lowered out of the picture,
@@ -84,7 +86,10 @@
   function listen() {
     if (!tracker || phase === "idle") return;
     ears = hear(ears, tracker.level);
+    const now = performance.now() / 1000;
+    if (ears.phase === "speaking" && phase !== "speaking") voice[0] = now - (SETTINGS.loud * TICK) / 1000;
     if (ears.phase !== phase) (phase = ears.phase), (since = Date.now());
+    if (phase === "speaking" || phase === "done") voice[1] = now - (ears.quiet * TICK) / 1000;
     if (phase === "done") return void stop();
     // Waiting armed keeps recording, so a long wait is thrown away rather than sent and aligned.
     if (phase === "armed" && Date.now() - since > IDLE * 1000) return void arm();
@@ -122,13 +127,15 @@
     if (ticker) (clearInterval(ticker), (ticker = null));
     const taken = await tracker.stopRecording();
     if (!taken) return;
-    if (taken.frames.length < 2) return onattempt(null, "Inspelningen är tom.");
-    const cuts = speaks ? undefined : cutsOf(taken.frames[0].time);
+    // Spoken, only the frames around the voice are sent: before it is the wait for the learner to begin.
+    const frames = speaks ? taken.frames.filter(({ time }) => time > voice[0] - KEEP && time < voice[1] + KEEP) : taken.frames;
+    if (frames.length < 2) return onattempt(null, "Inspelningen är tom.");
+    const cuts = speaks ? undefined : cutsOf(frames[0].time);
     if (cuts === null) return onattempt(null, APART);
     scoring = true;
     try {
       const attempt = await scoreAttempt(
-        taken.frames,
+        frames,
         taken.audio,
         taken.audioStart,
         sentence,
@@ -137,6 +144,7 @@
         lexicon.fps,
         unheardIsMiss,
         cuts,
+        speaks ? voice : undefined,
       );
       onattempt(attempt, "");
     } catch {

@@ -104,6 +104,9 @@ export async function fetchForm(entryId: string): Promise<string> {
  * over it, so it needs the microphone, unless the learner signs in silence and `cuts` gives where
  * each sign starts and ends, in seconds from the first frame. Throws when the server refuses it.
  *
+ * `voice` is when the voice was heard, on the frames' clock; the server aligns only the audio
+ * around it.
+ *
  * `unheardIsMiss` scores a word that was not said as a miss of its sign instead of refusing the whole
  * recording, which is what a story does: it never stops, and a word left unsaid is a word unsigned. */
 export async function scoreAttempt(
@@ -116,6 +119,7 @@ export async function scoreAttempt(
   fps: number,
   unheardIsMiss = false,
   cuts?: number[],
+  voice?: [number, number],
 ): Promise<Attempt> {
   const body = new FormData();
   const landmarks = resample(frames, fps);
@@ -124,6 +128,7 @@ export async function scoreAttempt(
   else if (audio) {
     body.append("audio", audio, "audio");
     body.append("audio_offset", String(frames[0].time - audioStart));
+    if (voice) for (const time of voice) body.append("voice", String(time - audioStart));
   }
   for (const each of signs) body.append("sign", each.sign);
   // a word per sign, or none at all: the server then listens for each sign under its own name
