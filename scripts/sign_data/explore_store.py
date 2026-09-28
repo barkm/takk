@@ -1,6 +1,6 @@
 """Exploratory statistics and figures for a landmark store of any dataset.
 
-Run from the repo root: uv run scripts/explore_store.py data/processed/asl_citizen
+Run from the repo root: uv run scripts/sign_data/explore_store.py data/processed/asl_citizen
 Figures go to outputs/eda/<store name>/.
 """
 

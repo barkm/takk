@@ -9,7 +9,7 @@
     <script type="module">
       // Landmark extraction in the browser with the same HolisticLandmarker setup as extraction.py
       // (same MediaPipe version and model, VIDEO mode; the CPU unless ?delegate=GPU), into the common landmark layout.
-      // scripts/compare_browser_extraction.py drives it and compares it with the Python extraction.
+      // scripts/isolated_sign_verification/compare_browser_extraction.py drives it and compares it with the Python extraction.
       import { FilesetResolver, HolisticLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.mjs";
 
       // LANDMARK_SLICES in landmarks.py: [result field, first index, number of points]

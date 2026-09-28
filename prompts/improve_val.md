@@ -8,7 +8,7 @@ Metric and baseline
 - Primary metric: val top-1 at k = 1 (the full val evaluation a run writes, 5 reference draws).
   Guard metric: val EER at k = 1 must not get worse beyond noise. Report k = 5 as well.
 - Baseline: gru_wlasl_twins (val top-1 78.9% / EER 0.0540 at k = 1), trained with
-  uv run scripts/train.py --name <name> --prepared data/prepared/asl_citizen-d314433a
+  uv run scripts/isolated_sign_verification/train.py --name <name> --prepared data/prepared/asl_citizen-d314433a
   data/prepared/mm_wlauslan-d314433a data/prepared/wlasl-d314433a
   --set phonology_input=pooled --set phonology_weight=1
 - A change counts as a gain only if its paired 95% bootstrap CI over val signs excludes 0 against
@@ -45,6 +45,6 @@ Logging and wrap-up
   top-1 and EER at k = 1 and 5 with paired CIs against the current best). Commit code changes as
   atomic commits.
 - At the end, retrain the best configuration with 2 more seeds. Then evaluate it once on the test
-  split (scripts/evaluate_test.py), on Slovo, and on the Swedish recordings
-  (scripts/evaluate_recordings.py with the lexicon glossary sts_lexikon-234f4575). Summarize
+  split (scripts/isolated_sign_verification/evaluate_test.py), on Slovo, and on the Swedish recordings
+  (scripts/isolated_sign_verification/evaluate_recordings.py with the lexicon glossary sts_lexikon-234f4575). Summarize
   the gains against the baseline in ROADMAP.

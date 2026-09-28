@@ -6,7 +6,7 @@ one, the target's most similar sign (by the run's own sign embeddings, the mean 
 phonological near-minimal pairs (signs whose ASL-LEX features differ in at most --max-differences of
 them; the same pairs for every run). 95% bootstrap CIs over the attempted signs, at a fixed threshold.
 
-Run from the repo root: uv run scripts/operating_points.py gru_auslan gru_auslan_phon1
+Run from the repo root: uv run scripts/isolated_sign_verification/operating_points.py gru_auslan gru_auslan_phon1
 """
 
 import argparse

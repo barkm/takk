@@ -1,9 +1,9 @@
 """Train a sign embedding model on prepared data (by default ASL Citizen).
 
 Run from the repo root:
-    uv run scripts/train.py --name gru_best
-    uv run scripts/train.py --name gru_dropout --set dropout=0.5 --set augment.hand_drop=0.2
-    uv run scripts/train.py --name gru_asl_only --prepared data/prepared/asl_citizen-<id>
+    uv run scripts/isolated_sign_verification/train.py --name gru_best
+    uv run scripts/isolated_sign_verification/train.py --name gru_dropout --set dropout=0.5 --set augment.hand_drop=0.2
+    uv run scripts/isolated_sign_verification/train.py --name gru_asl_only --prepared data/prepared/asl_citizen-<id>
 Settings are the fields of TrainConfig (and AugmentConfig as augment.<field>). By default it trains on
 ASL Citizen, MM-WLAuslan and WLASL together.
 Writes outputs/runs/<name>/ (config, prepared data directories, metrics.csv, curves.png, best.pt,

@@ -12,7 +12,7 @@ any entry, but a trial of the lexicon against itself needs a class.
 separate step. Until they exist, a trial may draw its reference from the same model signer as the
 query.
 
-Expects the crawl in data/raw/sts-lexikon (`scripts/download_sts_lexikon.py`, see README).
+Expects the crawl in data/raw/sts-lexikon (`scripts/sign_data/download_sts_lexikon.py`, see README).
 Run from the repo root:
     uv run python -m sign_data.datasets.sts_lexikon             # every entry
     uv run python -m sign_data.datasets.sts_lexikon --signs 20  # a sample
@@ -32,7 +32,7 @@ DATASET = "sts_lexikon"
 RAW_DIR = Path("data/raw/sts-lexikon")
 STORE_DIR = Path("data/processed") / DATASET
 BASE_URL = "https://teckensprakslexikon.su.se"
-ENTRIES_FILE = "entries.jsonl"  # one line per crawled lexicon id, written by scripts/download_sts_lexikon.py
+ENTRIES_FILE = "entries.jsonl"  # one line per crawled lexicon id (scripts/sign_data/download_sts_lexikon.py)
 GROUPS_FILE = "groups.jsonl"  # one line per crawled same-form group
 # A Swedish sign is a different sign from an ASL sign with the same meaning (prepared labels, recordings)
 LABEL_PREFIX = "sts:"

@@ -1,10 +1,11 @@
 """The glossary the app serves, as one directory that carries no training data.
 
-A bundle is what `scripts/build_serving.py` writes from a published verifier and a prepared
+A bundle is what `scripts/takk/build_serving.py` writes from a published verifier and a prepared
 glossary, and the only thing the API reads at startup: the verifier (`verifier/`) and the glossary's
 signs as its references (`references.parquet`), both in the verifier's own formats, and beside them
 what the app itself knows of the glossary - the addresses its clips are watched at and the words a
-learner can search for. About 40 MB, against the 641 MB of prepared frames the glossary is built from.
+learner can search for. About 40 MB, against the 641 MB of prepared frames the glossary is built
+from.
 
 Reading one needs the verifier API (`isolated_sign_verification.verifier`) and nothing else of the
 training package, which is what lets the deployed image leave the data packages out.

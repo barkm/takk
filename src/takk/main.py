@@ -5,7 +5,7 @@ The landmarks are extracted in the browser and only they are sent (see practice.
 counts as the sign when the verifier's score for it reaches the verifier's threshold, which
 `--threshold` overrides.
 
-Everything served comes from one bundle (`bundle.py`, built by `scripts/build_serving.py`): the
+Everything served comes from one bundle (`bundle.py`, built by `scripts/takk/build_serving.py`): the
 verifier, the glossary's signs as its references, the addresses of their clips and the words that
 lead to them.
 No dataset, no prepared store and no training run is read here, which is what lets this run in a
@@ -51,7 +51,7 @@ def story_writer(model: str) -> anthropic.Anthropic | None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--bundle", type=Path, default=BUNDLE_DIR, help="the serving bundle to serve (scripts/build_serving.py)")  # fmt: skip
+    parser.add_argument("--bundle", type=Path, default=BUNDLE_DIR, help="the serving bundle to serve (scripts/takk/build_serving.py)")  # fmt: skip
     parser.add_argument("--threshold", type=float, help="lowest score that counts as the sign; the bundle's by default")
     parser.add_argument("--device", default="cpu", help="the GPU is shared; one attempt at a time is cheap on the CPU")
     parser.add_argument("--story-model", default=STORY_MODEL, help="the model that writes the story a learner signs their way through")

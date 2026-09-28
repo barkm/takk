@@ -11,12 +11,12 @@ widths below the shoulders, right on the default `max_hand_y`. The rest is not p
 a webcam user's rest is out of frame, so the lexicon is prepared with `max_hand_y` 0.9, which hides
 it in most clips.
 
-The set serves as the glossary for self-recorded Swedish clips (`scripts/evaluate_recordings.py`).
-Evaluating the lexicon against itself is blocked until it has signer ids: `evaluation.py` draws
-every reference from a signer other than the query's, so with one null signer for all clips no
-lexicon clip gets a reference.
+The set serves as the glossary for self-recorded Swedish clips
+(`scripts/isolated_sign_verification/evaluate_recordings.py`). Evaluating the lexicon against itself
+is blocked until it has signer ids: `evaluation.py` draws every reference from a signer other than
+the query's, so with one null signer for all clips no lexicon clip gets a reference.
 
-Run from the repo root: uv run scripts/prepare_sts_lexikon.py
+Run from the repo root: uv run scripts/isolated_sign_verification/prepare_sts_lexikon.py
 Writes data/prepared/<store name>-<preparation config id>/.
 """
 

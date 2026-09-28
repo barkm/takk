@@ -7,11 +7,11 @@ by frame at the store's frame rate, and writes the result as a second store with
 With --delegate GPU it runs on SwiftShader, which checks the GPU code path's numbers, not its speed. It then prints, per landmark group, how often the two extractions disagree on whether the
 group was detected, and how far apart the landmarks are where both detected it, in shoulder widths.
 
-Run from the repo root: uv run scripts/compare_browser_extraction.py
-    uv run scripts/compare_browser_extraction.py --delegate GPU --clips 6 --out data/processed/recordings_browser_gpu
+Run from the repo root: uv run scripts/isolated_sign_verification/compare_browser_extraction.py
+    uv run scripts/isolated_sign_verification/compare_browser_extraction.py --delegate GPU --clips 6 --out data/processed/recordings_browser_gpu
 Then prepare and evaluate the browser store like the Python one, to compare what the model sees:
-    uv run scripts/prepare_recordings.py --store data/processed/recordings_browser
-    uv run scripts/evaluate_recordings.py --run <run> --prepared data/prepared/recordings_browser-<id> ...
+    uv run scripts/isolated_sign_verification/prepare_recordings.py --store data/processed/recordings_browser
+    uv run scripts/isolated_sign_verification/evaluate_recordings.py --run <run> --prepared data/prepared/recordings_browser-<id> ...
 """
 
 import argparse

@@ -7,7 +7,7 @@ sign embeddings compared (same sign) as well as those of different signs. Auslan
 held-out ASL sign is about as similar as the same sign are candidate lookalikes; the Auslan signs that
 match a held-out sign by label (left out of training) show whether the label match finds lookalikes.
 
-Run from the repo root: uv run scripts/find_lookalikes.py --run gru_hide_low
+Run from the repo root: uv run scripts/isolated_sign_verification/find_lookalikes.py --run gru_hide_low
 Writes outputs/results/auslan_lookalikes.csv (each Auslan sign with its nearest held-out ASL sign).
 """
 

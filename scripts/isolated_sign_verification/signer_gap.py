@@ -6,7 +6,7 @@ held-out signers (unseen by the held-out run) and by the other signers (seen by 
 held-out run's drop on the other signers only reflects its smaller training set; the signer gap is
 its additional drop on the held-out signers.
 
-Run from the repo root: uv run scripts/signer_gap.py --held-out gru_holdout7 --full gru_reg_aug
+Run from the repo root: uv run scripts/isolated_sign_verification/signer_gap.py --held-out gru_holdout7 --full gru_reg_aug
 """
 
 import argparse

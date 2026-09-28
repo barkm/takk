@@ -8,7 +8,7 @@ form under several glosses) are written to twins.csv, so that training doesn't p
 the evaluation doesn't count them as different signs. A training sign that is a twin of a held-out
 sign is left out, since its clips show the held-out sign's form.
 
-Run from the repo root: uv run scripts/prepare_asl_citizen.py
+Run from the repo root: uv run scripts/isolated_sign_verification/prepare_asl_citizen.py
 Writes data/prepared/<store name>-<preparation config id>/.
 """
 

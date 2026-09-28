@@ -1,15 +1,15 @@
 """Build the bundle the practice app serves, from a published verifier and a prepared glossary.
 
-The model comes as a verifier (`scripts/export_verifier.py`): by default the one pinned in
-models/verifier.txt, downloaded from $ISV_VERIFIER_URI once and kept in outputs/verifiers/, or with
-`--verifier` a saved one on disk, to try an export before it is published. The bundle holds that
-verifier, the glossary's signs as its references, the lexicon addresses their clips are watched at
-and the words that lead to them, and nothing of the data pipeline. The API reads only this, so an
-image can be built without a dataset, a prepared store or a training run. Embedding the glossary's
-clips is most of the time it takes, and shows its progress.
+The model comes as a verifier (`scripts/isolated_sign_verification/export_verifier.py`): by default
+the one pinned in models/verifier.txt, downloaded from $ISV_VERIFIER_URI once and kept in
+outputs/verifiers/, or with `--verifier` a saved one on disk, to try an export before it is
+published. The bundle holds that verifier, the glossary's signs as its references, the lexicon
+addresses their clips are watched at and the words that lead to them, and nothing of the data
+pipeline. The API reads only this, so an image can be built without a dataset, a prepared store or a
+training run. Embedding the glossary's clips is most of the time it takes, and shows its progress.
 
 Run from the repo root:
-    ISV_VERIFIER_URI=gs://<bucket>/<prefix> uv run scripts/build_serving.py --glossary data/prepared/sts_lexikon-234f4575
+    ISV_VERIFIER_URI=gs://<bucket>/<prefix> uv run scripts/takk/build_serving.py --glossary data/prepared/sts_lexikon-234f4575
 Writes outputs/serving/<run>-<glossary>/.
 """
 
@@ -24,7 +24,7 @@ from sign_data.datasets.sts_lexikon import video_urls
 from takk import bundle
 from takk.vocabulary import search_index, sign_forms
 
-VERIFIER_PIN = Path("models/verifier.txt")  # the verifier the apps build from, see scripts/export_verifier.py
+VERIFIER_PIN = Path("models/verifier.txt")  # the verifier the apps build from, see export_verifier.py
 VERIFIERS_DIR = Path("outputs/verifiers")
 SERVING_DIR = Path("outputs/serving")
 PIN_FILE = Path("deploy/bundle.txt")  # which bundle the deployed API serves; committed, unlike the bucket

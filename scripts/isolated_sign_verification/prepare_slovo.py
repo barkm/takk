@@ -7,7 +7,7 @@ left out, since the task is validating one sign: labels without a single-word gl
 (`--max_median_seconds`), which catches phrases that the label doesn't reveal. Sign labels get the
 prefix "rsl:", since a Russian sign is a different sign from an ASL sign with the same meaning.
 
-Run from the repo root: uv run scripts/prepare_slovo.py
+Run from the repo root: uv run scripts/isolated_sign_verification/prepare_slovo.py
 Writes data/prepared/<store name>-<preparation config id>/.
 """
 

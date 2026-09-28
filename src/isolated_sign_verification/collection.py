@@ -1,11 +1,11 @@
 """Collecting self-recorded clips of known signs, for evaluation in the deployment setting.
 
-A small web app (`scripts/collect.py`) shows a signer reference clips of a sign from a glossary, any
-prepared evaluation set (ASL Citizen's test split, Svenskt teckenspråkslexikon, ...), and records
-their attempt with their webcam. The recordings are a held-out evaluation set of the setting the
-system is meant for: a user copying a dictionary clip, filmed with their own camera in their own
-room. No score is ever shown, so the signer cannot retake until the model happens to agree, which
-would bias the set toward clips the model already likes.
+A small web app (`scripts/isolated_sign_verification/collect.py`) shows a signer reference clips of
+a sign from a glossary, any prepared evaluation set (ASL Citizen's test split, Svenskt
+teckenspråkslexikon, ...), and records their attempt with their webcam. The recordings are a
+held-out evaluation set of the setting the system is meant for: a user copying a dictionary clip,
+filmed with their own camera in their own room. No score is ever shown, so the signer cannot retake
+until the model happens to agree, which would bias the set toward clips the model already likes.
 
 Recordings are stored as a raw dataset, ready for `recordings.py`:
 

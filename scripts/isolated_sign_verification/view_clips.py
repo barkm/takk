@@ -1,10 +1,10 @@
 """Render landmark clips side by side as an animated GIF, for inspecting the data.
 
 By default picks clips from different signers. Examples, from the repo root:
-    uv run scripts/view_clips.py --sign HELLO            # 4 clips of HELLO by different signers
-    uv run scripts/view_clips.py --signer P12 -n 2       # 2 random clips by one signer
-    uv run scripts/view_clips.py --clip-id 15890366051589533-APPLE
-    uv run scripts/view_clips.py --prepared data/prepared/asl_citizen-b7bd1b06 --sign HELLO
+    uv run scripts/isolated_sign_verification/view_clips.py --sign HELLO            # 4 clips of HELLO by different signers
+    uv run scripts/isolated_sign_verification/view_clips.py --signer P12 -n 2       # 2 random clips by one signer
+    uv run scripts/isolated_sign_verification/view_clips.py --clip-id 15890366051589533-APPLE
+    uv run scripts/isolated_sign_verification/view_clips.py --prepared data/prepared/asl_citizen-b7bd1b06 --sign HELLO
 With --prepared, prepared clips (bottom row) are shown below the store clips they come from (top row);
 --augment adds a row with a random training augmentation of each prepared clip.
 """

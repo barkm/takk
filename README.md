@@ -57,7 +57,7 @@ For a quick look at the data, extract only all videos of a few randomly chosen s
 
 ```sh
 uv run python -m sign_data.datasets.asl_citizen --signs 10
-uv run scripts/view_clips.py --store data/processed/asl_citizen_10_signs --sign <SIGN>
+uv run scripts/isolated_sign_verification/view_clips.py --store data/processed/asl_citizen_10_signs --sign <SIGN>
 ```
 
 ### Downloading MM-WLAuslan
@@ -128,12 +128,12 @@ uv run python -m sign_data.datasets.wlasl --signs 20
 
 [Svenskt teckenspråkslexikon](https://teckensprakslexikon.su.se/) (CC BY-NC-SA 4.0) is the Swedish
 Sign Language dictionary and the goal vocabulary, so it is an evaluation set only and never trained
-on. It has no bulk download and no registration either: `scripts/download_sts_lexikon.py` crawls the
+on. It has no bulk download and no registration either: `scripts/sign_data/download_sts_lexikon.py` crawls the
 entry pages, the same-form groups they link to, and the sign videos, into `data/raw/sts-lexikon/`.
 Each phase skips what an earlier run already has, so an interrupted crawl resumes when run again:
 
 ```sh
-uv run scripts/download_sts_lexikon.py
+uv run scripts/sign_data/download_sts_lexikon.py
 ```
 
 The crawl of 2026-09-18 took about 50 minutes and found 21,692 entries with a sign video (16.2 GB).
@@ -168,8 +168,8 @@ curl -L -o data/raw/asl-lex/signdataKEY.csv https://osf.io/download/ygq4v/  # co
 Training uses prepared clips (`src/isolated_sign_verification/preparation.py`): hands resting low below the shoulders treated as undetected (out of view, as in close webcam framings), broken clips excluded, trimmed to the frames with hands, corrected for the video's aspect ratio, short hand gaps interpolated, normalized by the shoulders, mirrored so the dominant hand is always in the `right_hand` slot, reduced to the hands, upper body and face reference points, and resampled to 30 fps (at most 128 frames). ASL Citizen clips also get their sign's ASL-LEX phonological features. This takes a few seconds and writes `data/prepared/asl_citizen-<config id>/` (~1 GB):
 
 ```sh
-uv run scripts/prepare_asl_citizen.py
-uv run scripts/view_clips.py --prepared data/prepared/asl_citizen-<config id> --sign APPLE --augment
+uv run scripts/isolated_sign_verification/prepare_asl_citizen.py
+uv run scripts/isolated_sign_verification/view_clips.py --prepared data/prepared/asl_citizen-<config id> --sign APPLE --augment
 ```
 
 The viewer shows the prepared clips below the original ones, and with `--augment` a random training augmentation below them. `src/isolated_sign_verification/dataset.py` serves the prepared clips of a split as a PyTorch dataset.
@@ -177,13 +177,13 @@ The viewer shows the prepared clips below the original ones, and with `--augment
 MM-WLAuslan is prepared as extra training data: all its clips are training clips, except the signs whose gloss or English keyword matches an ASL Citizen val or test sign, which could look like held-out signs. Its sign labels get the prefix `auslan:`. It writes `data/prepared/mm_wlauslan-<config id>/`:
 
 ```sh
-uv run scripts/prepare_mm_wlauslan.py
+uv run scripts/isolated_sign_verification/prepare_mm_wlauslan.py
 ```
 
 Slovo is prepared as an evaluation set instead: every clip is a `test` clip, and its sign labels get the prefix `rsl:`. Classes whose label is a phrase rather than a single sign are left out, since the task is validating one sign, as are classes whose median clip takes longer than `--max_median_seconds` (3 s) to sign, which catches phrases the label doesn't reveal. It writes `data/prepared/slovo-<config id>/` (935 signs, 18,563 clips, 0.4 GB):
 
 ```sh
-uv run scripts/prepare_slovo.py
+uv run scripts/isolated_sign_verification/prepare_slovo.py
 ```
 
 Svenskt teckenspråkslexikon is prepared the same way, as an evaluation set whose labels get the
@@ -193,7 +193,7 @@ in frame) is hidden with `max_hand_y` 0.9 instead of the default 1.0. It writes
 recording Swedish signs (see Recording your own clips):
 
 ```sh
-uv run scripts/prepare_sts_lexikon.py
+uv run scripts/isolated_sign_verification/prepare_sts_lexikon.py
 ```
 
 ### Downloading Kaggle ASL Signs
@@ -218,13 +218,13 @@ uv run python -m sign_data.datasets.kaggle_asl_signs
 Baselines without training (a hand-crafted embedding and dynamic time warping) are evaluated with:
 
 ```sh
-uv run scripts/evaluate_baselines.py  # results in outputs/results/
+uv run scripts/isolated_sign_verification/evaluate_baselines.py  # results in outputs/results/
 ```
 
 The learned baseline, a bidirectional GRU embedding model trained with an ArcFace loss over the training signs (`src/isolated_sign_verification/models.py`, `training.py`), is trained with:
 
 ```sh
-uv run scripts/train.py --name gru_best
+uv run scripts/isolated_sign_verification/train.py --name gru_best
 ```
 
 The defaults are the best configuration of the validation search: hidden size 384, 20 epochs, validation and checkpoints of an exponential moving average of the weights, and training on ASL Citizen, MM-WLAuslan and WLASL together. Linear heads on the pooled encoder output also predict each sign's ASL-LEX phonological features (handshape, location, movement, ...) as an auxiliary loss with weight 1 (`phonology_weight`; `phonology_input=embedding` puts the heads on the embedding instead); clips without features (e.g. MM-WLAuslan) only get the ArcFace loss. Settings are changed with `--set key=value`.
@@ -254,14 +254,14 @@ Evaluation (`src/isolated_sign_verification/evaluation.py`) works on a similarit
 Model decisions are made on validation; the test split is for final numbers and important comparisons. To evaluate runs on it (the gains are relative to the first run, paired over signs):
 
 ```sh
-uv run scripts/evaluate_test.py gru_hide_low gru_auslan  # writes outputs/runs/<run>/test_*.parquet
+uv run scripts/isolated_sign_verification/evaluate_test.py gru_hide_low gru_auslan  # writes outputs/runs/<run>/test_*.parquet
 ```
 
 The same script evaluates the Slovo cross-language set, which measures k-shot verification of Russian
 signs the model was never trained on, with references by other signers as everywhere else:
 
 ```sh
-uv run scripts/evaluate_test.py gru_auslan_phonpool1 --prepared data/prepared/slovo-<config id> --name slovo
+uv run scripts/isolated_sign_verification/evaluate_test.py gru_auslan_phonpool1 --prepared data/prepared/slovo-<config id> --name slovo
 ```
 
 A query is scored against every sign of the evaluated set, so top-1 and top-5 drop as the set holds
@@ -270,35 +270,35 @@ of a given number of signs instead (5 draws, metrics averaged), which matches Sl
 test split's 269:
 
 ```sh
-uv run scripts/evaluate_test.py gru_auslan_phonpool1 --prepared data/prepared/slovo-<config id> --name slovo --signs 269
+uv run scripts/isolated_sign_verification/evaluate_test.py gru_auslan_phonpool1 --prepared data/prepared/slovo-<config id> --name slovo --signs 269
 ```
 
 Threshold selection and sensitivity analysis come later.
 
 ### Exploring the embedding space
 
-`scripts/explore_embeddings.py` serves a web page in the spirit of the [ASL-LEX visualization](https://asl-lex.org/visualization/),
+`scripts/isolated_sign_verification/explore_embeddings.py` serves a web page in the spirit of the [ASL-LEX visualization](https://asl-lex.org/visualization/),
 built from a run's embeddings instead of hand-coded phonology: each sign is a point (the mean of its
 clips' embeddings), laid out by t-SNE and grouped into clusters. Points can be colored by cluster,
 split or ASL-LEX feature, and clicking one shows clips of the sign, its nearest signs and its cluster:
 
 ```sh
-uv run scripts/explore_embeddings.py --run gru_auslan_phonpool1   # then open http://localhost:8001
-uv run scripts/explore_embeddings.py --prepared data/prepared/asl_citizen-<config id> data/prepared/slovo-<config id>
+uv run scripts/isolated_sign_verification/explore_embeddings.py --run gru_auslan_phonpool1   # then open http://localhost:8001
+uv run scripts/isolated_sign_verification/explore_embeddings.py --prepared data/prepared/asl_citizen-<config id> data/prepared/slovo-<config id>
 ```
 
 ## Recording your own clips
 
 The deployment setting is a user copying a dictionary clip in front of their own camera, which no
-public dataset covers. `scripts/collect.py` serves a small web app that collects exactly that: it
+public dataset covers. `scripts/isolated_sign_verification/collect.py` serves a small web app that collects exactly that: it
 shows reference clips of a sign from a glossary, any prepared evaluation set, by a few different
 signers, and records the signer's attempt with their webcam. The default glossary is the held-out
 test signs of ASL Citizen; the prepared Svenskt teckenspråkslexikon gives Swedish signs, in a
 language the model has never seen:
 
 ```sh
-uv run scripts/collect.py --signs 25 --takes 3   # then open http://localhost:8000
-uv run scripts/collect.py --glossary data/prepared/sts_lexikon-<config id> --signs 25 --takes 3
+uv run scripts/isolated_sign_verification/collect.py --signs 25 --takes 3   # then open http://localhost:8000
+uv run scripts/isolated_sign_verification/collect.py --glossary data/prepared/sts_lexikon-<config id> --signs 25 --takes 3
 ```
 
 The browser only gives access to the camera on `localhost` or over https, so forward the port when
@@ -324,7 +324,7 @@ only:
 
 ```sh
 uv run python -m isolated_sign_verification.recordings  # -> data/processed/recordings/
-uv run scripts/prepare_recordings.py                          # -> data/prepared/recordings-<config id>/
+uv run scripts/isolated_sign_verification/prepare_recordings.py                          # -> data/prepared/recordings-<config id>/
 ```
 
 They are then evaluated in the setting they were collected for: the glossary as the references, the
@@ -336,8 +336,8 @@ product; and *uncopied*, without them, which asks whether the model knows the si
 one performance that was copied (a lexicon entry with a single clip has no uncopied trial):
 
 ```sh
-uv run scripts/evaluate_recordings.py --run gru_auslan_phonpool1
-uv run scripts/evaluate_recordings.py --name recordings_sts --glossary data/prepared/sts_lexikon-<config id>
+uv run scripts/isolated_sign_verification/evaluate_recordings.py --run gru_auslan_phonpool1
+uv run scripts/isolated_sign_verification/evaluate_recordings.py --name recordings_sts --glossary data/prepared/sts_lexikon-<config id>
 ```
 
 It also prints each recording with the rank of its own sign among the whole glossary and the signs it
@@ -358,11 +358,11 @@ the closest sign of the whole lexicon:
 
 ```sh
 export ISV_VERIFIER_URI=gs://<bucket>/verifiers   # where the published verifiers are kept
-uv run scripts/build_serving.py   # once per model: the bundle the API serves, in outputs/serving/
+uv run scripts/takk/build_serving.py   # once per model: the bundle the API serves, in outputs/serving/
 uv run takk                       # the API; the page is the SvelteKit app below
 ```
 
-The model reaches the app as a published verifier: `scripts/export_verifier.py` makes one from a
+The model reaches the app as a published verifier: `scripts/isolated_sign_verification/export_verifier.py` makes one from a
 training run and the threshold, and `--publish` uploads it and pins it in `models/verifier.txt`,
 which is what `build_serving.py` builds from (`--verifier <dir>` takes an unpublished export
 instead). Everything the API serves comes from the bundle (`takk/bundle.py`): the verifier, the lexicon's signs as its references, the addresses of their lexicon clips and the words
@@ -381,9 +381,9 @@ deploying a new model is an upload and a pin for each: the verifier, then the bu
 
 ```sh
 export ISV_VERIFIER_URI=gs://<bucket>/verifiers TAKK_BUNDLE_URI=gs://<bucket>/serving  # not committed
-uv run scripts/export_verifier.py --run <run> --publish   # uploads <run>-<prep id>-<sha>.tar.gz
+uv run scripts/isolated_sign_verification/export_verifier.py --run <run> --publish   # uploads <run>-<prep id>-<sha>.tar.gz
 git commit models/verifier.txt -m "Verifier from <run>"   # hands the model to the apps
-uv run scripts/build_serving.py --publish                 # uploads <run>-<glossary>-<sha>.tar.gz
+uv run scripts/takk/build_serving.py --publish                 # uploads <run>-<glossary>-<sha>.tar.gz
 git commit deploy/bundle.txt -m "Serve <run>" && git push   # this is what deploys it
 ```
 
@@ -405,7 +405,7 @@ instead, so the story can go on.
 The page shows the rate the landmarks are tracked at. Below 20 fps it skips so many camera frames
 that the answer is less reliable, since the model was trained on every frame. As with
 the collection app, forward the port when the machine is remote.
-`scripts/compare_browser_extraction.py` compares the browser's landmarks with the Python extraction
+`scripts/isolated_sign_verification/compare_browser_extraction.py` compares the browser's landmarks with the Python extraction
 on the recordings.
 
 The app is three sections behind a menu (`/`): **Sök**, where the learner searches the lexicon and
@@ -523,7 +523,7 @@ The category listing pages are not used: they miss categories an entry page name
 sample of 120 entries) and hide the deeper levels of the path.
 
 ```sh
-uv run scripts/download_sts_lexikon.py   # the entry pages carry the categories
+uv run scripts/sign_data/download_sts_lexikon.py   # the entry pages carry the categories
 ```
 
 ## Future

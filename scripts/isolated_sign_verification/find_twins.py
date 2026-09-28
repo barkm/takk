@@ -13,7 +13,7 @@ Three independent signals, merged into one ranked list for inspection:
   The trained model has pushed its training signs apart, twins included, so it is blind to pairs of
   two training signs; the hand-crafted embedding has no such bias but is weaker.
 
-Run from the repo root: uv run scripts/find_twins.py --run gru_auslan_phonpool1
+Run from the repo root: uv run scripts/isolated_sign_verification/find_twins.py --run gru_auslan_phonpool1
 Writes outputs/results/asl_citizen_twin_candidates.csv and outputs/asl_citizen_twins/pairs.md (links
 to 4 clips of each sign, by signers who signed both where possible).
 """
@@ -162,7 +162,7 @@ def main() -> None:
     lines = [
         "# ASL Citizen twin candidates",
         "",
-        f"Written by `scripts/find_twins.py --run {args.run}`. Ranked by the number of signals, then the model's gap.",
+        f"Written by `scripts/isolated_sign_verification/find_twins.py --run {args.run}`. Ranked by the number of signals, then the model's gap.",
         "Gap: the two signs' similarity minus the higher of their similarities with themselves (by signer halves; >= 0: as alike as one sign).",
         "Clip links are by signer; signers who signed both signs come first.",
         "",

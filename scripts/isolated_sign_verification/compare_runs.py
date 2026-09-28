@@ -1,6 +1,6 @@
 """Compare training runs: their settings that differ from the defaults and their validation metrics.
 
-Run from the repo root: uv run scripts/compare_runs.py
+Run from the repo root: uv run scripts/isolated_sign_verification/compare_runs.py
 """
 
 import dataclasses

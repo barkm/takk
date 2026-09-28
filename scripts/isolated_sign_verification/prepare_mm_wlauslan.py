@@ -5,7 +5,7 @@ English keyword matches an ASL Citizen val or test sign by label, which could lo
 signs; they are prepared too, with a null split. Sign labels get the prefix "auslan:", since an
 Auslan sign is a different sign from an ASL sign with the same English label.
 
-Run from the repo root: uv run scripts/prepare_mm_wlauslan.py
+Run from the repo root: uv run scripts/isolated_sign_verification/prepare_mm_wlauslan.py
 Writes data/prepared/<store name>-<preparation config id>/.
 """
 

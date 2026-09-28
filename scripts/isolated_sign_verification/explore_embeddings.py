@@ -7,8 +7,8 @@ ASL-LEX phonological feature, to see whether the embedding groups by handshape, 
 Clicking a sign shows clips of it, its nearest signs by cosine similarity and the rest of its cluster.
 
 Run from the repo root, then open http://localhost:8001 (forward the port when the machine is remote):
-    uv run scripts/explore_embeddings.py --run gru_auslan_phonpool1
-    uv run scripts/explore_embeddings.py --prepared data/prepared/asl_citizen-d314433a data/prepared/slovo-d314433a
+    uv run scripts/isolated_sign_verification/explore_embeddings.py --run gru_auslan_phonpool1
+    uv run scripts/isolated_sign_verification/explore_embeddings.py --prepared data/prepared/asl_citizen-d314433a data/prepared/slovo-d314433a
 Embedding every clip runs the model on the GPU for a few seconds; the layout takes about half a minute.
 """
 

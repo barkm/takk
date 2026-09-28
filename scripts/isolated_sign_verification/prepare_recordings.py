@@ -6,7 +6,7 @@ glosses and the signs are drawn from the held-out test signs, so they are unseen
 of the evaluation. They stay in the landmark store, for an evaluation that can use them as
 negatives.
 
-Run from the repo root: uv run scripts/prepare_recordings.py
+Run from the repo root: uv run scripts/isolated_sign_verification/prepare_recordings.py
 Writes data/prepared/<store name>-<preparation config id>/.
 """
 

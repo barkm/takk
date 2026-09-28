@@ -9,8 +9,8 @@ name is pinned in models/verifier.txt: committing that line is what hands the mo
 which build from the pinned verifier (see `verifier.fetch`).
 
 Run from the repo root:
-    uv run scripts/export_verifier.py --run iv14_h384_e20
-    ISV_VERIFIER_URI=gs://<bucket>/<prefix> uv run scripts/export_verifier.py --run iv14_h384_e20 --publish
+    uv run scripts/isolated_sign_verification/export_verifier.py --run iv14_h384_e20
+    ISV_VERIFIER_URI=gs://<bucket>/<prefix> uv run scripts/isolated_sign_verification/export_verifier.py --run iv14_h384_e20 --publish
 Writes outputs/verifiers/<run>-<preparation config id>/.
 """
 

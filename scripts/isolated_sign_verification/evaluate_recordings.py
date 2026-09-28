@@ -22,8 +22,8 @@ Signs the glossary knows to be one sign form (its twins.csv) are not scored agai
 among the whole glossary (twins included) and the signs it scored highest, which is what few clips can
 actually say something about.
 
-Run from the repo root: uv run scripts/evaluate_recordings.py --run gru_auslan_phonpool1
-    uv run scripts/evaluate_recordings.py --name recordings_sts --glossary data/prepared/sts_lexikon-<id>
+Run from the repo root: uv run scripts/isolated_sign_verification/evaluate_recordings.py --run gru_auslan_phonpool1
+    uv run scripts/isolated_sign_verification/evaluate_recordings.py --name recordings_sts --glossary data/prepared/sts_lexikon-<id>
 Writes outputs/runs/<run>/<name>_{summary,per_sign,per_clip}.parquet, with a `setting` column.
 """
 

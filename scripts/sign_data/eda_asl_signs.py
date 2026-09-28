@@ -1,7 +1,7 @@
 """Exploratory data analysis of the Kaggle ASL Signs dataset.
 
 Computes per-clip statistics (cached in data/interim/) and writes figures to outputs/eda/.
-Run from the repo root: uv run scripts/eda_asl_signs.py
+Run from the repo root: uv run scripts/sign_data/eda_asl_signs.py
 """
 
 import multiprocessing

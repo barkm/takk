@@ -8,7 +8,7 @@ here - a configuration that needs it has already lost the latency it was being c
 Costs real money: one full sweep is 4 configurations x 10 word lists = 40 requests.
 
 Run from the repo root, with ANTHROPIC_API_KEY set:
-    uv run scripts/compare_story_models.py
+    uv run scripts/takk/compare_story_models.py
 """
 
 import argparse

@@ -12,7 +12,7 @@ Citizen clips do.
 The pairs of sign labels that share a source video (`wlasl.twin_pairs`, one sign form under several
 words) are written to twins.csv, so that training doesn't push them apart.
 
-Run from the repo root: uv run scripts/prepare_wlasl.py
+Run from the repo root: uv run scripts/isolated_sign_verification/prepare_wlasl.py
 Writes data/prepared/<store name>-<preparation config id>/.
 """
 

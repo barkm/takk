@@ -9,7 +9,7 @@ With `--prepared` and `--name` it evaluates another prepared set of held-out sig
 e.g. the Slovo cross-language evaluation set. `--signs` then matches its vocabulary size to another
 set's, so that the identification metrics can be compared.
 
-Run from the repo root: uv run scripts/evaluate_test.py gru_hide_low gru_auslan
+Run from the repo root: uv run scripts/isolated_sign_verification/evaluate_test.py gru_hide_low gru_auslan
 Writes outputs/runs/<run>/<name>_summary.parquet and <name>_per_sign.parquet.
 """
 

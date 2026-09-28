@@ -14,8 +14,8 @@ The lexicon is CC BY-NC-SA 4.0 and its robots.txt allows crawling; keep `--worke
 The site is updated continuously, so note the crawl date when reporting results.
 
 Run from the repo root:
-    uv run scripts/download_sts_lexikon.py
-    uv run scripts/download_sts_lexikon.py --max_id 2000  # a small sample of the lexicon
+    uv run scripts/sign_data/download_sts_lexikon.py
+    uv run scripts/sign_data/download_sts_lexikon.py --max_id 2000  # a small sample of the lexicon
 """
 
 import argparse

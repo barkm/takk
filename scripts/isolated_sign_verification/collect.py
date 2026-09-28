@@ -6,8 +6,8 @@ usable at all.
 
 Run from the repo root, then open http://localhost:8000 (the browser only gives access to the
 camera on localhost or over https, so forward the port when the machine is remote):
-    uv run scripts/collect.py --signs 25 --takes 3                                                # ASL Citizen
-    uv run scripts/collect.py --glossary data/prepared/sts_lexikon-<id> --signs 25 --takes 3   # Swedish
+    uv run scripts/isolated_sign_verification/collect.py --signs 25 --takes 3                                                # ASL Citizen
+    uv run scripts/isolated_sign_verification/collect.py --glossary data/prepared/sts_lexikon-<id> --signs 25 --takes 3   # Swedish
 The sign list is fixed by --glossary, --signs and --seed, so several signers can record the same signs.
 Recordings of every glossary are written to data/raw/recordings/, ready for
 `uv run python -m isolated_sign_verification.recordings`.

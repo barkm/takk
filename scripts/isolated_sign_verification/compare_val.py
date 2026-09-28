@@ -10,7 +10,7 @@ as `a*n` adds test-time augmentation: its embedding is the mean over the clip an
 copies of it (TTA below). Every run is scored with the first run's twins, so all of them are scored
 on the same trials.
 
-Run from the repo root: uv run scripts/compare_val.py gru_wlasl_twins gru_new
+Run from the repo root: uv run scripts/isolated_sign_verification/compare_val.py gru_wlasl_twins gru_new
 """
 
 import argparse

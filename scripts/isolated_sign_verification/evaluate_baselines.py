@@ -1,6 +1,6 @@
 """Evaluate the baselines without training on a split of the prepared ASL Citizen data.
 
-Run from the repo root: uv run scripts/evaluate_baselines.py [--split val]
+Run from the repo root: uv run scripts/isolated_sign_verification/evaluate_baselines.py [--split val]
 Results (summary and per-sign metrics) are written to outputs/results/.
 """
 
