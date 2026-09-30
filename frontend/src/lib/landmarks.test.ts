@@ -1,6 +1,7 @@
+import { HolisticLandmarker } from "@mediapipe/tasks-vision";
 import { describe, expect, it } from "vitest";
 
-import { N_LANDMARKS, Smoother, layout, resample, type Frame } from "$lib/landmarks";
+import { HAND, LIPS, N_LANDMARKS, Smoother, UPPER_BODY, layout, resample, type Frame } from "$lib/landmarks";
 
 const point = (value: number) => ({ x: value, y: value, z: value });
 
@@ -54,5 +55,15 @@ describe("Smoother", () => {
     smoother.smooth(frame(0.2), 0);
     expect(smoother.smooth(frame(NaN), 1 / 30)[0]).toBeNaN();
     expect(smoother.smooth(frame(0.9), 2 / 30)[0]).toBeCloseTo(0.9);
+  });
+});
+
+describe("the lines drawn", () => {
+  const pairs = (connections: { start: number; end: number }[]) => connections.map((c) => [c.start, c.end]);
+  it("are MediaPipe's own connections", () => {
+    expect(HAND).toEqual(pairs(HolisticLandmarker.HAND_CONNECTIONS));
+    expect(LIPS).toEqual(pairs(HolisticLandmarker.FACE_LANDMARKS_LIPS));
+    const arms = pairs(HolisticLandmarker.POSE_CONNECTIONS).filter(([a, b]) => a >= 11 && b <= 22);
+    expect(UPPER_BODY).toEqual(arms);
   });
 });

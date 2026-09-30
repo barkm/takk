@@ -2,7 +2,7 @@
 // mode on the GPU (the CPU if the GPU is unavailable), with the same version and model as
 // extraction.py, in a worker of its own (`landmarker.worker.ts`). Only the landmarks of a recording
 // are sent to the server, never the video.
-import { Smoother, draw, type Edges, type Frame } from "$lib/landmarks";
+import { Smoother, draw, type Frame } from "$lib/landmarks";
 
 /** The landmarker, loaded once for the whole visit and shared by the pages' cameras, so moving
  * between pages neither loads it again nor has two loading at once. */
@@ -26,10 +26,6 @@ export class Tracker {
   /** Whether the microphone is open. A sentence of several signs is split by the words the signer
    * speaks, so without it only one sign at a time can be practised. */
   readonly hasAudio: boolean;
-
-  /** Which landmarks are joined by a line, from the lexicon. The camera starts before the lexicon
-   * has arrived, so this is set once it has rather than passed in. */
-  edges: Edges = {};
 
   private recorded: Frame[] | null = null;
   private done = false; // set by `stop`, which the frame loop reads to let itself end
@@ -114,7 +110,7 @@ export class Tracker {
       if (this.done) return;
       this.latest = landmarks;
       const size = { width: this.video.videoWidth, height: this.video.videoHeight };
-      draw(this.canvas, size, this.smoother.smooth(landmarks, last / 1000), this.edges);
+      draw(this.canvas, size, this.smoother.smooth(landmarks, last / 1000));
       if (this.recorded) this.recorded.push({ time: time / 1000, landmarks });
     };
     this.landmarker.addEventListener("message", this.listener);

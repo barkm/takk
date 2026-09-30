@@ -27,7 +27,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
 from isolated_sign_verification.verifier import Attempt, References, Verifier
-from sign_data.landmarks import N_LANDMARKS, SKELETON_EDGES
+from sign_data.landmarks import N_LANDMARKS
 from takk.speech import MIN_WORD_SCORE, SAMPLE_RATE, Aligner, decode_audio, split_speech, trim
 from takk.story import write_story
 from takk.suggest import suggest
@@ -91,7 +91,6 @@ def create_app(
             "signs": [{"sign": sign, "references": clips.get(sign, [])} for sign in names],
             "fps": verifier.fps,
             "max_seconds": verifier.max_seconds,
-            "edges": {group: edges.tolist() for group, edges in SKELETON_EDGES.items()},  # to draw the tracked landmarks
         }
 
     @app.get("/api/search")

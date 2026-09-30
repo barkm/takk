@@ -40,7 +40,7 @@ export function resample(frames: Frame[], fps: number): Float32Array {
 
 /** Draw one frame's landmarks, at `size` pixels: over the camera image while tracking, and on its own
  * when a recording is replayed, since nothing of the camera's picture is kept. */
-export function draw(canvas: HTMLCanvasElement, size: { width: number; height: number }, landmarks: Float32Array, edges: Edges): void {
+export function draw(canvas: HTMLCanvasElement, size: { width: number; height: number }, landmarks: Float32Array): void {
   (canvas.width = size.width), (canvas.height = size.height);
   const context = canvas.getContext("2d");
   if (!context) return;
@@ -48,7 +48,7 @@ export function draw(canvas: HTMLCanvasElement, size: { width: number; height: n
   // set in the pixels of the view: the same weight whichever box the picture sits in.
   const scale = Math.max(canvas.clientWidth / canvas.width, canvas.clientHeight / canvas.height) || 0.25;
   (context.lineCap = "round"), (context.lineJoin = "round");
-  for (const [group, pairs] of Object.entries(edges)) {
+  for (const [group, pairs] of Object.entries(EDGES)) {
     const style = STYLES[group] ?? STYLES.upper_body;
     (context.strokeStyle = style.color), (context.lineWidth = style.width / scale);
     context.beginPath();
@@ -94,7 +94,21 @@ export class Smoother {
   }
 }
 
-export type Edges = Record<string, [number, number][]>;
+// The landmarks joined by a line, in each part's own indices: MediaPipe's HAND_CONNECTIONS, of its
+// POSE_CONNECTIONS only the shoulders, arms and the hand points on it, and FACE_LANDMARKS_LIPS.
+// Written out rather than imported, since importing them brings all of MediaPipe into the page and
+// not only into the tracking worker; landmarks.test.ts checks them against MediaPipe's.
+export const HAND = [[0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [5, 6], [6, 7], [7, 8], [5, 9], [9, 10], [10, 11], [11, 12], [9, 13], [13, 14], [14, 15], [15, 16], [13, 17], [0, 17], [17, 18], [18, 19], [19, 20]];
+export const UPPER_BODY = [[11, 12], [11, 13], [13, 15], [15, 17], [15, 19], [15, 21], [17, 19], [12, 14], [14, 16], [16, 18], [16, 20], [16, 22], [18, 20]];
+export const LIPS = [[61, 146], [146, 91], [91, 181], [181, 84], [84, 17], [17, 314], [314, 405], [405, 321], [321, 375], [375, 291], [61, 185], [185, 40], [40, 39], [39, 37], [37, 0], [0, 267], [267, 269], [269, 270], [270, 409], [409, 291], [78, 95], [95, 88], [88, 178], [178, 87], [87, 14], [14, 317], [317, 402], [402, 318], [318, 324], [324, 308], [78, 191], [191, 80], [80, 81], [81, 82], [82, 13], [13, 312], [312, 311], [311, 310], [310, 415], [415, 308]];
+
+const moved = (pairs: number[][], first: number) => pairs.map(([a, b]) => [first + a, first + b] as [number, number]);
+const EDGES = {
+  left_hand: moved(HAND, 468),
+  right_hand: moved(HAND, 522),
+  upper_body: moved(UPPER_BODY, 489),
+  lips: moved(LIPS, 0),
+};
 
 // The hands are what a sign is made with, so they are drawn bright and heavy and the rest recedes.
 // No red: red means a miss and a recording running. Widths in pixels of the view.

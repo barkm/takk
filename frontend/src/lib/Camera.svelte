@@ -37,12 +37,6 @@
     };
   });
 
-  // The lines between the landmarks come from the lexicon, which arrives after the camera has
-  // started, so the tracker is given them when they are there.
-  $effect(() => {
-    if (camera.tracker) camera.tracker.edges = camera.lexicon?.edges ?? {};
-  });
-
   // How the signer sits, read off the frame being tracked right now, so the framing is fixed before a
   // recording is spent on it. It says nothing about the hands, which come and go with every sign.
   $effect(() => {
@@ -62,10 +56,8 @@
   <canvas bind:this={canvas}></canvas>
   {#if camera.tracker}
     {#if camera.fit}<p class="fit">{camera.fit}</p>{/if}
-    <!-- The loader runs until the picture and its skeleton are both there: the tracker is ready
-         before its first frame, and the lines between the landmarks come with the lexicon, which
-         may arrive after both. -->
-    {#if !live || !camera.lexicon}<div class="edge"><Loading label="Startar kameran" /></div>{/if}
+    <!-- the loader runs until the picture is there: the tracker is ready before its first frame -->
+    {#if !live}<div class="edge"><Loading label="Startar kameran" /></div>{/if}
   {:else}
     <!-- the space is reserved above, so only what fills it changes when the camera is ready; while
          it starts the loader runs along its bottom edge, and only a camera that failed says why -->

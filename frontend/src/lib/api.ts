@@ -1,6 +1,6 @@
 // The API is a separate deployment, so its origin is configurable. Empty in development and in
 // `npm run preview`, where Vite proxies /api to the local server.
-import { resample, type Edges, type Frame } from "$lib/landmarks";
+import { resample, type Frame } from "$lib/landmarks";
 
 const BASE = import.meta.env.VITE_API_BASE ?? "";
 
@@ -18,7 +18,6 @@ export type Lexicon = {
   fps: number;
   /** The longest recording accepted per sign of the sentence. */
   maxSeconds: number;
-  edges: Edges;
 };
 
 /** One sign of an attempt, as the server judged it. */
@@ -41,7 +40,7 @@ export type Attempt = {
 export async function fetchLexicon(): Promise<Lexicon> {
   const response = await fetch(api("/api/signs"));
   const data = await response.json();
-  return { signs: data.signs, fps: data.fps, maxSeconds: data.max_seconds, edges: data.edges };
+  return { signs: data.signs, fps: data.fps, maxSeconds: data.max_seconds };
 }
 
 /** A word to learn: the sign that scores it, and the word to show when the sign is not named for
