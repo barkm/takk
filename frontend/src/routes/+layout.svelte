@@ -40,6 +40,7 @@
   // this context.
   const camera = new Camera();
   provideCamera(camera);
+  let down = $state(false); // the lexicon could not be loaded
 
   $effect(() => {
     fetchLexicon()
@@ -48,7 +49,7 @@
       })
       // The page is deployed apart from the API and reaches a learner who cannot start it, so this
       // says what is wrong and nothing about how to fix it.
-      .catch(() => (camera.fit = "Servern svarar inte just nu."));
+      .catch(() => (down = true));
   });
 
   // The path carries the sections' Swedish names percent-encoded, which no link here is written in.
@@ -80,7 +81,10 @@
       {/each}
     </nav>
   {/if}
-  <main>{#if ready}{@render children()}{/if}</main>
+  <main>
+    {#if down}<p class="dim down">Servern svarar inte just nu.</p>{/if}
+    {#if ready}{@render children()}{/if}
+  </main>
 </div>
 
 <style>
@@ -128,6 +132,10 @@
 
   main {
     padding: 40px 24px 64px;
+  }
+
+  .down {
+    margin: 0 0 16px;
   }
 
   /* On a phone the bar moves along the bottom, where a thumb reaches it. */
