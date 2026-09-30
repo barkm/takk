@@ -58,7 +58,7 @@ LANDMARK_GROUPS = {
 }
 
 # MediaPipe HandLandmarksConnections.HAND_CONNECTIONS
-_HAND_EDGES = [(0, 1), (0, 17), (1, 2), (1, 5), (2, 3), (3, 4), (5, 6), (5, 9), (6, 7), (7, 8), (9, 10), (9, 13), (10, 11), (11, 12), (13, 14), (13, 17), (14, 15), (15, 16), (17, 18), (18, 19), (19, 20)]  # fmt: skip
+_HAND_EDGES = [(0, 1), (0, 5), (0, 17), (1, 2), (2, 3), (3, 4), (5, 6), (5, 9), (6, 7), (7, 8), (9, 10), (9, 13), (10, 11), (11, 12), (13, 14), (13, 17), (14, 15), (15, 16), (17, 18), (18, 19), (19, 20)]  # fmt: skip
 # MediaPipe PoseLandmarksConnections.POSE_LANDMARKS between shoulders, arms and pose hand points
 _UPPER_BODY_EDGES = [(11, 12), (11, 13), (12, 14), (13, 15), (14, 16), (15, 17), (15, 19), (15, 21), (16, 18), (16, 20), (16, 22), (17, 19), (18, 20)]  # fmt: skip
 # MediaPipe FaceLandmarksConnections.FACE_LANDMARKS_LIPS
