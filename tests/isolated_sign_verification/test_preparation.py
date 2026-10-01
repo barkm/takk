@@ -17,6 +17,7 @@ from isolated_sign_verification.preparation import (
     mirror,
     prepare_clip,
     prepare_store,
+    resample_times,
 )
 
 CONFIG = PrepConfig()
@@ -92,6 +93,13 @@ def test_resamples_to_target_frame_rate_and_caps_length():
     assert len(prepare_clip(make_landmarks(120, range(120)), 60, 1.0, CONFIG)) == 60
     assert len(prepare_clip(make_landmarks(290, range(290)), 30, 1.0, CONFIG)) == CONFIG.max_frames
 
+
+
+def test_resamples_tracked_times_to_a_constant_frame_rate():
+    x = np.array([[0.0], [1.0], [np.nan], [3.0]], dtype=np.float32)
+    times = np.array([0.0, 0.1, 0.4, 0.4])  # uneven, with a repeated time
+    np.testing.assert_allclose(resample_times(x, times, 10)[:, 0], [0.0, 1.0, np.nan, np.nan, 3.0])
+    np.testing.assert_allclose(resample_times(x[:2], np.array([0.0, 0.2]), 10)[:, 0], [0.0, 0.5, 1.0])
 
 def test_mirror_swaps_hands_and_flips_x():
     frames = prepare_clip(make_landmarks(60, range(20, 40)), 30, 1.0, CONFIG)

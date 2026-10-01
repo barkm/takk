@@ -36,7 +36,7 @@ from tqdm import tqdm
 from isolated_sign_verification.checks import Check, check
 from isolated_sign_verification.dataset import SignDataset, clip_item, collate
 from isolated_sign_verification.models import build_model
-from isolated_sign_verification.preparation import ONE_HANDED, PrepConfig, PreparedData, hand_presence, hide_low_hands, mirror, prepare_clip
+from isolated_sign_verification.preparation import ONE_HANDED, PrepConfig, PreparedData, hand_presence, hide_low_hands, mirror, prepare_clip, resample_times
 from sign_data.landmarks import VideoInfo
 
 MODEL_FILE = "model.pt"
@@ -160,6 +160,11 @@ class Verifier:
     def max_seconds(self) -> float:
         """The longest recording of one sign that is looked at in full."""
         return self.config.max_frames / self.config.fps
+
+    def at_frame_rate(self, landmarks: np.ndarray, times: np.ndarray) -> np.ndarray:
+        """Landmarks tracked at `times` (seconds, non-decreasing), as an `Attempt` holds them: at
+        every 1 / `fps` seconds from the first frame, interpolated between the tracked ones."""
+        return resample_times(landmarks, times, self.fps)
 
     @classmethod
     def from_run(cls, run_dir: Path, prepared: Path, threshold: float, device: str = "cpu") -> "Verifier":

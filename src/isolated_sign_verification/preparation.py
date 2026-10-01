@@ -125,6 +125,16 @@ def resample(x: np.ndarray, n: int) -> np.ndarray:
     return np.where(w == 0, x[i], (1 - w) * x[i] + w * x[j]).astype(np.float32)
 
 
+def resample_times(x: np.ndarray, times: np.ndarray, fps: float) -> np.ndarray:
+    """Linearly resample frames `x` tracked at `times` (seconds, non-decreasing) to every 1 / `fps`
+    seconds from the first; values next to NaN become NaN, as in `resample`."""
+    t = times[0] + np.arange(int((times[-1] - times[0]) * fps) + 1) / fps
+    i = np.searchsorted(times, t, side="right") - 1  # the latest frame at or before each step
+    j = np.minimum(i + 1, len(x) - 1)
+    w = np.divide(t - times[i], times[j] - times[i], out=np.zeros_like(t), where=j > i).reshape(-1, *[1] * (x.ndim - 1))
+    return np.where(w == 0, x[i], (1 - w) * x[i] + w * x[j]).astype(np.float32)
+
+
 def prepare_clip(landmarks: np.ndarray, fps: float | None, aspect: float | None, config: PrepConfig) -> np.ndarray | None:
     """Prepare one clip of store landmarks, shape (n_frames, N_LANDMARKS, 3), without mirroring.
 
