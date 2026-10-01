@@ -1,7 +1,7 @@
 import { HolisticLandmarker } from "@mediapipe/tasks-vision";
 import { describe, expect, it } from "vitest";
 
-import { HAND, LIPS, N_LANDMARKS, Smoother, UPPER_BODY, layout, resample, type Frame } from "$lib/landmarks";
+import { HAND, LIPS, N_LANDMARKS, Smoother, UPPER_BODY, layout } from "$lib/landmarks";
 
 const point = (value: number) => ({ x: value, y: value, z: value });
 
@@ -19,22 +19,6 @@ describe("layout", () => {
     expect(frame[468 * 3]).toBeCloseTo(0.2); // the left hand at 468
     expect(frame[489 * 3]).toBeCloseTo(0.3); // the pose at 489
     expect(frame[522 * 3]).toBeNaN(); // the right hand at 522
-  });
-});
-
-describe("resample", () => {
-  const frames = (times: number[]): Frame[] =>
-    times.map((time, i) => ({ time, landmarks: new Float32Array(N_LANDMARKS * 3).fill(i) }));
-
-  it("takes the latest tracked frame at every step of the preparation's frame rate", () => {
-    const landmarks = resample(frames([0, 0.5, 1.0]), 2); // 2 fps over 1 s: steps at 0, 0.5, 1.0
-    expect(landmarks.length).toBe(3 * N_LANDMARKS * 3);
-    expect([0, 1, 2].map((i) => landmarks[i * N_LANDMARKS * 3])).toEqual([0, 1, 2]);
-  });
-
-  it("repeats the latest frame when tracking is slower than the frame rate", () => {
-    const landmarks = resample(frames([0, 1.0]), 2); // one tracked frame per second, resampled to 2 fps
-    expect([0, 1, 2].map((i) => landmarks[i * N_LANDMARKS * 3])).toEqual([0, 0, 1]);
   });
 });
 

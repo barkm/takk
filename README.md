@@ -493,7 +493,7 @@ cd frontend && npm install       # once
 npm run dev                      # then open http://localhost:5173 (forward this port, not 8002)
 npm run build && npm run preview  # the built site, http://localhost:4173
 npm run check                    # svelte-check
-npm test                         # the landmark layout, the resampling and the Leitner boxes
+npm test                         # the landmark layout, the smoothing and the Leitner boxes
 ```
 
 ### The lexicon's words and themes

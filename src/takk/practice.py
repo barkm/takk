@@ -89,7 +89,6 @@ def create_app(
         plays them whether or not this server is up."""
         return {
             "signs": [{"sign": sign, "references": clips.get(sign, [])} for sign in names],
-            "fps": verifier.fps,
             "max_seconds": verifier.max_seconds,
         }
 
@@ -127,12 +126,16 @@ def create_app(
         besides the clip, so it is fetched per sign rather than sent with the whole glossary."""
         return {"form": (forms or {}).get(entry_id, "")}
 
-    def decode(landmarks: bytes, handedness: str, width: int, height: int) -> np.ndarray:
-        """An uploaded recording's landmarks, shape (n_frames, N_LANDMARKS, 3)."""
-        values = np.frombuffer(landmarks, dtype=np.float32)
-        if handedness not in ("left", "right") or width <= 0 or height <= 0 or values.size % (N_LANDMARKS * 3):
+    def decode(landmarks: bytes, times: bytes, handedness: str, width: int, height: int) -> np.ndarray:
+        """An uploaded recording's landmarks at the verifier's frame rate, shape (n_frames,
+        N_LANDMARKS, 3), from the tracked frames and their times."""
+        values, at = np.frombuffer(landmarks, dtype=np.float32), np.frombuffer(times, dtype=np.float32)
+        if handedness not in ("left", "right") or width <= 0 or height <= 0 or not at.size or values.size != at.size * N_LANDMARKS * 3:  # fmt: skip
             raise HTTPException(400, "malformed recording")
-        return values.reshape(-1, N_LANDMARKS, 3)
+        # at least a tracked frame a second, so a few frames can't claim hours to resample
+        if not np.isfinite(at).all() or not (np.diff(at) >= 0).all() or at[-1] - at[0] > at.size:
+            raise HTTPException(400, "malformed recording")
+        return verifier.at_frame_rate(values.reshape(-1, N_LANDMARKS, 3), at.astype(np.float64))
 
     def scores_of(values: np.ndarray, handedness: str, width: int, height: int) -> tuple[np.ndarray | None, str]:
         """The recording of one sign scored against every sign of the glossary, or None when it cannot
@@ -154,7 +157,7 @@ def create_app(
         }  # fmt: skip
 
     @app.post("/api/search")
-    async def search_by_sign(landmarks: UploadFile, handedness: str = Form(), width: int = Form(), height: int = Form()) -> dict:  # fmt: skip
+    async def search_by_sign(landmarks: UploadFile, times: UploadFile, handedness: str = Form(), width: int = Form(), height: int = Form()) -> dict:  # fmt: skip
         """The lexicon signs closest to a recording of one sign, the nearest first: a learner who
         knows a sign but not its Swedish word finds it by signing it.
 
@@ -162,7 +165,7 @@ def create_app(
         threshold; the recording is checked and prepared exactly as an attempt is, and the ranking is
         the one `judge` already computes over the whole glossary.
         """
-        scores, note = scores_of(decode(await landmarks.read(), handedness, width, height), handedness, width, height)
+        scores, note = scores_of(decode(await landmarks.read(), await times.read(), handedness, width, height), handedness, width, height)
         if scores is None:
             return {"words": [], "note": note}
         closest = np.argsort(scores)[::-1][:CLOSEST]
@@ -171,10 +174,10 @@ def create_app(
         return {"words": words, "note": note}
 
     @app.post("/api/attempt")
-    async def attempt(landmarks: UploadFile, sign: list[str] = Form(), handedness: str = Form(), width: int = Form(), height: int = Form(), spoken: list[str] = Form([]), audio: UploadFile | None = None, audio_offset: float = Form(0.0), unheard_is_miss: bool = Form(False), cuts: list[float] = Form([]), voice: list[float] = Form([])) -> dict:  # fmt: skip
+    async def attempt(landmarks: UploadFile, times: UploadFile, sign: list[str] = Form(), handedness: str = Form(), width: int = Form(), height: int = Form(), spoken: list[str] = Form([]), audio: UploadFile | None = None, audio_offset: float = Form(0.0), unheard_is_miss: bool = Form(False), cuts: list[float] = Form([]), voice: list[float] = Form([])) -> dict:  # fmt: skip
         """Score an attempt of one sign or a sentence of several (`sign` repeated, in order): its
-        landmarks as float32 (n_frames, N_LANDMARKS, 3), NaN where not detected, at the verifier's
-        frame rate, from frames of `width` x `height` pixels.
+        landmarks as float32 (n_frames, N_LANDMARKS, 3), NaN where not detected, tracked at `times`
+        (float32 seconds, non-decreasing), from frames of `width` x `height` pixels.
 
         A spoken attempt sends its `audio` (recorded `audio_offset` seconds before the first frame):
         the signs are located by their words timed in it, and scored only when every word was heard.
@@ -198,7 +201,7 @@ def create_app(
         in seconds from the first frame, where the page saw the hands raised and lowered again."""
         if any(s not in index for s in sign):
             raise HTTPException(404, "unknown sign")
-        values = decode(await landmarks.read(), handedness, width, height)
+        values = decode(await landmarks.read(), await times.read(), handedness, width, height)
         if spoken and len(spoken) != len(sign):
             raise HTTPException(400, "a spoken word per sign, or none at all")
         if voice and len(voice) != 2:

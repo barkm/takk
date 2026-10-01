@@ -127,7 +127,7 @@
     if (!taken || taken.frames.length < 2) return void (note = "Inspelningen är tom.");
     searching = true;
     try {
-      const found = await searchBySign(taken.frames, hand() ?? "right", camera.video!, lexicon!.fps);
+      const found = await searchBySign(taken.frames, hand() ?? "right", camera.video!);
       (results = found.words), (note = found.note), (query = ""), (chip = "");
     } catch {
       note = "Sökningen misslyckades. Teckna igen.";

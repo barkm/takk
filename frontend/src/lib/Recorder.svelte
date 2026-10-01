@@ -141,7 +141,6 @@
         sentence,
         hand() ?? "right", // read when the recording is sent, since it can be changed under Tecken
         camera.video!,
-        lexicon.fps,
         unheardIsMiss,
         cuts,
         speaks ? voice : undefined,

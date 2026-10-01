@@ -1,6 +1,6 @@
 // The API is a separate deployment, so its origin is configurable. Empty in development and in
 // `npm run preview`, where Vite proxies /api to the local server.
-import { resample, type Frame } from "$lib/landmarks";
+import { N_LANDMARKS, type Frame } from "$lib/landmarks";
 
 const BASE = import.meta.env.VITE_API_BASE ?? "";
 
@@ -14,8 +14,6 @@ export type Sign = { sign: string; references: string[]; spoken?: string };
 
 export type Lexicon = {
   signs: Sign[];
-  /** The frame rate a recording is resampled to before it is sent. */
-  fps: number;
   /** The longest recording accepted per sign of the sentence. */
   maxSeconds: number;
 };
@@ -37,10 +35,20 @@ export type Attempt = {
   note: string;
 };
 
+/** The tracked frames as they are, each with its time in seconds from the first: the server brings
+ * them to the model's frame rate. */
+function appendFrames(body: FormData, frames: Frame[]): void {
+  const landmarks = new Float32Array(frames.length * N_LANDMARKS * 3);
+  frames.forEach((frame, i) => landmarks.set(frame.landmarks, i * N_LANDMARKS * 3));
+  const times = Float32Array.from(frames, (frame) => frame.time - frames[0].time);
+  body.append("landmarks", new Blob([landmarks]), "landmarks.f32");
+  body.append("times", new Blob([times]), "times.f32");
+}
+
 export async function fetchLexicon(): Promise<Lexicon> {
   const response = await fetch(api("/api/signs"));
   const data = await response.json();
-  return { signs: data.signs, fps: data.fps, maxSeconds: data.max_seconds };
+  return { signs: data.signs, maxSeconds: data.max_seconds };
 }
 
 /** A word to learn: the sign that scores it, and the word to show when the sign is not named for
@@ -115,14 +123,12 @@ export async function scoreAttempt(
   signs: Sign[],
   handedness: "left" | "right",
   video: HTMLVideoElement,
-  fps: number,
   unheardIsMiss = false,
   cuts?: number[],
   voice?: [number, number],
 ): Promise<Attempt> {
   const body = new FormData();
-  const landmarks = resample(frames, fps);
-  body.append("landmarks", new Blob([landmarks.buffer as ArrayBuffer]), "landmarks.f32");
+  appendFrames(body, frames);
   if (cuts) for (const cut of cuts) body.append("cuts", String(cut));
   else if (audio) {
     body.append("audio", audio, "audio");
@@ -151,11 +157,9 @@ export async function searchBySign(
   frames: Frame[],
   handedness: "left" | "right",
   video: HTMLVideoElement,
-  fps: number,
 ): Promise<{ words: SignWord[]; note: string }> {
   const body = new FormData();
-  const landmarks = resample(frames, fps);
-  body.append("landmarks", new Blob([landmarks.buffer as ArrayBuffer]), "landmarks.f32");
+  appendFrames(body, frames);
   body.append("handedness", handedness);
   body.append("width", String(video.videoWidth));
   body.append("height", String(video.videoHeight));

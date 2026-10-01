@@ -25,19 +25,6 @@ export function layout(result: HolisticLandmarkerResult): Float32Array {
   return landmarks;
 }
 
-/** The landmarks at the preparation's constant frame rate: at every 1 / fps seconds the latest tracked
- * frame, as the collection app's transcode picks video frames. */
-export function resample(frames: Frame[], fps: number): Float32Array {
-  const start = frames[0].time;
-  const n = Math.floor((frames.at(-1)!.time - start) * fps) + 1;
-  const landmarks = new Float32Array(n * N_LANDMARKS * 3);
-  for (let i = 0, j = 0; i < n; i++) {
-    while (j + 1 < frames.length && frames[j + 1].time <= start + i / fps) j++;
-    landmarks.set(frames[j].landmarks, i * N_LANDMARKS * 3);
-  }
-  return landmarks;
-}
-
 /** Draw one frame's landmarks, at `size` pixels: over the camera image while tracking, and on its own
  * when a recording is replayed, since nothing of the camera's picture is kept. */
 export function draw(canvas: HTMLCanvasElement, size: { width: number; height: number }, landmarks: Float32Array): void {
